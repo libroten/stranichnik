@@ -5,15 +5,16 @@ namespace Stranichnik.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private BookmarkTreeItemViewModel? _selectedItem;
-
     public ObservableCollection<BookmarkTreeItemViewModel> Items { get; } = new()
     {
         new BookmarkFolderViewModel("Работа", new BookmarkTreeItemViewModel[]
         {
             new BookmarkViewModel("Avalonia Docs", "https://docs.avaloniaui.net/"),
             new BookmarkViewModel("NuGet", "https://www.nuget.org/")
-        }),
+        }, isExpanded: true),
+        new BookmarkViewModel(
+            "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
+            "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing"),
         new BookmarkFolderViewModel("Разработка", new BookmarkTreeItemViewModel[]
         {
             new BookmarkFolderViewModel("C#", new BookmarkTreeItemViewModel[]
@@ -22,49 +23,60 @@ public partial class MainWindowViewModel : ViewModelBase
                 new BookmarkViewModel("C# Guide", "https://learn.microsoft.com/dotnet/csharp/")
             }),
             new BookmarkViewModel("GitHub", "https://github.com/")
-        }),
+        }, isExpanded: true),
+        CreateDeepTestFolder(),
         new BookmarkViewModel("OpenAI", "https://openai.com/")
     };
 
-    public void SelectItem(BookmarkTreeItemViewModel item)
+    private static BookmarkFolderViewModel CreateDeepTestFolder()
     {
-        if (_selectedItem == item)
-            return;
+        var currentItems = new BookmarkTreeItemViewModel[]
+        {
+            new BookmarkViewModel(
+                "Закладка на двадцатом уровне вложенности",
+                "https://example.com/deep/nested/bookmark"),
+            new BookmarkViewModel(
+                "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
+                "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing")
+        };
 
-        if (_selectedItem is not null)
-            _selectedItem.IsSelected = false;
+        for (var level = 20; level >= 1; level--)
+        {
+            currentItems = new BookmarkTreeItemViewModel[]
+            {
+                new BookmarkFolderViewModel(
+                    $"Уровень вложенности {level}",
+                    currentItems,
+                    isExpanded: level == 1)
+            };
+        }
 
-        _selectedItem = item;
-        _selectedItem.IsSelected = true;
+        return (BookmarkFolderViewModel)currentItems[0];
     }
 }
 
 public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
 {
-    private bool _isSelected;
-
     protected BookmarkTreeItemViewModel(string title)
     {
         Title = title;
     }
 
     public string Title { get; }
-
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set => SetProperty(ref _isSelected, value);
-    }
 }
 
 public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
 {
-    private bool _isExpanded = true;
+    private bool _isExpanded;
 
-    public BookmarkFolderViewModel(string title, IEnumerable<BookmarkTreeItemViewModel>? children = null)
+    public BookmarkFolderViewModel(
+        string title,
+        IEnumerable<BookmarkTreeItemViewModel>? children = null,
+        bool isExpanded = false)
         : base(title)
     {
         Children = children is null ? new() : new(children);
+        _isExpanded = isExpanded;
     }
 
     public ObservableCollection<BookmarkTreeItemViewModel> Children { get; }
