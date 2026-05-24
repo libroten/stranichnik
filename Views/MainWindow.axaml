@@ -7,7 +7,11 @@
         x:Class="Stranichnik.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Stranichnik">
+        Title="Stranichnik"
+        Width="900"
+        Height="640"
+        MinWidth="720"
+        MinHeight="480">
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
@@ -15,6 +19,121 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    <Window.DataTemplates>
+        <DataTemplate DataType="vm:BookmarkFolderViewModel">
+            <StackPanel>
+                <Border Classes="treeRow folderRow"
+                        Classes.selected="{Binding IsSelected}"
+                        Padding="8,6"
+                        PointerPressed="OnFolderRowPointerPressed">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8">
+                        <TextBlock Text="{Binding ExpansionGlyph}"
+                                   Classes="folderGlyph"
+                                   Width="14"
+                                   FontSize="15"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}"
+                                   Classes="folderTitle"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Border>
+
+                <ItemsControl ItemsSource="{Binding Children}"
+                              IsVisible="{Binding IsExpanded}"
+                              Margin="28,0,0,0"/>
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vm:BookmarkViewModel">
+            <Border Classes="treeRow bookmarkRow"
+                    Classes.selected="{Binding IsSelected}"
+                    Padding="8,6"
+                    PointerPressed="OnBookmarkRowPointerPressed">
+                <StackPanel Spacing="2">
+                    <TextBlock Text="{Binding Title}"
+                               Classes="bookmarkTitle"
+                               FontSize="14"/>
+                    <TextBlock Text="{Binding Url}"
+                               Classes="bookmarkUrl"
+                               FontSize="12"/>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Grid RowDefinitions="Auto,*" Background="#F7F8FA">
+        <Border Padding="20,16"
+                Background="#FFFFFF"
+                BorderBrush="#E2E5EA"
+                BorderThickness="0,0,0,1">
+            <StackPanel Spacing="4">
+                <TextBlock Text="Страничник"
+                           FontSize="22"
+                           FontWeight="SemiBold"/>
+                <TextBlock Text="Менеджер закладок"
+                           Foreground="#667085"/>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="1"
+                Margin="20"
+                Padding="12"
+                Background="#FFFFFF"
+                BorderBrush="#E2E5EA"
+                BorderThickness="1"
+                CornerRadius="8">
+            <ScrollViewer Background="#FFFFFF">
+                <ScrollViewer.Styles>
+                    <Style Selector="Border.treeRow">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="CornerRadius" Value="4"/>
+                    </Style>
+                    <Style Selector="Border.treeRow:pointerover">
+                        <Setter Property="Background" Value="#EEF6FF"/>
+                    </Style>
+                    <Style Selector="Border.treeRow:pressed">
+                        <Setter Property="Background" Value="#DCEEFF"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected">
+                        <Setter Property="Background" Value="#47A9F5"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected:pointerover">
+                        <Setter Property="Background" Value="#3FA3EE"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected:pressed">
+                        <Setter Property="Background" Value="#3597E1"/>
+                    </Style>
+                    <Style Selector="TextBlock.folderGlyph">
+                        <Setter Property="Foreground" Value="#526071"/>
+                    </Style>
+                    <Style Selector="TextBlock.folderTitle">
+                        <Setter Property="Foreground" Value="#1F2937"/>
+                    </Style>
+                    <Style Selector="TextBlock.bookmarkTitle">
+                        <Setter Property="Foreground" Value="#1F2937"/>
+                    </Style>
+                    <Style Selector="TextBlock.bookmarkUrl">
+                        <Setter Property="Foreground" Value="#667085"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected TextBlock.folderGlyph">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected TextBlock.folderTitle">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected TextBlock.bookmarkTitle">
+                        <Setter Property="Foreground" Value="#FFFFFF"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.selected TextBlock.bookmarkUrl">
+                        <Setter Property="Foreground" Value="#EAF4FF"/>
+                    </Style>
+                </ScrollViewer.Styles>
+
+                <ItemsControl ItemsSource="{Binding Items}"/>
+            </ScrollViewer>
+        </Border>
+    </Grid>
 
 </Window>
