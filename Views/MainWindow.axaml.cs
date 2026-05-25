@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Stranichnik.ViewModels;
 
@@ -12,20 +13,78 @@ public partial class MainWindow : Window
 {
     private const double TreeIndentWidth = 28;
     private const double OverflowRowWidth = 560;
+    private const double DragStartThreshold = 6;
+    private const double DragAutoScrollEdgeSize = 56;
+    private const double DragAutoScrollMaxStep = 18;
+    private static readonly TimeSpan FolderAutoExpandDelay = TimeSpan.FromMilliseconds(700);
+    private static readonly TimeSpan DragAutoScrollInterval = TimeSpan.FromMilliseconds(16);
+
     private bool _isMiddleButtonPanning;
     private Point _panStartPoint;
     private Vector _panStartOffset;
+    private BookmarkTreeItemViewModel? _pressedTreeItem;
+    private BookmarkTreeItemViewModel? _pressedFolderClickCandidate;
+    private BookmarkTreeItemViewModel? _draggedTreeItem;
+    private BookmarkFolderViewModel? _activeDropTargetFolder;
+    private BookmarkFolderViewModel? _pendingAutoExpandFolder;
+    private Point _treeDragStartPoint;
+    private Point _lastTreeDragPoint;
+    private double _dragStartWindowY;
+    private bool _isTreeDragging;
+    private bool _hasActiveDropTarget;
+    private bool _hasDragStartWindowY;
+    private readonly DispatcherTimer _folderAutoExpandTimer;
+    private readonly DispatcherTimer _dragAutoScrollTimer;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        _folderAutoExpandTimer = new DispatcherTimer
+        {
+            Interval = FolderAutoExpandDelay
+        };
+        _folderAutoExpandTimer.Tick += OnFolderAutoExpandTimerTick;
+
+        _dragAutoScrollTimer = new DispatcherTimer
+        {
+            Interval = DragAutoScrollInterval
+        };
+        _dragAutoScrollTimer.Tick += OnDragAutoScrollTimerTick;
+
         DataContextChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         BookmarksScrollViewer.SizeChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         UpdateBookmarksHorizontalOverflow();
     }
 
+    private void OnTreeRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            return;
+
+        if (e.Source is Control source && HasButtonAncestor(source))
+            return;
+
+        if (sender is not Control { DataContext: BookmarkTreeItemViewModel item })
+            return;
+
+        _pressedTreeItem = item;
+        _pressedFolderClickCandidate = item is BookmarkFolderViewModel ? item : null;
+        _treeDragStartPoint = e.GetCurrentPoint(BookmarksScrollViewer).Position;
+        _lastTreeDragPoint = _treeDragStartPoint;
+
+        e.Pointer.Capture(BookmarksScrollViewer);
+        e.Handled = true;
+    }
+
     private void OnFolderRowPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        if (_isTreeDragging)
+        {
+            CompleteTreeDrag(e);
+            return;
+        }
+
         if (e.InitialPressMouseButton != MouseButton.Left)
             return;
 
@@ -35,9 +94,26 @@ public partial class MainWindow : Window
         if (sender is not Control { DataContext: BookmarkFolderViewModel folder })
             return;
 
-        folder.IsExpanded = !folder.IsExpanded;
-        UpdateBookmarksHorizontalOverflow();
+        if (_pressedTreeItem != folder)
+        {
+            _pressedTreeItem = null;
+            return;
+        }
+
+        ToggleFolderExpansionPreservingPosition(folder);
+        ClearTreePressState(e);
         e.Handled = true;
+    }
+
+    private void OnTreeRowPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_isTreeDragging)
+        {
+            CompleteTreeDrag(e);
+            return;
+        }
+
+        ClearTreePressState(e);
     }
 
     private void OnBookmarksScrollPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -57,7 +133,10 @@ public partial class MainWindow : Window
     private void OnBookmarksScrollPointerMoved(object? sender, PointerEventArgs e)
     {
         if (!_isMiddleButtonPanning)
+        {
+            UpdateTreeDrag(e);
             return;
+        }
 
         var currentPoint = e.GetCurrentPoint(BookmarksScrollViewer).Position;
         var delta = currentPoint - _panStartPoint;
@@ -73,7 +152,14 @@ public partial class MainWindow : Window
     private void OnBookmarksScrollPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (!_isMiddleButtonPanning || e.InitialPressMouseButton != MouseButton.Middle)
+        {
+            if (_isTreeDragging)
+                CompleteTreeDrag(e);
+            else
+                CompletePendingFolderClick(e);
+
             return;
+        }
 
         StopMiddleButtonPanning(e);
     }
@@ -81,6 +167,7 @@ public partial class MainWindow : Window
     private void OnBookmarksScrollPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
         _isMiddleButtonPanning = false;
+        ClearTreeDrag();
     }
 
     private void UpdateBookmarksHorizontalOverflow()
@@ -93,6 +180,264 @@ public partial class MainWindow : Window
         var hasHorizontalOverflow = estimatedContentWidth > BookmarksScrollViewer.Viewport.Width;
 
         BookmarksScrollViewer.Classes.Set("hasHorizontalOverflow", hasHorizontalOverflow);
+    }
+
+    private void UpdateTreeDrag(PointerEventArgs e)
+    {
+        if (_pressedTreeItem is null)
+            return;
+
+        var point = e.GetCurrentPoint(BookmarksScrollViewer);
+        _lastTreeDragPoint = point.Position;
+
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            ClearTreeDrag();
+            return;
+        }
+
+        var delta = point.Position - _treeDragStartPoint;
+        if (!_isTreeDragging &&
+            Math.Abs(delta.X) < DragStartThreshold &&
+            Math.Abs(delta.Y) < DragStartThreshold)
+        {
+            return;
+        }
+
+        if (!_isTreeDragging)
+            StartTreeDrag(_pressedTreeItem);
+
+        UpdateDropTarget(e);
+        e.Handled = true;
+    }
+
+    private void StartTreeDrag(BookmarkTreeItemViewModel item)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        var hasInitialWindowY = TryGetTreeRowWindowY(item, out var initialWindowY);
+        _hasDragStartWindowY = hasInitialWindowY;
+        _dragStartWindowY = initialWindowY;
+
+        _isTreeDragging = true;
+        _draggedTreeItem = item;
+
+        if (item is BookmarkFolderViewModel { IsExpanded: true } draggedFolder)
+        {
+            draggedFolder.IsExpanded = false;
+            UpdateBookmarksHorizontalOverflow();
+        }
+
+        _dragAutoScrollTimer.Start();
+        viewModel.ShowDropPlaceholders(item);
+
+        if (hasInitialWindowY)
+            Dispatcher.UIThread.Post(() => PreserveDraggedRowWindowY(item, initialWindowY));
+    }
+
+    private void UpdateDropTarget(PointerEventArgs e)
+    {
+        if (_draggedTreeItem is null || DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        var source = FindControlAt(e);
+        UpdateDragHoverTarget(source);
+        ScheduleFolderAutoExpand(source);
+
+        if (TryGetDropTarget(source, out var targetFolder) &&
+            viewModel.CanMoveItemToFolder(_draggedTreeItem, targetFolder))
+        {
+            _hasActiveDropTarget = true;
+            _activeDropTargetFolder = targetFolder;
+            viewModel.ActivateDropPlaceholder(targetFolder);
+            return;
+        }
+
+        _hasActiveDropTarget = false;
+        _activeDropTargetFolder = null;
+        viewModel.ClearActiveDropPlaceholder();
+    }
+
+    private void UpdateDragHoverTarget(Control? source)
+    {
+        if (_draggedTreeItem is null || DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        var folder = FindTreeRow(source)?.DataContext as BookmarkFolderViewModel;
+        if (folder is { IsExpanded: false } &&
+            folder.Children.Count > 0 &&
+            viewModel.CanMoveItemToFolder(_draggedTreeItem, folder))
+        {
+            viewModel.SetDragHoverFolder(folder);
+            return;
+        }
+
+        viewModel.SetDragHoverFolder(targetFolder: null);
+    }
+
+    private void CompleteTreeDrag(PointerEventArgs e)
+    {
+        if (_draggedTreeItem is null || DataContext is not MainWindowViewModel viewModel)
+        {
+            ClearTreeDrag();
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
+
+        var draggedItem = _draggedTreeItem;
+        var wasMoved = false;
+        var anchorWindowY = 0d;
+        var hasAnchorWindowY = _hasActiveDropTarget
+            ? TryGetDropPlaceholderWindowY(_activeDropTargetFolder, out anchorWindowY)
+            : TryGetDragStartWindowY(out anchorWindowY);
+
+        if (_hasActiveDropTarget)
+        {
+            wasMoved = viewModel.MoveItemToFolderStart(draggedItem, _activeDropTargetFolder);
+            UpdateBookmarksHorizontalOverflow();
+
+            if (!wasMoved)
+                hasAnchorWindowY = TryGetDragStartWindowY(out anchorWindowY);
+        }
+
+        ClearTreeDrag();
+
+        if (hasAnchorWindowY)
+            Dispatcher.UIThread.Post(() => PreserveTreeRowWindowY(draggedItem, anchorWindowY));
+
+        e.Pointer.Capture(null);
+        e.Handled = true;
+    }
+
+    private void CompletePendingFolderClick(PointerReleasedEventArgs e)
+    {
+        if (e.InitialPressMouseButton != MouseButton.Left)
+        {
+            ClearTreePressState(e);
+            return;
+        }
+
+        var row = FindTreeRow(FindControlAt(e));
+        if (_pressedFolderClickCandidate is BookmarkFolderViewModel folder &&
+            row?.DataContext == folder &&
+            (e.Source is not Control source || !HasButtonAncestor(source)))
+        {
+            ToggleFolderExpansionPreservingPosition(folder);
+            e.Handled = true;
+        }
+
+        ClearTreePressState(e);
+    }
+
+    private void ClearTreePressState(PointerEventArgs e)
+    {
+        _pressedTreeItem = null;
+        _pressedFolderClickCandidate = null;
+        e.Pointer.Capture(null);
+    }
+
+    private void ClearTreeDrag()
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+            viewModel.ClearDropPlaceholders();
+
+        _folderAutoExpandTimer.Stop();
+        _dragAutoScrollTimer.Stop();
+        _pressedTreeItem = null;
+        _pressedFolderClickCandidate = null;
+        _draggedTreeItem = null;
+        _activeDropTargetFolder = null;
+        _pendingAutoExpandFolder = null;
+        _isTreeDragging = false;
+        _hasActiveDropTarget = false;
+        _hasDragStartWindowY = false;
+        _dragStartWindowY = 0;
+    }
+
+    private void ScheduleFolderAutoExpand(Control? source)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            _draggedTreeItem is null ||
+            FindTreeRow(source)?.DataContext is not BookmarkFolderViewModel { IsExpanded: false } folder ||
+            folder.Children.Count == 0 ||
+            !viewModel.CanMoveItemToFolder(_draggedTreeItem, folder))
+        {
+            _folderAutoExpandTimer.Stop();
+            _pendingAutoExpandFolder = null;
+            return;
+        }
+
+        if (_pendingAutoExpandFolder == folder)
+            return;
+
+        _pendingAutoExpandFolder = folder;
+        _folderAutoExpandTimer.Stop();
+        _folderAutoExpandTimer.Start();
+    }
+
+    private void OnFolderAutoExpandTimerTick(object? sender, EventArgs e)
+    {
+        _folderAutoExpandTimer.Stop();
+
+        if (!_isTreeDragging ||
+            _draggedTreeItem is null ||
+            _pendingAutoExpandFolder is null ||
+            DataContext is not MainWindowViewModel viewModel)
+        {
+            return;
+        }
+
+        var expandingFolder = _pendingAutoExpandFolder;
+        var hasInitialWindowY = TryGetTreeRowWindowY(expandingFolder, out var initialWindowY);
+
+        expandingFolder.IsExpanded = true;
+        _pendingAutoExpandFolder = null;
+        viewModel.ShowDropPlaceholders(_draggedTreeItem);
+        UpdateBookmarksHorizontalOverflow();
+
+        if (hasInitialWindowY)
+            Dispatcher.UIThread.Post(() => PreserveTreeRowWindowY(expandingFolder, initialWindowY));
+    }
+
+    private void OnDragAutoScrollTimerTick(object? sender, EventArgs e)
+    {
+        if (!_isTreeDragging)
+        {
+            _dragAutoScrollTimer.Stop();
+            return;
+        }
+
+        var viewportHeight = BookmarksScrollViewer.Viewport.Height;
+        if (viewportHeight <= 0)
+            return;
+
+        var distanceFromTop = _lastTreeDragPoint.Y;
+        var distanceFromBottom = viewportHeight - _lastTreeDragPoint.Y;
+        var verticalStep = 0d;
+
+        if (distanceFromTop < DragAutoScrollEdgeSize)
+            verticalStep = -GetAutoScrollStep(distanceFromTop);
+        else if (distanceFromBottom < DragAutoScrollEdgeSize)
+            verticalStep = GetAutoScrollStep(distanceFromBottom);
+
+        if (verticalStep == 0)
+            return;
+
+        var currentOffset = BookmarksScrollViewer.Offset;
+        BookmarksScrollViewer.Offset = new Vector(
+            currentOffset.X,
+            ClampOffset(
+                currentOffset.Y + verticalStep,
+                BookmarksScrollViewer.Extent.Height,
+                BookmarksScrollViewer.Viewport.Height));
+    }
+
+    private static double GetAutoScrollStep(double distanceFromEdge)
+    {
+        var intensity = 1 - Math.Clamp(distanceFromEdge, 0, DragAutoScrollEdgeSize) / DragAutoScrollEdgeSize;
+        return Math.Max(1, intensity * DragAutoScrollMaxStep);
     }
 
     private static double ClampOffset(double offset, double extent, double viewport)
@@ -123,6 +468,158 @@ public partial class MainWindow : Window
         }
 
         return maxDepth;
+    }
+
+    private Control? FindControlAt(PointerEventArgs e)
+    {
+        var point = e.GetCurrentPoint(BookmarksScrollViewer).Position;
+        return BookmarksScrollViewer.InputHitTest(point) as Control;
+    }
+
+    private bool TryGetTreeRowWindowY(BookmarkTreeItemViewModel? item, out double windowY)
+    {
+        windowY = 0;
+
+        if (item is null)
+            return false;
+
+        foreach (var visual in BookmarksScrollViewer.GetVisualDescendants())
+        {
+            if (visual is not Border border ||
+                !border.Classes.Contains("treeRow") ||
+                !ReferenceEquals(border.DataContext, item))
+            {
+                continue;
+            }
+
+            var point = border.TranslatePoint(new Point(0, 0), this);
+            if (point is null)
+                return false;
+
+            windowY = point.Value.Y;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryGetDropPlaceholderWindowY(BookmarkFolderViewModel? targetFolder, out double windowY)
+    {
+        windowY = 0;
+
+        foreach (var visual in BookmarksScrollViewer.GetVisualDescendants())
+        {
+            if (visual is not Border border ||
+                !border.Classes.Contains("dropPlaceholder") ||
+                !border.Classes.Contains("active"))
+            {
+                continue;
+            }
+
+            if (targetFolder is null && border.DataContext is not MainWindowViewModel)
+                continue;
+
+            if (targetFolder is not null && !ReferenceEquals(border.DataContext, targetFolder))
+                continue;
+
+            var point = border.TranslatePoint(new Point(0, 0), this);
+            if (point is null)
+                return false;
+
+            windowY = point.Value.Y;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryGetDragStartWindowY(out double windowY)
+    {
+        windowY = _dragStartWindowY;
+        return _hasDragStartWindowY;
+    }
+
+    private void ToggleFolderExpansionPreservingPosition(BookmarkFolderViewModel folder)
+    {
+        var hasInitialWindowY = TryGetTreeRowWindowY(folder, out var initialWindowY);
+
+        folder.IsExpanded = !folder.IsExpanded;
+        UpdateBookmarksHorizontalOverflow();
+
+        if (hasInitialWindowY)
+            Dispatcher.UIThread.Post(() => PreserveTreeRowWindowY(folder, initialWindowY));
+    }
+
+    private void PreserveTreeRowWindowY(BookmarkTreeItemViewModel item, double initialWindowY)
+    {
+        if (!TryGetTreeRowWindowY(item, out var currentWindowY))
+            return;
+
+        PreserveWindowY(initialWindowY, currentWindowY);
+    }
+
+    private void PreserveDraggedRowWindowY(BookmarkTreeItemViewModel item, double initialWindowY)
+    {
+        if (!_isTreeDragging ||
+            !ReferenceEquals(_draggedTreeItem, item) ||
+            !TryGetTreeRowWindowY(item, out var currentWindowY))
+        {
+            return;
+        }
+
+        PreserveWindowY(initialWindowY, currentWindowY);
+    }
+
+    private void PreserveWindowY(double initialWindowY, double currentWindowY)
+    {
+        var delta = currentWindowY - initialWindowY;
+        if (Math.Abs(delta) < 0.5)
+            return;
+
+        var currentOffset = BookmarksScrollViewer.Offset;
+        BookmarksScrollViewer.Offset = new Vector(
+            currentOffset.X,
+            ClampOffset(
+                currentOffset.Y + delta,
+                BookmarksScrollViewer.Extent.Height,
+                BookmarksScrollViewer.Viewport.Height));
+    }
+
+    private static Border? FindTreeRow(Control? control)
+    {
+        while (control is not null)
+        {
+            if (control is Border border && border.Classes.Contains("treeRow"))
+                return border;
+
+            control = control.GetVisualParent() as Control;
+        }
+
+        return null;
+    }
+
+    private static bool TryGetDropTarget(Control? control, out BookmarkFolderViewModel? targetFolder)
+    {
+        targetFolder = null;
+
+        while (control is not null)
+        {
+            if (control is Border border && border.Classes.Contains("dropPlaceholder"))
+            {
+                if (border.DataContext is MainWindowViewModel)
+                    return true;
+
+                if (border.DataContext is BookmarkFolderViewModel folder)
+                {
+                    targetFolder = folder;
+                    return true;
+                }
+            }
+
+            control = control.GetVisualParent() as Control;
+        }
+
+        return false;
     }
 
     private static bool HasButtonAncestor(Control? control)

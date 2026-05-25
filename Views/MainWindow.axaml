@@ -23,7 +23,9 @@
         <DataTemplate DataType="vm:BookmarkFolderViewModel">
             <StackPanel>
                 <Border Classes="treeRow folderRow"
+                        Classes.dragHover="{Binding IsDragHoverTarget}"
                         Padding="8,6"
+                        PointerPressed="OnTreeRowPointerPressed"
                         PointerReleased="OnFolderRowPointerReleased">
                     <Grid>
                         <Grid Classes="normalRowLayout"
@@ -94,6 +96,13 @@
                     </Grid>
                 </Border>
 
+                <Border Classes="dropPlaceholder"
+                        Classes.active="{Binding IsDropPlaceholderActive}"
+                        IsVisible="{Binding IsDropPlaceholderVisible}"
+                        Margin="28,4,0,4">
+                    <Rectangle Classes="dropPlaceholderFrame"/>
+                </Border>
+
                 <ItemsControl ItemsSource="{Binding Children}"
                               IsVisible="{Binding IsExpanded}"
                               Margin="28,0,0,0"/>
@@ -102,7 +111,9 @@
 
         <DataTemplate DataType="vm:BookmarkViewModel">
             <Border Classes="treeRow bookmarkRow"
-                    Padding="8,6">
+                    Padding="8,6"
+                    PointerPressed="OnTreeRowPointerPressed"
+                    PointerReleased="OnTreeRowPointerReleased">
                 <Grid>
                     <Grid Classes="normalRowLayout"
                           ColumnDefinitions="Auto,*,Auto">
@@ -221,6 +232,27 @@
                     <Style Selector="Border.treeRow:pointerover">
                         <Setter Property="Background" Value="#EEF6FF"/>
                     </Style>
+                    <Style Selector="Border.folderRow.dragHover">
+                        <Setter Property="Background" Value="#DBEAFE"/>
+                    </Style>
+                    <Style Selector="Border.dropPlaceholder">
+                        <Setter Property="Height" Value="44"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="CornerRadius" Value="4"/>
+                    </Style>
+                    <Style Selector="Border.dropPlaceholder:pointerover">
+                        <Setter Property="Background" Value="#EEF6FF"/>
+                    </Style>
+                    <Style Selector="Border.dropPlaceholder.active">
+                        <Setter Property="Background" Value="#DBEAFE"/>
+                    </Style>
+                    <Style Selector="Rectangle.dropPlaceholderFrame">
+                        <Setter Property="Stroke" Value="#64748B"/>
+                        <Setter Property="StrokeThickness" Value="1"/>
+                        <Setter Property="StrokeDashArray" Value="4,3"/>
+                        <Setter Property="RadiusX" Value="4"/>
+                        <Setter Property="RadiusY" Value="4"/>
+                    </Style>
                     <Style Selector="StackPanel.rowActions">
                         <Setter Property="Opacity" Value="0"/>
                         <Setter Property="IsHitTestVisible" Value="False"/>
@@ -306,8 +338,16 @@
                     </Style>
                 </ScrollViewer.Styles>
 
-                <ItemsControl MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}"
-                              ItemsSource="{Binding Items}"/>
+                <StackPanel MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}">
+                    <Border Classes="dropPlaceholder"
+                            Classes.active="{Binding IsRootDropPlaceholderActive}"
+                            IsVisible="{Binding IsRootDropPlaceholderVisible}"
+                            Margin="0,4">
+                        <Rectangle Classes="dropPlaceholderFrame"/>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Items}"/>
+                </StackPanel>
             </ScrollViewer>
         </Border>
         </Grid>
