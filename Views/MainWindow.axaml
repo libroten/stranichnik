@@ -24,7 +24,7 @@
             <StackPanel>
                 <Border Classes="treeRow folderRow"
                         Padding="8,6"
-                        PointerPressed="OnFolderRowPointerPressed">
+                        PointerReleased="OnFolderRowPointerReleased">
                     <Grid>
                         <Grid Classes="normalRowLayout"
                               ColumnDefinitions="Auto,*,Auto">
@@ -48,11 +48,11 @@
                                         Classes="rowActions"
                                         Orientation="Horizontal"
                                         Spacing="4">
-                                <Button Classes="actionButton"
+                                <Button Classes="actionButton editAction"
                                         ToolTip.Tip="Редактировать">
                                     <TextBlock Classes="actionIcon" Text="✎"/>
                                 </Button>
-                                <Button Classes="actionButton"
+                                <Button Classes="actionButton deleteAction"
                                         ToolTip.Tip="Удалить">
                                     <TextBlock Classes="actionIcon" Text="⌫"/>
                                 </Button>
@@ -81,11 +81,11 @@
                             <StackPanel Classes="rowActions"
                                         Orientation="Horizontal"
                                         Spacing="4">
-                                <Button Classes="actionButton"
+                                <Button Classes="actionButton editAction"
                                         ToolTip.Tip="Редактировать">
                                     <TextBlock Classes="actionIcon" Text="✎"/>
                                 </Button>
-                                <Button Classes="actionButton"
+                                <Button Classes="actionButton deleteAction"
                                         ToolTip.Tip="Удалить">
                                     <TextBlock Classes="actionIcon" Text="⌫"/>
                                 </Button>
@@ -125,15 +125,15 @@
                                     Orientation="Horizontal"
                                     Spacing="4"
                                     VerticalAlignment="Center">
-                            <Button Classes="actionButton"
+                            <Button Classes="actionButton openAction"
                                     ToolTip.Tip="Открыть">
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
-                            <Button Classes="actionButton"
+                            <Button Classes="actionButton editAction"
                                     ToolTip.Tip="Редактировать">
                                 <TextBlock Classes="actionIcon" Text="✎"/>
                             </Button>
-                            <Button Classes="actionButton"
+                            <Button Classes="actionButton deleteAction"
                                     ToolTip.Tip="Удалить">
                                 <TextBlock Classes="actionIcon" Text="⌫"/>
                             </Button>
@@ -161,15 +161,15 @@
                                     Orientation="Horizontal"
                                     Spacing="4"
                                     VerticalAlignment="Center">
-                            <Button Classes="actionButton"
+                            <Button Classes="actionButton openAction"
                                     ToolTip.Tip="Открыть">
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
-                            <Button Classes="actionButton"
+                            <Button Classes="actionButton editAction"
                                     ToolTip.Tip="Редактировать">
                                 <TextBlock Classes="actionIcon" Text="✎"/>
                             </Button>
-                            <Button Classes="actionButton"
+                            <Button Classes="actionButton deleteAction"
                                     ToolTip.Tip="Удалить">
                                 <TextBlock Classes="actionIcon" Text="⌫"/>
                             </Button>
@@ -208,7 +208,11 @@
             <ScrollViewer x:Name="BookmarksScrollViewer"
                           Background="#FFFFFF"
                           HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Auto">
+                          VerticalScrollBarVisibility="Auto"
+                          PointerPressed="OnBookmarksScrollPointerPressed"
+                          PointerMoved="OnBookmarksScrollPointerMoved"
+                          PointerReleased="OnBookmarksScrollPointerReleased"
+                          PointerCaptureLost="OnBookmarksScrollPointerCaptureLost">
                 <ScrollViewer.Styles>
                     <Style Selector="Border.treeRow">
                         <Setter Property="Background" Value="Transparent"/>
@@ -243,18 +247,32 @@
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="BorderBrush" Value="Transparent"/>
                     </Style>
-                    <Style Selector="Button.actionButton:pointerover">
-                        <Setter Property="Background" Value="#CFE7FF"/>
-                        <Setter Property="BorderBrush" Value="#9CCFFF"/>
-                    </Style>
                     <Style Selector="TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#3D4A5C"/>
                         <Setter Property="FontSize" Value="14"/>
                         <Setter Property="HorizontalAlignment" Value="Center"/>
                         <Setter Property="VerticalAlignment" Value="Center"/>
                     </Style>
-                    <Style Selector="Button.actionButton:pointerover TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="#111827"/>
+                    <Style Selector="Button.openAction:pointerover">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="Button.editAction:pointerover">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction:pointerover">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="Button.openAction:pointerover TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#2563EB"/>
+                    </Style>
+                    <Style Selector="Button.editAction:pointerover TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction:pointerover TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#DC2626"/>
                     </Style>
                     <Style Selector="TextBlock.folderGlyph">
                         <Setter Property="Foreground" Value="#526071"/>
@@ -267,6 +285,24 @@
                     </Style>
                     <Style Selector="TextBlock.bookmarkUrl">
                         <Setter Property="Foreground" Value="#667085"/>
+                        <Setter Property="TextDecorations">
+                            <TextDecorationCollection>
+                                <TextDecoration Location="Underline"
+                                                StrokeDashArray="2,2"
+                                                StrokeThickness="1"/>
+                            </TextDecorationCollection>
+                        </Setter>
+                    </Style>
+                    <Style Selector="TextBlock.bookmarkUrl:pointerover">
+                        <Setter Property="Foreground" Value="#2563EB"/>
+                        <Setter Property="TextDecorations">
+                            <TextDecorationCollection>
+                                <TextDecoration Location="Underline"
+                                                Stroke="#2563EB"
+                                                StrokeDashArray="2,2"
+                                                StrokeThickness="1"/>
+                            </TextDecorationCollection>
+                        </Setter>
                     </Style>
                 </ScrollViewer.Styles>
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -11,6 +12,9 @@ public partial class MainWindow : Window
 {
     private const double TreeIndentWidth = 28;
     private const double OverflowRowWidth = 560;
+    private bool _isMiddleButtonPanning;
+    private Point _panStartPoint;
+    private Vector _panStartOffset;
 
     public MainWindow()
     {
@@ -20,9 +24,9 @@ public partial class MainWindow : Window
         UpdateBookmarksHorizontalOverflow();
     }
 
-    private void OnFolderRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void OnFolderRowPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (e.InitialPressMouseButton != MouseButton.Left)
             return;
 
         if (e.Source is Control source && HasButtonAncestor(source))
@@ -36,6 +40,49 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnBookmarksScrollPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(BookmarksScrollViewer);
+        if (!point.Properties.IsMiddleButtonPressed)
+            return;
+
+        _isMiddleButtonPanning = true;
+        _panStartPoint = point.Position;
+        _panStartOffset = BookmarksScrollViewer.Offset;
+
+        e.Pointer.Capture(BookmarksScrollViewer);
+        e.Handled = true;
+    }
+
+    private void OnBookmarksScrollPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_isMiddleButtonPanning)
+            return;
+
+        var currentPoint = e.GetCurrentPoint(BookmarksScrollViewer).Position;
+        var delta = currentPoint - _panStartPoint;
+        var requestedOffset = _panStartOffset - delta;
+
+        BookmarksScrollViewer.Offset = new Vector(
+            ClampOffset(requestedOffset.X, BookmarksScrollViewer.Extent.Width, BookmarksScrollViewer.Viewport.Width),
+            ClampOffset(requestedOffset.Y, BookmarksScrollViewer.Extent.Height, BookmarksScrollViewer.Viewport.Height));
+
+        e.Handled = true;
+    }
+
+    private void OnBookmarksScrollPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_isMiddleButtonPanning || e.InitialPressMouseButton != MouseButton.Middle)
+            return;
+
+        StopMiddleButtonPanning(e);
+    }
+
+    private void OnBookmarksScrollPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        _isMiddleButtonPanning = false;
+    }
+
     private void UpdateBookmarksHorizontalOverflow()
     {
         var maxVisibleDepth = DataContext is MainWindowViewModel viewModel
@@ -46,6 +93,19 @@ public partial class MainWindow : Window
         var hasHorizontalOverflow = estimatedContentWidth > BookmarksScrollViewer.Viewport.Width;
 
         BookmarksScrollViewer.Classes.Set("hasHorizontalOverflow", hasHorizontalOverflow);
+    }
+
+    private static double ClampOffset(double offset, double extent, double viewport)
+    {
+        var maxOffset = Math.Max(0, extent - viewport);
+        return Math.Clamp(offset, 0, maxOffset);
+    }
+
+    private void StopMiddleButtonPanning(PointerEventArgs e)
+    {
+        _isMiddleButtonPanning = false;
+        e.Pointer.Capture(null);
+        e.Handled = true;
     }
 
     private static int GetMaxVisibleDepth(IEnumerable<BookmarkTreeItemViewModel> items, int depth)
