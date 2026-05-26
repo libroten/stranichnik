@@ -4,6 +4,12 @@ Stranichnik is a cross-platform desktop bookmark manager built with C# and Avalo
 
 The project currently uses in-memory sample bookmark data. Persistent storage is planned for a later stage.
 
+## AI-Generated Project
+
+> **Warning**
+>
+> This project is fully generated with the help of AI. Code, structure, and documentation should be reviewed carefully before relying on them in production or using them as a reference implementation.
+
 ## Requirements
 
 Install the .NET 8 SDK:
