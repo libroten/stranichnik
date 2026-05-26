@@ -24,6 +24,8 @@
             <StackPanel>
                 <Border Classes="treeRow folderRow"
                         Classes.dragHover="{Binding IsDragHoverTarget}"
+                        Classes.dragSource="{Binding IsDragSource}"
+                        Classes.dragDimmed="{Binding IsDragDimmed}"
                         Padding="8,6"
                         PointerPressed="OnTreeRowPointerPressed"
                         PointerReleased="OnFolderRowPointerReleased">
@@ -111,6 +113,8 @@
 
         <DataTemplate DataType="vm:BookmarkViewModel">
             <Border Classes="treeRow bookmarkRow"
+                    Classes.dragSource="{Binding IsDragSource}"
+                    Classes.dragDimmed="{Binding IsDragDimmed}"
                     Padding="8,6"
                     PointerPressed="OnTreeRowPointerPressed"
                     PointerReleased="OnTreeRowPointerReleased">
@@ -232,6 +236,12 @@
                     <Style Selector="Border.treeRow:pointerover">
                         <Setter Property="Background" Value="#EEF6FF"/>
                     </Style>
+                    <Style Selector="Border.treeRow.dragSource">
+                        <Setter Property="Background" Value="#FEF3C7"/>
+                    </Style>
+                    <Style Selector="Border.treeRow.dragDimmed">
+                        <Setter Property="Opacity" Value="0.42"/>
+                    </Style>
                     <Style Selector="Border.folderRow.dragHover">
                         <Setter Property="Background" Value="#DBEAFE"/>
                     </Style>
@@ -350,6 +360,32 @@
                 </StackPanel>
             </ScrollViewer>
         </Border>
+
+        <Canvas x:Name="DragGhostLayer"
+                IsHitTestVisible="False"
+                ClipToBounds="True">
+            <Border x:Name="DragGhost"
+                    IsVisible="False"
+                    Width="320"
+                    Padding="10,8"
+                    Background="#FFFFFF"
+                    BorderBrush="#CBD5E1"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Opacity="0.92">
+                <StackPanel Spacing="2">
+                    <TextBlock x:Name="DragGhostTitle"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="#1F2937"
+                               TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="DragGhostUrl"
+                               FontSize="11"
+                               Foreground="#667085"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Border>
+        </Canvas>
         </Grid>
     </Grid>
 

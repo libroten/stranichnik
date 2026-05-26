@@ -115,6 +115,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void ShowDropPlaceholders(BookmarkTreeItemViewModel draggedItem)
     {
+        foreach (var item in EnumerateItems(Items))
+        {
+            item.IsDragSource = item == draggedItem;
+            item.IsDragDimmed = item != draggedItem;
+        }
+
         IsRootDropPlaceholderVisible = CanMoveItemToFolder(draggedItem, targetParent: null);
         IsRootDropPlaceholderActive = false;
 
@@ -123,6 +129,7 @@ public partial class MainWindowViewModel : ViewModelBase
             folder.IsDropPlaceholderVisible = folder.IsExpanded && CanMoveItemToFolder(draggedItem, folder);
             folder.IsDropPlaceholderActive = false;
             folder.IsDragHoverTarget = false;
+            folder.IsDragDimmed = !CanMoveItemToFolder(draggedItem, folder) && folder != draggedItem;
         }
     }
 
@@ -154,6 +161,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         IsRootDropPlaceholderVisible = false;
         IsRootDropPlaceholderActive = false;
+
+        foreach (var item in EnumerateItems(Items))
+        {
+            item.IsDragSource = false;
+            item.IsDragDimmed = false;
+        }
 
         foreach (var folder in EnumerateFolders(Items))
         {
@@ -197,10 +210,28 @@ public partial class MainWindowViewModel : ViewModelBase
                 yield return childFolder;
         }
     }
+
+    private static IEnumerable<BookmarkTreeItemViewModel> EnumerateItems(
+        IEnumerable<BookmarkTreeItemViewModel> items)
+    {
+        foreach (var item in items)
+        {
+            yield return item;
+
+            if (item is BookmarkFolderViewModel folder)
+            {
+                foreach (var child in EnumerateItems(folder.Children))
+                    yield return child;
+            }
+        }
+    }
 }
 
 public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
 {
+    private bool _isDragSource;
+    private bool _isDragDimmed;
+
     protected BookmarkTreeItemViewModel(string title)
     {
         Title = title;
@@ -209,6 +240,18 @@ public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
     public string Title { get; }
 
     public BookmarkFolderViewModel? Parent { get; internal set; }
+
+    public bool IsDragSource
+    {
+        get => _isDragSource;
+        set => SetProperty(ref _isDragSource, value);
+    }
+
+    public bool IsDragDimmed
+    {
+        get => _isDragDimmed;
+        set => SetProperty(ref _isDragDimmed, value);
+    }
 }
 
 public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel

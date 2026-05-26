@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     private const double DragStartThreshold = 6;
     private const double DragAutoScrollEdgeSize = 56;
     private const double DragAutoScrollMaxStep = 18;
+    private const double DragGhostOffsetX = 14;
+    private const double DragGhostOffsetY = 14;
     private static readonly TimeSpan FolderAutoExpandDelay = TimeSpan.FromMilliseconds(700);
     private static readonly TimeSpan DragAutoScrollInterval = TimeSpan.FromMilliseconds(16);
 
@@ -205,13 +207,14 @@ public partial class MainWindow : Window
         }
 
         if (!_isTreeDragging)
-            StartTreeDrag(_pressedTreeItem);
+            StartTreeDrag(_pressedTreeItem, e);
 
+        UpdateDragGhostPosition(e);
         UpdateDropTarget(e);
         e.Handled = true;
     }
 
-    private void StartTreeDrag(BookmarkTreeItemViewModel item)
+    private void StartTreeDrag(BookmarkTreeItemViewModel item, PointerEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel)
             return;
@@ -231,6 +234,7 @@ public partial class MainWindow : Window
 
         _dragAutoScrollTimer.Start();
         viewModel.ShowDropPlaceholders(item);
+        ShowDragGhost(item, e);
 
         if (hasInitialWindowY)
             Dispatcher.UIThread.Post(() => PreserveDraggedRowWindowY(item, initialWindowY));
@@ -354,6 +358,7 @@ public partial class MainWindow : Window
         _hasActiveDropTarget = false;
         _hasDragStartWindowY = false;
         _dragStartWindowY = 0;
+        HideDragGhost();
     }
 
     private void ScheduleFolderAutoExpand(Control? source)
@@ -438,6 +443,45 @@ public partial class MainWindow : Window
     {
         var intensity = 1 - Math.Clamp(distanceFromEdge, 0, DragAutoScrollEdgeSize) / DragAutoScrollEdgeSize;
         return Math.Max(1, intensity * DragAutoScrollMaxStep);
+    }
+
+    private void ShowDragGhost(BookmarkTreeItemViewModel item, PointerEventArgs e)
+    {
+        DragGhostTitle.Text = item.Title;
+
+        if (item is BookmarkViewModel bookmark)
+        {
+            DragGhostUrl.Text = bookmark.Url;
+            DragGhostUrl.IsVisible = true;
+        }
+        else
+        {
+            DragGhostUrl.Text = string.Empty;
+            DragGhostUrl.IsVisible = false;
+        }
+
+        DragGhost.IsVisible = true;
+        UpdateDragGhostPosition(e);
+    }
+
+    private void HideDragGhost()
+    {
+        DragGhost.IsVisible = false;
+    }
+
+    private void UpdateDragGhostPosition(PointerEventArgs e)
+    {
+        if (!DragGhost.IsVisible)
+            return;
+
+        var pointerPosition = e.GetCurrentPoint(DragGhostLayer).Position;
+        var maxLeft = Math.Max(0, DragGhostLayer.Bounds.Width - DragGhost.Bounds.Width);
+        var maxTop = Math.Max(0, DragGhostLayer.Bounds.Height - DragGhost.Bounds.Height);
+        var left = Math.Clamp(pointerPosition.X + DragGhostOffsetX, 0, maxLeft);
+        var top = Math.Clamp(pointerPosition.Y + DragGhostOffsetY, 0, maxTop);
+
+        Canvas.SetLeft(DragGhost, left);
+        Canvas.SetTop(DragGhost, top);
     }
 
     private static double ClampOffset(double offset, double extent, double viewport)
