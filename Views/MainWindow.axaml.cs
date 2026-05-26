@@ -255,7 +255,7 @@ public partial class MainWindow : Window
         ShowDragGhost(item, e);
 
         if (hasInitialWindowY)
-            Dispatcher.UIThread.Post(() => PreserveDraggedRowWindowY(item, initialWindowY));
+            PreserveDraggedRowWindowYAfterLayout(item, initialWindowY);
     }
 
     private void UpdateDropTarget(PointerEventArgs e)
@@ -327,7 +327,7 @@ public partial class MainWindow : Window
         ClearTreeDrag();
 
         if (hasAnchorWindowY)
-            Dispatcher.UIThread.Post(() => PreserveTreeRowWindowY(draggedItem, anchorWindowY));
+            PreserveTreeRowWindowYAfterLayout(draggedItem, anchorWindowY);
 
         e.Pointer.Capture(null);
         e.Handled = true;
@@ -646,6 +646,12 @@ public partial class MainWindow : Window
         PreserveWindowY(initialWindowY, currentWindowY);
     }
 
+    private void PreserveTreeRowWindowYAfterLayout(BookmarkTreeItemViewModel item, double initialWindowY)
+    {
+        BookmarksHost.UpdateLayout();
+        PreserveTreeRowWindowY(item, initialWindowY);
+    }
+
     private void PreserveDraggedRowWindowY(BookmarkTreeItemViewModel item, double initialWindowY)
     {
         if (!_isTreeDragging ||
@@ -656,6 +662,12 @@ public partial class MainWindow : Window
         }
 
         PreserveWindowY(initialWindowY, currentWindowY);
+    }
+
+    private void PreserveDraggedRowWindowYAfterLayout(BookmarkTreeItemViewModel item, double initialWindowY)
+    {
+        BookmarksHost.UpdateLayout();
+        PreserveDraggedRowWindowY(item, initialWindowY);
     }
 
     private void PreserveWindowY(double initialWindowY, double currentWindowY)
