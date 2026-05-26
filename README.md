@@ -82,12 +82,29 @@ dotnet test Tests/Stranichnik.Tests.csproj
 
 Tests are located in the `Tests/` directory.
 
+## Code Quality Checks
+
+The project uses built-in .NET analyzers and `.editorconfig` rules. Analyzer warnings are reported during build.
+
+Check formatting without modifying files:
+
+```bash
+dotnet format --verify-no-changes
+```
+
+Apply formatting fixes:
+
+```bash
+dotnet format
+```
+
 ## Common Development Commands
 
 Restore, build, and test:
 
 ```bash
 dotnet restore
+dotnet format --verify-no-changes
 dotnet build
 dotnet test Tests/Stranichnik.Tests.csproj
 ```
