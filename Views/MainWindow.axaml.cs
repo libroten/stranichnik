@@ -317,7 +317,8 @@ public partial class MainWindow : Window
 
         if (_hasActiveDropTarget)
         {
-            wasMoved = viewModel.MoveItemToFolderStart(draggedItem, _activeDropTargetFolder);
+            var moveResult = viewModel.MoveItemToFolderStart(draggedItem, _activeDropTargetFolder);
+            wasMoved = moveResult.WasMoved;
             UpdateBookmarksHorizontalOverflow();
 
             if (!wasMoved)

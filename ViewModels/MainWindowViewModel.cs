@@ -7,6 +7,12 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private bool _isRootDropPlaceholderVisible;
     private bool _isRootDropPlaceholderActive;
+    private readonly BookmarkTreeMoveService _moveService;
+
+    public MainWindowViewModel()
+    {
+        _moveService = new(Items);
+    }
 
     public ObservableCollection<BookmarkTreeItemViewModel> Items { get; } = new()
     {
@@ -89,28 +95,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
     {
-        if (item.Parent == targetParent)
-            return false;
-
-        if (item == targetParent || IsDescendantOf(targetParent, item))
-            return false;
-
-        return GetMutableItems(item.Parent).Contains(item);
+        return _moveService.CanMoveToFolderStart(item, targetParent);
     }
 
-    public bool MoveItemToFolderStart(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
+    public BookmarkTreeMoveResult MoveItemToFolderStart(
+        BookmarkTreeItemViewModel item,
+        BookmarkFolderViewModel? targetParent)
     {
-        if (!CanMoveItemToFolder(item, targetParent))
-            return false;
-
-        var sourceItems = GetMutableItems(item.Parent);
-        var targetItems = GetMutableItems(targetParent);
-
-        sourceItems.Remove(item);
-        item.Parent = targetParent;
-        targetItems.Insert(0, item);
-
-        return true;
+        return _moveService.MoveToFolderStart(item, targetParent);
     }
 
     public void ShowDropPlaceholders(BookmarkTreeItemViewModel draggedItem)
@@ -174,26 +166,6 @@ public partial class MainWindowViewModel : ViewModelBase
             folder.IsDropPlaceholderActive = false;
             folder.IsDragHoverTarget = false;
         }
-    }
-
-    private ObservableCollection<BookmarkTreeItemViewModel> GetMutableItems(BookmarkFolderViewModel? parent)
-    {
-        return parent?.Children ?? Items;
-    }
-
-    private static bool IsDescendantOf(BookmarkFolderViewModel? possibleDescendant, BookmarkTreeItemViewModel item)
-    {
-        var current = possibleDescendant?.Parent;
-
-        while (current is not null)
-        {
-            if (current == item)
-                return true;
-
-            current = current.Parent;
-        }
-
-        return false;
     }
 
     private static IEnumerable<BookmarkFolderViewModel> EnumerateFolders(
