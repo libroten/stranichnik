@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Stranichnik.ViewModels"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
@@ -19,97 +20,118 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <Window.Resources>
+        <sys:TimeSpan x:Key="HoverTransitionDuration">0:0:0.10</sys:TimeSpan>
+    </Window.Resources>
+
     <Window.DataTemplates>
         <DataTemplate DataType="vm:BookmarkFolderViewModel">
-            <StackPanel>
-                <Border Classes="treeRow folderRow"
-                        Classes.dragHover="{Binding IsDragHoverTarget}"
-                        Classes.dragSource="{Binding IsDragSource}"
-                        Classes.dragDimmed="{Binding IsDragDimmed}"
-                        Padding="8,6"
-                        PointerPressed="OnTreeRowPointerPressed"
-                        PointerReleased="OnFolderRowPointerReleased">
-                    <Grid>
-                        <Grid Classes="normalRowLayout"
-                              ColumnDefinitions="Auto,*,Auto">
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="8"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ExpansionGlyph}"
-                                           Classes="folderGlyph"
-                                           Width="14"
-                                           FontSize="15"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding Title}"
-                                           Classes="folderTitle"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           MaxWidth="480"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
+            <Border Classes="folderContainer">
+                <StackPanel>
+                    <Border Classes="treeRow folderRow"
+                            Classes.rootFolder="{Binding IsRoot}"
+                            Classes.dragHover="{Binding IsDragHoverTarget}"
+                            Classes.dragSource="{Binding IsDragSource}"
+                            Classes.dragDimmed="{Binding IsDragDimmed}"
+                            Padding="8,6"
+                            PointerPressed="OnTreeRowPointerPressed"
+                            PointerReleased="OnFolderRowPointerReleased">
+                        <Grid>
+                            <Grid Classes="normalRowLayout"
+                                  ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ExpansionGlyph}"
+                                               Classes="folderGlyph"
+                                               Width="14"
+                                               FontSize="15"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Title}"
+                                               Classes="folderTitle"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               MaxWidth="480"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
 
-                            <StackPanel Grid.Column="2"
-                                        Classes="rowActions"
+                                <StackPanel Grid.Column="2"
+                                            Classes="rowActions"
+                                            Orientation="Horizontal"
+                                            MinHeight="28"
+                                            Spacing="4">
+                                    <Button Classes="actionButton addAction"
+                                            ToolTip.Tip="Добавить закладку">
+                                        <TextBlock Classes="actionIcon" Text="+"/>
+                                    </Button>
+                                    <Button Classes="actionButton editAction"
+                                            IsVisible="{Binding CanShowActions}"
+                                            ToolTip.Tip="Редактировать">
+                                        <TextBlock Classes="actionIcon" Text="✎"/>
+                                    </Button>
+                                    <Button Classes="actionButton deleteAction"
+                                            IsVisible="{Binding CanShowActions}"
+                                            ToolTip.Tip="Удалить">
+                                        <TextBlock Classes="actionIcon" Text="⌫"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Classes="overflowRowLayout"
                                         Orientation="Horizontal"
-                                        Spacing="4">
-                                <Button Classes="actionButton editAction"
-                                        ToolTip.Tip="Редактировать">
-                                    <TextBlock Classes="actionIcon" Text="✎"/>
-                                </Button>
-                                <Button Classes="actionButton deleteAction"
-                                        ToolTip.Tip="Удалить">
-                                    <TextBlock Classes="actionIcon" Text="⌫"/>
-                                </Button>
+                                        Spacing="12">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="8"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ExpansionGlyph}"
+                                               Classes="folderGlyph"
+                                               Width="14"
+                                               FontSize="15"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Title}"
+                                               Classes="folderTitle"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               MaxWidth="480"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+
+                                <StackPanel Classes="rowActions"
+                                            Orientation="Horizontal"
+                                            MinHeight="28"
+                                            Spacing="4">
+                                    <Button Classes="actionButton addAction"
+                                            ToolTip.Tip="Добавить закладку">
+                                        <TextBlock Classes="actionIcon" Text="+"/>
+                                    </Button>
+                                    <Button Classes="actionButton editAction"
+                                            IsVisible="{Binding CanShowActions}"
+                                            ToolTip.Tip="Редактировать">
+                                        <TextBlock Classes="actionIcon" Text="✎"/>
+                                    </Button>
+                                    <Button Classes="actionButton deleteAction"
+                                            IsVisible="{Binding CanShowActions}"
+                                            ToolTip.Tip="Удалить">
+                                        <TextBlock Classes="actionIcon" Text="⌫"/>
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
                         </Grid>
+                    </Border>
 
-                        <StackPanel Classes="overflowRowLayout"
-                                    Orientation="Horizontal"
-                                    Spacing="12">
-                            <StackPanel Orientation="Horizontal"
-                                        Spacing="8"
-                                        VerticalAlignment="Center">
-                                <TextBlock Text="{Binding ExpansionGlyph}"
-                                           Classes="folderGlyph"
-                                           Width="14"
-                                           FontSize="15"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="{Binding Title}"
-                                           Classes="folderTitle"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           MaxWidth="480"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
+                    <Border Classes="dropPlaceholder"
+                            Classes.shown="{Binding IsDropPlaceholderVisible}"
+                            Classes.active="{Binding IsDropPlaceholderActive}"
+                            IsVisible="{Binding IsDropPlaceholderVisible}"
+                            Margin="28,4,0,4">
+                        <Rectangle Classes="dropPlaceholderFrame"/>
+                    </Border>
 
-                            <StackPanel Classes="rowActions"
-                                        Orientation="Horizontal"
-                                        Spacing="4">
-                                <Button Classes="actionButton editAction"
-                                        ToolTip.Tip="Редактировать">
-                                    <TextBlock Classes="actionIcon" Text="✎"/>
-                                </Button>
-                                <Button Classes="actionButton deleteAction"
-                                        ToolTip.Tip="Удалить">
-                                    <TextBlock Classes="actionIcon" Text="⌫"/>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <Border Classes="dropPlaceholder"
-                        Classes.shown="{Binding IsDropPlaceholderVisible}"
-                        Classes.active="{Binding IsDropPlaceholderActive}"
-                        IsVisible="{Binding IsDropPlaceholderVisible}"
-                        Margin="28,4,0,4">
-                    <Rectangle Classes="dropPlaceholderFrame"/>
-                </Border>
-
-                <ItemsControl ItemsSource="{Binding Children}"
-                              IsVisible="{Binding IsExpanded}"
-                              Margin="28,0,0,0"/>
-            </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Children}"
+                                  IsVisible="{Binding IsExpanded}"
+                                  Margin="28,0,0,0"/>
+                </StackPanel>
+            </Border>
         </DataTemplate>
 
         <DataTemplate DataType="vm:BookmarkViewModel">
@@ -196,22 +218,8 @@
         </DataTemplate>
     </Window.DataTemplates>
 
-    <Grid RowDefinitions="Auto,*" Background="#F7F8FA">
-        <Border Padding="20,16"
-                Background="#FFFFFF"
-                BorderBrush="#E2E5EA"
-                BorderThickness="0,0,0,1">
-            <StackPanel Spacing="4">
-                <TextBlock Text="Страничник"
-                           FontSize="22"
-                           FontWeight="SemiBold"/>
-                <TextBlock Text="Менеджер закладок"
-                           Foreground="#667085"/>
-            </StackPanel>
-        </Border>
-
+    <Grid Background="#F7F8FA">
         <Grid x:Name="BookmarksHost"
-              Grid.Row="1"
               Margin="20">
         <Border Width="{Binding Bounds.Width, ElementName=BookmarksHost}"
                 MaxWidth="720"
@@ -233,12 +241,22 @@
                     <Style Selector="Border.treeRow">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="CornerRadius" Value="4"/>
+                        <Setter Property="Margin" Value="0,1"/>
                         <Setter Property="Transitions">
                             <Transitions>
                                 <BrushTransition Property="Background"
-                                                 Duration="0:0:0.10"/>
+                                                 Duration="{StaticResource HoverTransitionDuration}"/>
                             </Transitions>
                         </Setter>
+                    </Style>
+                    <Style Selector="Border.folderRow">
+                        <Setter Property="Background" Value="#EEF2F7"/>
+                    </Style>
+                    <Style Selector="Border.folderContainer">
+                        <Setter Property="BorderBrush" Value="#EEF2F7"/>
+                        <Setter Property="BorderThickness" Value="1,0,0,1"/>
+                        <Setter Property="CornerRadius" Value="4"/>
+                        <Setter Property="Margin" Value="0,8,0,12"/>
                     </Style>
                     <Style Selector="Border.treeRow:pointerover">
                         <Setter Property="Background" Value="#EEF6FF"/>
@@ -260,9 +278,9 @@
                         <Setter Property="Transitions">
                             <Transitions>
                                 <DoubleTransition Property="Opacity"
-                                                  Duration="0:0:0.10"/>
+                                                  Duration="{StaticResource HoverTransitionDuration}"/>
                                 <BrushTransition Property="Background"
-                                                 Duration="0:0:0.10"/>
+                                                 Duration="{StaticResource HoverTransitionDuration}"/>
                             </Transitions>
                         </Setter>
                     </Style>
@@ -285,8 +303,18 @@
                     <Style Selector="StackPanel.rowActions">
                         <Setter Property="Opacity" Value="0"/>
                         <Setter Property="IsHitTestVisible" Value="False"/>
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <DoubleTransition Property="Opacity"
+                                                  Duration="{StaticResource HoverTransitionDuration}"/>
+                            </Transitions>
+                        </Setter>
                     </Style>
                     <Style Selector="Border.treeRow:pointerover StackPanel.rowActions">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="IsHitTestVisible" Value="True"/>
+                    </Style>
+                    <Style Selector="Border.folderRow.rootFolder StackPanel.rowActions">
                         <Setter Property="Opacity" Value="1"/>
                         <Setter Property="IsHitTestVisible" Value="True"/>
                     </Style>
@@ -307,6 +335,7 @@
                         <Setter Property="FontSize" Value="14"/>
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="1"/>
                     </Style>
                     <Style Selector="TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#3D4A5C"/>
@@ -314,23 +343,86 @@
                         <Setter Property="HorizontalAlignment" Value="Center"/>
                         <Setter Property="VerticalAlignment" Value="Center"/>
                     </Style>
-                    <Style Selector="Button.openAction:pointerover">
+                    <Style Selector="Button.openAction">
+                        <Setter Property="BorderBrush" Value="#2563EB"/>
+                    </Style>
+                    <Style Selector="Button.addAction">
+                        <Setter Property="BorderBrush" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.editAction">
+                        <Setter Property="BorderBrush" Value="#CA8A04"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction">
+                        <Setter Property="BorderBrush" Value="#DC2626"/>
+                    </Style>
+                    <Style Selector="Button.openAction /template/ ContentPresenter">
                         <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="#2563EB"/>
+                    </Style>
+                    <Style Selector="Button.addAction /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.editAction /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="#CA8A04"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="#DC2626"/>
+                    </Style>
+                    <Style Selector="Button.openAction:pointerover">
+                        <Setter Property="Background" Value="#DBEAFE"/>
+                        <Setter Property="BorderBrush" Value="#2563EB"/>
+                    </Style>
+                    <Style Selector="Button.openAction:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#DBEAFE"/>
+                        <Setter Property="BorderBrush" Value="#2563EB"/>
+                    </Style>
+                    <Style Selector="Button.addAction:pointerover">
+                        <Setter Property="Background" Value="#F0FDF4"/>
+                        <Setter Property="BorderBrush" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.addAction:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#F0FDF4"/>
+                        <Setter Property="BorderBrush" Value="#16A34A"/>
                     </Style>
                     <Style Selector="Button.editAction:pointerover">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="Background" Value="#FFFBEB"/>
+                        <Setter Property="BorderBrush" Value="#CA8A04"/>
+                    </Style>
+                    <Style Selector="Button.editAction:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#FFFBEB"/>
+                        <Setter Property="BorderBrush" Value="#CA8A04"/>
                     </Style>
                     <Style Selector="Button.deleteAction:pointerover">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="Background" Value="#FEF2F2"/>
+                        <Setter Property="BorderBrush" Value="#DC2626"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#FEF2F2"/>
+                        <Setter Property="BorderBrush" Value="#DC2626"/>
+                    </Style>
+                    <Style Selector="Button.openAction TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#2563EB"/>
                     </Style>
                     <Style Selector="Button.openAction:pointerover TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#2563EB"/>
                     </Style>
-                    <Style Selector="Button.editAction:pointerover TextBlock.actionIcon">
+                    <Style Selector="Button.addAction TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.addAction:pointerover TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.editAction TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#CA8A04"/>
+                    </Style>
+                    <Style Selector="Button.editAction:pointerover TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#CA8A04"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#DC2626"/>
                     </Style>
                     <Style Selector="Button.deleteAction:pointerover TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#DC2626"/>
@@ -367,17 +459,8 @@
                     </Style>
                 </ScrollViewer.Styles>
 
-                <StackPanel MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}">
-                    <Border Classes="dropPlaceholder"
-                            Classes.shown="{Binding IsRootDropPlaceholderVisible}"
-                            Classes.active="{Binding IsRootDropPlaceholderActive}"
-                            IsVisible="{Binding IsRootDropPlaceholderVisible}"
-                            Margin="0,4">
-                        <Rectangle Classes="dropPlaceholderFrame"/>
-                    </Border>
-
-                    <ItemsControl ItemsSource="{Binding Items}"/>
-                </StackPanel>
+                <ContentControl MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}"
+                                Content="{Binding RootFolder}"/>
             </ScrollViewer>
         </Border>
 

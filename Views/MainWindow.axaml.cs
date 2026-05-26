@@ -193,7 +193,7 @@ public partial class MainWindow : Window
     private void UpdateBookmarksHorizontalOverflow()
     {
         var maxVisibleDepth = DataContext is MainWindowViewModel viewModel
-            ? GetMaxVisibleDepth(viewModel.Items, depth: 0)
+            ? GetMaxVisibleDepth(new[] { viewModel.RootFolder }, depth: 0)
             : 0;
 
         var estimatedContentWidth = maxVisibleDepth * TreeIndentWidth + OverflowRowWidth;
@@ -205,6 +205,9 @@ public partial class MainWindow : Window
     private void UpdateTreeDrag(PointerEventArgs e)
     {
         if (_pressedTreeItem is null)
+            return;
+
+        if (_pressedTreeItem is BookmarkFolderViewModel { IsRoot: true })
             return;
 
         var point = e.GetCurrentPoint(BookmarksScrollViewer);
@@ -605,10 +608,7 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            if (targetFolder is null && border.DataContext is not MainWindowViewModel)
-                continue;
-
-            if (targetFolder is not null && !ReferenceEquals(border.DataContext, targetFolder))
+            if (!ReferenceEquals(border.DataContext, targetFolder))
                 continue;
 
             var point = border.TranslatePoint(new Point(0, 0), this);
@@ -707,9 +707,6 @@ public partial class MainWindow : Window
         {
             if (control is Border border && border.Classes.Contains("dropPlaceholder"))
             {
-                if (border.DataContext is MainWindowViewModel)
-                    return true;
-
                 if (border.DataContext is BookmarkFolderViewModel folder)
                 {
                     targetFolder = folder;

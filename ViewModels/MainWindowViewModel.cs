@@ -5,28 +5,21 @@ namespace Stranichnik.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private bool _isRootDropPlaceholderVisible;
-    private bool _isRootDropPlaceholderActive;
     private readonly BookmarkTreeMoveService _moveService;
 
     public MainWindowViewModel()
     {
+        RootFolder = new BookmarkFolderViewModel(
+            "Все закладки",
+            SampleBookmarksFactory.Create(),
+            isExpanded: true,
+            isRoot: true);
         _moveService = new(Items);
     }
 
-    public ObservableCollection<BookmarkTreeItemViewModel> Items { get; } = SampleBookmarksFactory.Create();
+    public BookmarkFolderViewModel RootFolder { get; }
 
-    public bool IsRootDropPlaceholderVisible
-    {
-        get => _isRootDropPlaceholderVisible;
-        private set => SetProperty(ref _isRootDropPlaceholderVisible, value);
-    }
-
-    public bool IsRootDropPlaceholderActive
-    {
-        get => _isRootDropPlaceholderActive;
-        private set => SetProperty(ref _isRootDropPlaceholderActive, value);
-    }
+    public ObservableCollection<BookmarkTreeItemViewModel> Items => RootFolder.Children;
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
     {
@@ -48,10 +41,7 @@ public partial class MainWindowViewModel : ViewModelBase
             item.IsDragDimmed = item != draggedItem;
         }
 
-        IsRootDropPlaceholderVisible = CanMoveItemToFolder(draggedItem, targetParent: null);
-        IsRootDropPlaceholderActive = false;
-
-        foreach (var folder in EnumerateFolders(Items))
+        foreach (var folder in EnumerateFoldersIncludingRoot())
         {
             folder.IsDropPlaceholderVisible = folder.IsExpanded && CanMoveItemToFolder(draggedItem, folder);
             folder.IsDropPlaceholderActive = false;
@@ -64,43 +54,45 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         ClearActiveDropPlaceholder();
 
-        IsRootDropPlaceholderActive = targetParent is null && IsRootDropPlaceholderVisible;
-
-        foreach (var folder in EnumerateFolders(Items))
+        foreach (var folder in EnumerateFoldersIncludingRoot())
             folder.IsDropPlaceholderActive = folder == targetParent && folder.IsDropPlaceholderVisible;
     }
 
     public void ClearActiveDropPlaceholder()
     {
-        IsRootDropPlaceholderActive = false;
-
-        foreach (var folder in EnumerateFolders(Items))
+        foreach (var folder in EnumerateFoldersIncludingRoot())
             folder.IsDropPlaceholderActive = false;
     }
 
     public void SetDragHoverFolder(BookmarkFolderViewModel? targetFolder)
     {
-        foreach (var folder in EnumerateFolders(Items))
+        foreach (var folder in EnumerateFoldersIncludingRoot())
             folder.IsDragHoverTarget = folder == targetFolder;
     }
 
     public void ClearDropPlaceholders()
     {
-        IsRootDropPlaceholderVisible = false;
-        IsRootDropPlaceholderActive = false;
-
         foreach (var item in EnumerateItems(Items))
         {
             item.IsDragSource = false;
             item.IsDragDimmed = false;
         }
 
-        foreach (var folder in EnumerateFolders(Items))
+        foreach (var folder in EnumerateFoldersIncludingRoot())
         {
+            folder.IsDragDimmed = false;
             folder.IsDropPlaceholderVisible = false;
             folder.IsDropPlaceholderActive = false;
             folder.IsDragHoverTarget = false;
         }
+    }
+
+    private IEnumerable<BookmarkFolderViewModel> EnumerateFoldersIncludingRoot()
+    {
+        yield return RootFolder;
+
+        foreach (var folder in EnumerateFolders(RootFolder.Children))
+            yield return folder;
     }
 
     private static IEnumerable<BookmarkFolderViewModel> EnumerateFolders(
@@ -171,17 +163,23 @@ public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
     public BookmarkFolderViewModel(
         string title,
         IEnumerable<BookmarkTreeItemViewModel>? children = null,
-        bool isExpanded = false)
+        bool isExpanded = false,
+        bool isRoot = false)
         : base(title)
     {
         Children = children is null ? new() : new(children);
         _isExpanded = isExpanded;
+        IsRoot = isRoot;
 
         foreach (var child in Children)
             child.Parent = this;
     }
 
     public ObservableCollection<BookmarkTreeItemViewModel> Children { get; }
+
+    public bool IsRoot { get; }
+
+    public bool CanShowActions => !IsRoot;
 
     public bool IsExpanded
     {
