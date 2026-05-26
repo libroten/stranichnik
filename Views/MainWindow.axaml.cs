@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Stranichnik.ViewModels;
@@ -16,10 +17,12 @@ public partial class MainWindow : Window
     private const double DragStartThreshold = 6;
     private const double DragAutoScrollEdgeSize = 56;
     private const double DragAutoScrollMaxStep = 18;
-    private const double DragGhostOffsetX = 14;
-    private const double DragGhostOffsetY = 14;
+    private const double DragGhostOffsetX = 10;
+    private const double DragGhostOpacity = 0.92;
+    private const double DragGhostInitialScale = 0.85;
     private static readonly TimeSpan FolderAutoExpandDelay = TimeSpan.FromMilliseconds(700);
     private static readonly TimeSpan DragAutoScrollInterval = TimeSpan.FromMilliseconds(16);
+    private static readonly TimeSpan DragGhostAnimationDuration = TimeSpan.FromMilliseconds(200);
 
     private bool _isMiddleButtonPanning;
     private Point _panStartPoint;
@@ -37,6 +40,13 @@ public partial class MainWindow : Window
     private bool _hasDragStartWindowY;
     private readonly DispatcherTimer _folderAutoExpandTimer;
     private readonly DispatcherTimer _dragAutoScrollTimer;
+    private readonly DispatcherTimer _dragGhostAnimationTimer;
+    private readonly ScaleTransform _dragGhostScaleTransform = new()
+    {
+        ScaleX = 1,
+        ScaleY = 1
+    };
+    private DateTimeOffset _dragGhostAnimationStartedAt;
 
     public MainWindow()
     {
@@ -53,6 +63,14 @@ public partial class MainWindow : Window
             Interval = DragAutoScrollInterval
         };
         _dragAutoScrollTimer.Tick += OnDragAutoScrollTimerTick;
+
+        _dragGhostAnimationTimer = new DispatcherTimer
+        {
+            Interval = DragAutoScrollInterval
+        };
+        _dragGhostAnimationTimer.Tick += OnDragGhostAnimationTimerTick;
+        DragGhost.RenderTransform = _dragGhostScaleTransform;
+        DragGhost.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
 
         DataContextChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         BookmarksScrollViewer.SizeChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
@@ -461,11 +479,18 @@ public partial class MainWindow : Window
         }
 
         DragGhost.IsVisible = true;
+        DragGhost.Opacity = 0;
+        _dragGhostScaleTransform.ScaleX = DragGhostInitialScale;
+        _dragGhostScaleTransform.ScaleY = DragGhostInitialScale;
+        _dragGhostAnimationStartedAt = DateTimeOffset.UtcNow;
+        _dragGhostAnimationTimer.Stop();
+        _dragGhostAnimationTimer.Start();
         UpdateDragGhostPosition(e);
     }
 
     private void HideDragGhost()
     {
+        _dragGhostAnimationTimer.Stop();
         DragGhost.IsVisible = false;
     }
 
@@ -478,10 +503,29 @@ public partial class MainWindow : Window
         var maxLeft = Math.Max(0, DragGhostLayer.Bounds.Width - DragGhost.Bounds.Width);
         var maxTop = Math.Max(0, DragGhostLayer.Bounds.Height - DragGhost.Bounds.Height);
         var left = Math.Clamp(pointerPosition.X + DragGhostOffsetX, 0, maxLeft);
-        var top = Math.Clamp(pointerPosition.Y + DragGhostOffsetY, 0, maxTop);
+        var top = Math.Clamp(pointerPosition.Y - DragGhost.Bounds.Height / 2, 0, maxTop);
 
         Canvas.SetLeft(DragGhost, left);
         Canvas.SetTop(DragGhost, top);
+    }
+
+    private void OnDragGhostAnimationTimerTick(object? sender, EventArgs e)
+    {
+        var elapsed = DateTimeOffset.UtcNow - _dragGhostAnimationStartedAt;
+        var progress = Math.Clamp(
+            elapsed.TotalMilliseconds / DragGhostAnimationDuration.TotalMilliseconds,
+            0,
+            1);
+
+        var easedProgress = 1 - Math.Pow(1 - progress, 2);
+        var scale = DragGhostInitialScale + (1 - DragGhostInitialScale) * easedProgress;
+
+        DragGhost.Opacity = DragGhostOpacity * easedProgress;
+        _dragGhostScaleTransform.ScaleX = scale;
+        _dragGhostScaleTransform.ScaleY = scale;
+
+        if (progress >= 1)
+            _dragGhostAnimationTimer.Stop();
     }
 
     private static double ClampOffset(double offset, double extent, double viewport)

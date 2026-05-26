@@ -99,6 +99,7 @@
                 </Border>
 
                 <Border Classes="dropPlaceholder"
+                        Classes.shown="{Binding IsDropPlaceholderVisible}"
                         Classes.active="{Binding IsDropPlaceholderActive}"
                         IsVisible="{Binding IsDropPlaceholderVisible}"
                         Margin="28,4,0,4">
@@ -232,6 +233,12 @@
                     <Style Selector="Border.treeRow">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="CornerRadius" Value="4"/>
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <BrushTransition Property="Background"
+                                                 Duration="0:0:0.10"/>
+                            </Transitions>
+                        </Setter>
                     </Style>
                     <Style Selector="Border.treeRow:pointerover">
                         <Setter Property="Background" Value="#EEF6FF"/>
@@ -249,6 +256,18 @@
                         <Setter Property="Height" Value="44"/>
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="CornerRadius" Value="4"/>
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <DoubleTransition Property="Opacity"
+                                                  Duration="0:0:0.10"/>
+                                <BrushTransition Property="Background"
+                                                 Duration="0:0:0.10"/>
+                            </Transitions>
+                        </Setter>
+                    </Style>
+                    <Style Selector="Border.dropPlaceholder.shown">
+                        <Setter Property="Opacity" Value="1"/>
                     </Style>
                     <Style Selector="Border.dropPlaceholder:pointerover">
                         <Setter Property="Background" Value="#EEF6FF"/>
@@ -350,6 +369,7 @@
 
                 <StackPanel MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}">
                     <Border Classes="dropPlaceholder"
+                            Classes.shown="{Binding IsRootDropPlaceholderVisible}"
                             Classes.active="{Binding IsRootDropPlaceholderActive}"
                             IsVisible="{Binding IsRootDropPlaceholderVisible}"
                             Margin="0,4">
