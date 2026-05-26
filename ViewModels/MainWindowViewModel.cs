@@ -14,72 +14,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _moveService = new(Items);
     }
 
-    public ObservableCollection<BookmarkTreeItemViewModel> Items { get; } = new()
-    {
-        new BookmarkFolderViewModel("Работа", new BookmarkTreeItemViewModel[]
-        {
-            new BookmarkViewModel("Avalonia Docs", "https://docs.avaloniaui.net/"),
-            new BookmarkViewModel("NuGet", "https://www.nuget.org/")
-        }, isExpanded: true),
-        new BookmarkViewModel(
-            "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
-            "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing"),
-        new BookmarkFolderViewModel("Разработка", new BookmarkTreeItemViewModel[]
-        {
-            new BookmarkFolderViewModel("C#", new BookmarkTreeItemViewModel[]
-            {
-                new BookmarkViewModel(".NET Documentation", "https://learn.microsoft.com/dotnet/"),
-                new BookmarkViewModel("C# Guide", "https://learn.microsoft.com/dotnet/csharp/")
-            }),
-            new BookmarkViewModel("GitHub", "https://github.com/")
-        }, isExpanded: true),
-        CreateDeepTestFolder(),
-        new BookmarkViewModel("OpenAI", "https://openai.com/"),
-        CreateScrollTestFolder()
-    };
-
-    private static BookmarkFolderViewModel CreateDeepTestFolder()
-    {
-        var currentItems = new BookmarkTreeItemViewModel[]
-        {
-            new BookmarkViewModel(
-                "Закладка на двадцатом уровне вложенности",
-                "https://example.com/deep/nested/bookmark"),
-            new BookmarkViewModel(
-                "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
-                "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing")
-        };
-
-        for (var level = 20; level >= 1; level--)
-        {
-            currentItems = new BookmarkTreeItemViewModel[]
-            {
-                new BookmarkFolderViewModel(
-                    $"Уровень вложенности {level}",
-                    currentItems,
-                    isExpanded: level == 1)
-            };
-        }
-
-        return (BookmarkFolderViewModel)currentItems[0];
-    }
-
-    private static BookmarkFolderViewModel CreateScrollTestFolder()
-    {
-        var bookmarks = new List<BookmarkTreeItemViewModel>();
-
-        for (var index = 1; index <= 15; index++)
-        {
-            bookmarks.Add(new BookmarkViewModel(
-                $"Тестовая закладка для скроллинга {index}",
-                $"https://example.com/scroll-test/{index}"));
-        }
-
-        return new BookmarkFolderViewModel(
-            "Папка для проверки скроллинга",
-            bookmarks,
-            isExpanded: true);
-    }
+    public ObservableCollection<BookmarkTreeItemViewModel> Items { get; } = SampleBookmarksFactory.Create();
 
     public bool IsRootDropPlaceholderVisible
     {
