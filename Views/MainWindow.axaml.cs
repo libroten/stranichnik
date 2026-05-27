@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -122,6 +124,17 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private async void OnOpenBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        if (sender is not Control { DataContext: BookmarkViewModel bookmark })
+            return;
+
+        if (!TryOpenBookmarkUrl(bookmark.Url, out var errorMessage))
+            await MessageDialog.ShowError(this, "Не удалось открыть страницу", errorMessage);
+    }
+
     private async void OnEditBookmarkClick(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel ||
@@ -220,6 +233,43 @@ public partial class MainWindow : Window
         }
 
         e.Handled = true;
+    }
+
+    private static bool TryOpenBookmarkUrl(string url, out string errorMessage)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            errorMessage = "URL закладки должен быть корректным адресом, например https://example.com.";
+            return false;
+        }
+
+        if (uri.Scheme is not ("http" or "https"))
+        {
+            errorMessage = "Можно открывать только ссылки с протоколом http или https.";
+            return false;
+        }
+
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = uri.AbsoluteUri,
+                UseShellExecute = true
+            });
+        }
+        catch (Win32Exception)
+        {
+            errorMessage = "Операционная система не смогла открыть ссылку в браузере.";
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            errorMessage = "Не удалось запустить браузер для этой ссылки.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
     }
 
     private void OnFolderRowPointerReleased(object? sender, PointerReleasedEventArgs e)

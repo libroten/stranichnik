@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stranichnik.Views.MessageDialog"
+        Title="Сообщение"
+        Width="440"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnKeyDown">
+    <Window.Styles>
+        <Style Selector="Button.dialogButton">
+            <Setter Property="Width" Value="104"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.dialogButton:pointerover">
+            <Setter Property="Background" Value="#1D4ED8"/>
+            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.dialogButton:focus">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20"
+            Background="#FFFFFF">
+        <StackPanel Spacing="14">
+            <TextBlock x:Name="TitleTextBlock"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="#1F2937"/>
+
+            <TextBlock x:Name="MessageTextBlock"
+                       TextWrapping="Wrap"
+                       Foreground="#526071"/>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <Button x:Name="OkButton"
+                        Classes="dialogButton"
+                        Click="OnOkClick">
+                    OK
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

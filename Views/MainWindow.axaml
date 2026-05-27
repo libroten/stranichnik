@@ -176,6 +176,7 @@
                                     Spacing="4"
                                     VerticalAlignment="Center">
                             <Button Classes="actionButton openAction"
+                                    Click="OnOpenBookmarkClick"
                                     ToolTip.Tip="Открыть">
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
@@ -214,6 +215,7 @@
                                     Spacing="4"
                                     VerticalAlignment="Center">
                             <Button Classes="actionButton openAction"
+                                    Click="OnOpenBookmarkClick"
                                     ToolTip.Tip="Открыть">
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
