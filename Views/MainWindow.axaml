@@ -44,8 +44,6 @@
                                             VerticalAlignment="Center">
                                     <TextBlock Text="{Binding ExpansionGlyph}"
                                                Classes="folderGlyph"
-                                               Width="14"
-                                               FontSize="15"
                                                HorizontalAlignment="Center"/>
                                     <TextBlock Text="{Binding Title}"
                                                Classes="folderTitle"
@@ -61,16 +59,24 @@
                                             MinHeight="28"
                                             Spacing="4">
                                     <Button Classes="actionButton addAction"
+                                            Click="OnAddBookmarkClick"
                                             ToolTip.Tip="Добавить закладку">
                                         <TextBlock Classes="actionIcon" Text="+"/>
                                     </Button>
+                                    <Button Classes="actionButton addFolderAction"
+                                            Click="OnAddFolderClick"
+                                            ToolTip.Tip="Добавить папку">
+                                        <TextBlock Classes="actionIcon" Text="F"/>
+                                    </Button>
                                     <Button Classes="actionButton editAction"
                                             IsVisible="{Binding CanShowActions}"
+                                            Click="OnEditFolderClick"
                                             ToolTip.Tip="Редактировать">
                                         <TextBlock Classes="actionIcon" Text="✎"/>
                                     </Button>
                                     <Button Classes="actionButton deleteAction"
                                             IsVisible="{Binding CanShowActions}"
+                                            Click="OnDeleteFolderClick"
                                             ToolTip.Tip="Удалить">
                                         <TextBlock Classes="actionIcon" Text="⌫"/>
                                     </Button>
@@ -85,8 +91,6 @@
                                             VerticalAlignment="Center">
                                     <TextBlock Text="{Binding ExpansionGlyph}"
                                                Classes="folderGlyph"
-                                               Width="14"
-                                               FontSize="15"
                                                HorizontalAlignment="Center"/>
                                     <TextBlock Text="{Binding Title}"
                                                Classes="folderTitle"
@@ -101,16 +105,24 @@
                                             MinHeight="28"
                                             Spacing="4">
                                     <Button Classes="actionButton addAction"
+                                            Click="OnAddBookmarkClick"
                                             ToolTip.Tip="Добавить закладку">
                                         <TextBlock Classes="actionIcon" Text="+"/>
                                     </Button>
+                                    <Button Classes="actionButton addFolderAction"
+                                            Click="OnAddFolderClick"
+                                            ToolTip.Tip="Добавить папку">
+                                        <TextBlock Classes="actionIcon" Text="F"/>
+                                    </Button>
                                     <Button Classes="actionButton editAction"
                                             IsVisible="{Binding CanShowActions}"
+                                            Click="OnEditFolderClick"
                                             ToolTip.Tip="Редактировать">
                                         <TextBlock Classes="actionIcon" Text="✎"/>
                                     </Button>
                                     <Button Classes="actionButton deleteAction"
                                             IsVisible="{Binding CanShowActions}"
+                                            Click="OnDeleteFolderClick"
                                             ToolTip.Tip="Удалить">
                                         <TextBlock Classes="actionIcon" Text="⌫"/>
                                     </Button>
@@ -168,10 +180,12 @@
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
                             <Button Classes="actionButton editAction"
+                                    Click="OnEditBookmarkClick"
                                     ToolTip.Tip="Редактировать">
                                 <TextBlock Classes="actionIcon" Text="✎"/>
                             </Button>
                             <Button Classes="actionButton deleteAction"
+                                    Click="OnDeleteBookmarkClick"
                                     ToolTip.Tip="Удалить">
                                 <TextBlock Classes="actionIcon" Text="⌫"/>
                             </Button>
@@ -204,10 +218,12 @@
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
                             <Button Classes="actionButton editAction"
+                                    Click="OnEditBookmarkClick"
                                     ToolTip.Tip="Редактировать">
                                 <TextBlock Classes="actionIcon" Text="✎"/>
                             </Button>
                             <Button Classes="actionButton deleteAction"
+                                    Click="OnDeleteBookmarkClick"
                                     ToolTip.Tip="Удалить">
                                 <TextBlock Classes="actionIcon" Text="⌫"/>
                             </Button>
@@ -349,6 +365,9 @@
                     <Style Selector="Button.addAction">
                         <Setter Property="BorderBrush" Value="#16A34A"/>
                     </Style>
+                    <Style Selector="Button.addFolderAction">
+                        <Setter Property="BorderBrush" Value="#0284C7"/>
+                    </Style>
                     <Style Selector="Button.editAction">
                         <Setter Property="BorderBrush" Value="#CA8A04"/>
                     </Style>
@@ -362,6 +381,10 @@
                     <Style Selector="Button.addAction /template/ ContentPresenter">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="BorderBrush" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.addFolderAction /template/ ContentPresenter">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="#0284C7"/>
                     </Style>
                     <Style Selector="Button.editAction /template/ ContentPresenter">
                         <Setter Property="Background" Value="Transparent"/>
@@ -386,6 +409,14 @@
                     <Style Selector="Button.addAction:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="#F0FDF4"/>
                         <Setter Property="BorderBrush" Value="#16A34A"/>
+                    </Style>
+                    <Style Selector="Button.addFolderAction:pointerover">
+                        <Setter Property="Background" Value="#E0F2FE"/>
+                        <Setter Property="BorderBrush" Value="#0284C7"/>
+                    </Style>
+                    <Style Selector="Button.addFolderAction:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#E0F2FE"/>
+                        <Setter Property="BorderBrush" Value="#0284C7"/>
                     </Style>
                     <Style Selector="Button.editAction:pointerover">
                         <Setter Property="Background" Value="#FFFBEB"/>
@@ -415,6 +446,12 @@
                     <Style Selector="Button.addAction:pointerover TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#16A34A"/>
                     </Style>
+                    <Style Selector="Button.addFolderAction TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#0284C7"/>
+                    </Style>
+                    <Style Selector="Button.addFolderAction:pointerover TextBlock.actionIcon">
+                        <Setter Property="Foreground" Value="#0284C7"/>
+                    </Style>
                     <Style Selector="Button.editAction TextBlock.actionIcon">
                         <Setter Property="Foreground" Value="#CA8A04"/>
                     </Style>
@@ -429,6 +466,11 @@
                     </Style>
                     <Style Selector="TextBlock.folderGlyph">
                         <Setter Property="Foreground" Value="#526071"/>
+                        <Setter Property="Width" Value="18"/>
+                        <Setter Property="FontSize" Value="18"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="TextAlignment" Value="Center"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
                     </Style>
                     <Style Selector="TextBlock.folderTitle">
                         <Setter Property="Foreground" Value="#1F2937"/>

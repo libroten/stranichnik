@@ -33,6 +33,41 @@ public partial class MainWindowViewModel : ViewModelBase
         return _treeService.MoveToFolderStart(item, targetParent);
     }
 
+    public BookmarkTreeAddBookmarkResult AddBookmarkToFolderStart(
+        BookmarkFolderViewModel targetParent,
+        string title,
+        string url)
+    {
+        return _treeService.AddBookmarkToFolderStart(targetParent, title, url);
+    }
+
+    public BookmarkTreeAddFolderResult AddFolderToFolderStart(
+        BookmarkFolderViewModel targetParent,
+        string title)
+    {
+        return _treeService.AddFolderToFolderStart(targetParent, title);
+    }
+
+    public BookmarkTreeEditBookmarkResult EditBookmark(
+        BookmarkViewModel bookmark,
+        string title,
+        string url)
+    {
+        return _treeService.EditBookmark(bookmark, title, url);
+    }
+
+    public BookmarkTreeEditFolderResult EditFolder(
+        BookmarkFolderViewModel folder,
+        string title)
+    {
+        return _treeService.EditFolder(folder, title);
+    }
+
+    public BookmarkTreeDeleteResult DeleteItem(BookmarkTreeItemViewModel item)
+    {
+        return _treeService.DeleteItem(item);
+    }
+
     public void ShowDropPlaceholders(BookmarkTreeItemViewModel draggedItem)
     {
         foreach (var item in EnumerateItems(Items))

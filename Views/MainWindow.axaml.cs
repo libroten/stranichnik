@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -94,6 +95,130 @@ public partial class MainWindow : Window
         _lastTreeDragPoint = _treeDragStartPoint;
 
         e.Pointer.Capture(BookmarksScrollViewer);
+        e.Handled = true;
+    }
+
+    private async void OnAddBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            sender is not Control { DataContext: BookmarkFolderViewModel folder })
+        {
+            return;
+        }
+
+        var dialog = BookmarkEditorDialog.AddBookmark();
+        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+
+        if (result is null)
+            return;
+
+        var addResult = viewModel.AddBookmarkToFolderStart(folder, result.Title, result.Url);
+        if (addResult.WasAdded)
+        {
+            folder.IsExpanded = true;
+            UpdateBookmarksHorizontalOverflow();
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnEditBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            sender is not Control { DataContext: BookmarkViewModel bookmark })
+        {
+            return;
+        }
+
+        var dialog = BookmarkEditorDialog.EditBookmark(bookmark.Title, bookmark.Url);
+        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+
+        if (result is not null)
+        {
+            viewModel.EditBookmark(bookmark, result.Title, result.Url);
+            UpdateBookmarksHorizontalOverflow();
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnAddFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            sender is not Control { DataContext: BookmarkFolderViewModel folder })
+        {
+            return;
+        }
+
+        var dialog = BookmarkEditorDialog.AddFolder();
+        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+
+        if (result is not null)
+        {
+            var addResult = viewModel.AddFolderToFolderStart(folder, result.Title);
+            if (addResult.WasAdded)
+            {
+                folder.IsExpanded = true;
+                UpdateBookmarksHorizontalOverflow();
+            }
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnEditFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            sender is not Control { DataContext: BookmarkFolderViewModel folder })
+        {
+            return;
+        }
+
+        var dialog = BookmarkEditorDialog.EditFolder(folder.Title);
+        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+
+        if (result is not null)
+        {
+            viewModel.EditFolder(folder, result.Title);
+            UpdateBookmarksHorizontalOverflow();
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnDeleteBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            sender is not Control { DataContext: BookmarkViewModel bookmark })
+        {
+            return;
+        }
+
+        var confirmed = await ConfirmDialog.ShowDeleteBookmark(this, bookmark.Title);
+        if (confirmed)
+        {
+            viewModel.DeleteItem(bookmark);
+            UpdateBookmarksHorizontalOverflow();
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnDeleteFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel ||
+            sender is not Control { DataContext: BookmarkFolderViewModel folder })
+        {
+            return;
+        }
+
+        var confirmed = await ConfirmDialog.ShowDeleteFolder(this, folder.Title);
+        if (confirmed)
+        {
+            viewModel.DeleteItem(folder);
+            UpdateBookmarksHorizontalOverflow();
+        }
+
         e.Handled = true;
     }
 
@@ -291,7 +416,6 @@ public partial class MainWindow : Window
 
         var folder = FindTreeRow(source)?.DataContext as BookmarkFolderViewModel;
         if (folder is { IsExpanded: false } &&
-            folder.Children.Count > 0 &&
             viewModel.CanMoveItemToFolder(_draggedTreeItem, folder))
         {
             viewModel.SetDragHoverFolder(folder);
@@ -388,7 +512,6 @@ public partial class MainWindow : Window
         if (DataContext is not MainWindowViewModel viewModel ||
             _draggedTreeItem is null ||
             FindTreeRow(source)?.DataContext is not BookmarkFolderViewModel { IsExpanded: false } folder ||
-            folder.Children.Count == 0 ||
             !viewModel.CanMoveItemToFolder(_draggedTreeItem, folder))
         {
             _folderAutoExpandTimer.Stop();

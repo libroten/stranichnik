@@ -1,0 +1,140 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stranichnik.Views.BookmarkEditorDialog"
+        Title="Добавить закладку"
+        Width="420"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnKeyDown">
+    <Window.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
+            <Setter Property="CaretBrush" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Padding" Value="10,7"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
+        </Style>
+        <Style Selector="TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+        <Style Selector="Button.dialogButton">
+            <Setter Property="Width" Value="104"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.dialogButton:pointerover">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#94A3B8"/>
+        </Style>
+        <Style Selector="Button.dialogButton:focus">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+        <Style Selector="Button.dialogButton.accent">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+        <Style Selector="Button.dialogButton.accent:pointerover">
+            <Setter Property="Background" Value="#1D4ED8"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.dialogButton.accent:focus">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20"
+            Background="#FFFFFF">
+        <StackPanel Spacing="14">
+            <TextBlock x:Name="DialogTitleTextBlock"
+                       Text="Добавить закладку"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="#1F2937"/>
+
+            <StackPanel x:Name="UrlFieldPanel"
+                        Spacing="6">
+                <TextBlock Text="URL"
+                           Foreground="#526071"/>
+                <TextBox x:Name="UrlTextBox"
+                         PlaceholderText="https://example.com"
+                         TextChanged="OnUrlTextChanged"/>
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Text="Заголовок"
+                           Foreground="#526071"/>
+                <TextBox x:Name="TitleTextBox"/>
+            </StackPanel>
+
+            <TextBlock x:Name="ErrorTextBlock"
+                       IsVisible="False"
+                       Foreground="#DC2626"/>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button Classes="dialogButton"
+                        Click="OnCancelClick">
+                    Отмена
+                </Button>
+                <Button x:Name="SaveButton"
+                        Classes="dialogButton accent"
+                        Click="OnSaveClick">
+                    Добавить
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

@@ -1,0 +1,86 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Stranichnik.Views.ConfirmDialog"
+        Title="Подтверждение"
+        Width="440"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnKeyDown">
+    <Window.Styles>
+        <Style Selector="Button.dialogButton">
+            <Setter Property="Width" Value="104"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.dialogButton:pointerover">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#94A3B8"/>
+        </Style>
+        <Style Selector="Button.dialogButton:focus">
+            <Setter Property="BorderBrush" Value="#2563EB"/>
+        </Style>
+        <Style Selector="Button.dialogButton.danger">
+            <Setter Property="Background" Value="#DC2626"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#DC2626"/>
+        </Style>
+        <Style Selector="Button.dialogButton.danger:pointerover">
+            <Setter Property="Background" Value="#B91C1C"/>
+            <Setter Property="BorderBrush" Value="#B91C1C"/>
+        </Style>
+        <Style Selector="Button.dialogButton.danger:focus">
+            <Setter Property="Background" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#B91C1C"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20"
+            Background="#FFFFFF">
+        <StackPanel Spacing="14">
+            <TextBlock x:Name="TitleTextBlock"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="#1F2937"/>
+
+            <TextBlock x:Name="MessageTextBlock"
+                       TextWrapping="Wrap"
+                       Foreground="#526071"/>
+
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button Classes="dialogButton"
+                        Click="OnCancelClick">
+                    Отмена
+                </Button>
+                <Button Classes="dialogButton danger"
+                        Click="OnConfirmClick">
+                    Удалить
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

@@ -102,6 +102,45 @@ public sealed class BookmarkTreeServiceTests
     }
 
     [Fact]
+    public void DeleteItem_removes_folder_with_children()
+    {
+        var child = new BookmarkViewModel("Child", "https://child.example.com");
+        var folder = new BookmarkFolderViewModel("Folder", new[] { child });
+        var rootItems = new ObservableCollection<BookmarkTreeItemViewModel>
+        {
+            folder
+        };
+        var service = new BookmarkTreeService(rootItems);
+
+        var result = service.DeleteItem(folder);
+
+        Assert.True(result.WasDeleted);
+        Assert.Empty(rootItems);
+        Assert.Null(folder.Parent);
+        Assert.Same(folder, child.Parent);
+        Assert.Same(folder, result.Item);
+        Assert.Null(result.SourceParent);
+        Assert.Equal(0, result.SourceIndex);
+    }
+
+    [Fact]
+    public void DeleteItem_rejects_root_folder()
+    {
+        var rootFolder = new BookmarkFolderViewModel("Root", isRoot: true);
+        var rootItems = new ObservableCollection<BookmarkTreeItemViewModel>
+        {
+            rootFolder
+        };
+        var service = new BookmarkTreeService(rootItems);
+
+        var result = service.DeleteItem(rootFolder);
+
+        Assert.False(result.WasDeleted);
+        Assert.Same(rootFolder, rootItems[0]);
+        Assert.Null(rootFolder.Parent);
+    }
+
+    [Fact]
     public void MoveToFolderStart_moves_bookmark_to_target_folder_start()
     {
         var bookmark = new BookmarkViewModel("Docs", "https://docs.example.com");
