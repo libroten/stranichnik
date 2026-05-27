@@ -5,7 +5,7 @@ namespace Stranichnik.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly BookmarkTreeMoveService _moveService;
+    private readonly BookmarkTreeService _treeService;
 
     public MainWindowViewModel()
     {
@@ -14,7 +14,7 @@ public partial class MainWindowViewModel : ViewModelBase
             SampleBookmarksFactory.Create(),
             isExpanded: true,
             isRoot: true);
-        _moveService = new(Items);
+        _treeService = new(Items);
     }
 
     public BookmarkFolderViewModel RootFolder { get; }
@@ -23,14 +23,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
     {
-        return _moveService.CanMoveToFolderStart(item, targetParent);
+        return _treeService.CanMoveToFolderStart(item, targetParent);
     }
 
     public BookmarkTreeMoveResult MoveItemToFolderStart(
         BookmarkTreeItemViewModel item,
         BookmarkFolderViewModel? targetParent)
     {
-        return _moveService.MoveToFolderStart(item, targetParent);
+        return _treeService.MoveToFolderStart(item, targetParent);
     }
 
     public void ShowDropPlaceholders(BookmarkTreeItemViewModel draggedItem)
@@ -128,17 +128,27 @@ public partial class MainWindowViewModel : ViewModelBase
 
 public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
 {
+    private string _title;
     private bool _isDragSource;
     private bool _isDragDimmed;
 
     protected BookmarkTreeItemViewModel(string title)
     {
-        Title = title;
+        _title = title;
     }
 
-    public string Title { get; }
+    public string Title
+    {
+        get => _title;
+        private set => SetProperty(ref _title, value);
+    }
 
     public BookmarkFolderViewModel? Parent { get; internal set; }
+
+    internal void SetTitle(string title)
+    {
+        Title = title;
+    }
 
     public bool IsDragSource
     {
@@ -214,11 +224,22 @@ public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
 
 public sealed partial class BookmarkViewModel : BookmarkTreeItemViewModel
 {
+    private string _url;
+
     public BookmarkViewModel(string title, string url)
         : base(title)
     {
-        Url = url;
+        _url = url;
     }
 
-    public string Url { get; }
+    public string Url
+    {
+        get => _url;
+        private set => SetProperty(ref _url, value);
+    }
+
+    internal void SetUrl(string url)
+    {
+        Url = url;
+    }
 }
