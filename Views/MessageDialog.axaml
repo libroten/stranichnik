@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Stranichnik.Localization"
         x:Class="Stranichnik.Views.MessageDialog"
-        Title="Сообщение"
+        Title="{x:Static localization:UiStrings.CommonMessage}"
         Width="440"
         SizeToContent="Height"
         CanResize="False"
@@ -61,7 +62,7 @@
                 <Button x:Name="OkButton"
                         Classes="dialogButton"
                         Click="OnOkClick">
-                    OK
+                    <TextBlock Text="{x:Static localization:UiStrings.CommonOk}"/>
                 </Button>
             </StackPanel>
         </StackPanel>

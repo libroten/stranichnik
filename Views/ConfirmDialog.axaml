@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Stranichnik.Localization"
         x:Class="Stranichnik.Views.ConfirmDialog"
-        Title="Подтверждение"
+        Title="{x:Static localization:UiStrings.ConfirmTitle}"
         Width="440"
         SizeToContent="Height"
         CanResize="False"
@@ -74,11 +75,11 @@
                         Spacing="8">
                 <Button Classes="dialogButton"
                         Click="OnCancelClick">
-                    Отмена
+                    <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"/>
                 </Button>
                 <Button Classes="dialogButton danger"
                         Click="OnConfirmClick">
-                    Удалить
+                    <TextBlock Text="{x:Static localization:UiStrings.CommonDelete}"/>
                 </Button>
             </StackPanel>
         </StackPanel>

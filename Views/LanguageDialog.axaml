@@ -1,45 +1,45 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:localization="using:Stranichnik.Localization"
-        x:Class="Stranichnik.Views.BookmarkEditorDialog"
-        Title="{x:Static localization:UiStrings.BookmarkEditorAddBookmarkTitle}"
-        Width="420"
+        x:Class="Stranichnik.Views.LanguageDialog"
+        Title="{x:Static localization:UiStrings.LanguageDialogTitle}"
+        Width="360"
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         KeyDown="OnKeyDown">
     <Window.Styles>
-        <Style Selector="TextBox">
+        <Style Selector="Button.languageOption">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
-            <Setter Property="CaretBrush" Value="#1F2937"/>
             <Setter Property="BorderBrush" Value="#CBD5E1"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="MinHeight" Value="36"/>
-            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
         </Style>
-        <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
+        <Style Selector="Button.languageOption:pointerover">
+            <Setter Property="Background" Value="#EEF6FF"/>
+            <Setter Property="BorderBrush" Value="#93C5FD"/>
         </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="BorderBrush" Value="#2563EB"/>
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
-        </Style>
-        <Style Selector="TextBox /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#CBD5E1"/>
-        </Style>
-        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#CBD5E1"/>
-        </Style>
-        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-            <Setter Property="Background" Value="#FFFFFF"/>
+        <Style Selector="Button.languageOption.selected">
+            <Setter Property="Background" Value="#DBEAFE"/>
             <Setter Property="BorderBrush" Value="#2563EB"/>
         </Style>
         <Style Selector="Button.dialogButton">
@@ -70,13 +70,7 @@
         </Style>
         <Style Selector="Button.dialogButton:pointerover">
             <Setter Property="Background" Value="#F8FAFC"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
             <Setter Property="BorderBrush" Value="#94A3B8"/>
-        </Style>
-        <Style Selector="Button.dialogButton:focus">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="BorderBrush" Value="#2563EB"/>
         </Style>
         <Style Selector="Button.dialogButton.accent">
             <Setter Property="Background" Value="#2563EB"/>
@@ -85,12 +79,6 @@
         </Style>
         <Style Selector="Button.dialogButton.accent:pointerover">
             <Setter Property="Background" Value="#1D4ED8"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#1D4ED8"/>
-        </Style>
-        <Style Selector="Button.dialogButton.accent:focus">
-            <Setter Property="Background" Value="#3B82F6"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="#1D4ED8"/>
         </Style>
     </Window.Styles>
@@ -98,30 +86,23 @@
     <Border Padding="20"
             Background="#FFFFFF">
         <StackPanel Spacing="14">
-            <TextBlock x:Name="DialogTitleTextBlock"
-                       Text="{x:Static localization:UiStrings.BookmarkEditorAddBookmarkTitle}"
+            <TextBlock Text="{x:Static localization:UiStrings.LanguageDialogTitle}"
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="#1F2937"/>
 
-            <StackPanel x:Name="UrlFieldPanel"
-                        Spacing="6">
-                <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorUrlLabel}"
-                           Foreground="#526071"/>
-                <TextBox x:Name="UrlTextBox"
-                         PlaceholderText="{x:Static localization:UiStrings.BookmarkEditorUrlPlaceholder}"
-                         TextChanged="OnUrlTextChanged"/>
+            <StackPanel Spacing="8">
+                <Button x:Name="EnglishButton"
+                        Classes="languageOption"
+                        Click="OnEnglishClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.LanguageDialogEnglish}"/>
+                </Button>
+                <Button x:Name="RussianButton"
+                        Classes="languageOption"
+                        Click="OnRussianClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.LanguageDialogRussian}"/>
+                </Button>
             </StackPanel>
-
-            <StackPanel Spacing="6">
-                <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorTitleLabel}"
-                           Foreground="#526071"/>
-                <TextBox x:Name="TitleTextBox"/>
-            </StackPanel>
-
-            <TextBlock x:Name="ErrorTextBlock"
-                       IsVisible="False"
-                       Foreground="#DC2626"/>
 
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
@@ -130,10 +111,9 @@
                         Click="OnCancelClick">
                     <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"/>
                 </Button>
-                <Button x:Name="SaveButton"
-                        Classes="dialogButton accent"
-                        Click="OnSaveClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonAdd}"/>
+                <Button Classes="dialogButton accent"
+                        Click="OnApplyClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.CommonSave}"/>
                 </Button>
             </StackPanel>
         </StackPanel>

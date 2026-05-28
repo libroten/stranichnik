@@ -4,6 +4,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Stranichnik.Localization;
+using Stranichnik.Settings;
 using Stranichnik.ViewModels;
 using Stranichnik.Views;
 
@@ -18,6 +20,10 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        var settings = AppSettingsService.Load();
+        if (!string.IsNullOrWhiteSpace(settings.Language))
+            LanguageService.Apply(settings.Language);
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.MainWindow = new MainWindow

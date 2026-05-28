@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Stranichnik.ViewModels"
+        xmlns:localization="using:Stranichnik.Localization"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         xmlns:primitives="using:Avalonia.Controls.Primitives"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -62,24 +63,24 @@
                                             Spacing="4">
                                     <Button Classes="actionButton addAction"
                                             Click="OnAddBookmarkClick"
-                                            ToolTip.Tip="Добавить закладку">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionAddBookmark}">
                                         <TextBlock Classes="actionIcon" Text="+"/>
                                     </Button>
                                     <Button Classes="actionButton addFolderAction"
                                             Click="OnAddFolderClick"
-                                            ToolTip.Tip="Добавить папку">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionAddFolder}">
                                         <TextBlock Classes="actionIcon" Text="F"/>
                                     </Button>
                                     <Button Classes="actionButton editAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnEditFolderClick"
-                                            ToolTip.Tip="Редактировать">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
                                         <TextBlock Classes="actionIcon" Text="✎"/>
                                     </Button>
                                     <Button Classes="actionButton deleteAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnDeleteFolderClick"
-                                            ToolTip.Tip="Удалить">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
                                         <TextBlock Classes="actionIcon" Text="⌫"/>
                                     </Button>
                                 </StackPanel>
@@ -108,24 +109,24 @@
                                             Spacing="4">
                                     <Button Classes="actionButton addAction"
                                             Click="OnAddBookmarkClick"
-                                            ToolTip.Tip="Добавить закладку">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionAddBookmark}">
                                         <TextBlock Classes="actionIcon" Text="+"/>
                                     </Button>
                                     <Button Classes="actionButton addFolderAction"
                                             Click="OnAddFolderClick"
-                                            ToolTip.Tip="Добавить папку">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionAddFolder}">
                                         <TextBlock Classes="actionIcon" Text="F"/>
                                     </Button>
                                     <Button Classes="actionButton editAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnEditFolderClick"
-                                            ToolTip.Tip="Редактировать">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
                                         <TextBlock Classes="actionIcon" Text="✎"/>
                                     </Button>
                                     <Button Classes="actionButton deleteAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnDeleteFolderClick"
-                                            ToolTip.Tip="Удалить">
+                                            ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
                                         <TextBlock Classes="actionIcon" Text="⌫"/>
                                     </Button>
                                 </StackPanel>
@@ -179,17 +180,17 @@
                                     VerticalAlignment="Center">
                             <Button Classes="actionButton openAction"
                                     Click="OnOpenBookmarkClick"
-                                    ToolTip.Tip="Открыть">
+                                    ToolTip.Tip="{x:Static localization:UiStrings.ActionOpen}">
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
                             <Button Classes="actionButton editAction"
                                     Click="OnEditBookmarkClick"
-                                    ToolTip.Tip="Редактировать">
+                                    ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
                                 <TextBlock Classes="actionIcon" Text="✎"/>
                             </Button>
                             <Button Classes="actionButton deleteAction"
                                     Click="OnDeleteBookmarkClick"
-                                    ToolTip.Tip="Удалить">
+                                    ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
                                 <TextBlock Classes="actionIcon" Text="⌫"/>
                             </Button>
                         </StackPanel>
@@ -218,17 +219,17 @@
                                     VerticalAlignment="Center">
                             <Button Classes="actionButton openAction"
                                     Click="OnOpenBookmarkClick"
-                                    ToolTip.Tip="Открыть">
+                                    ToolTip.Tip="{x:Static localization:UiStrings.ActionOpen}">
                                 <TextBlock Classes="actionIcon" Text="↗"/>
                             </Button>
                             <Button Classes="actionButton editAction"
                                     Click="OnEditBookmarkClick"
-                                    ToolTip.Tip="Редактировать">
+                                    ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
                                 <TextBlock Classes="actionIcon" Text="✎"/>
                             </Button>
                             <Button Classes="actionButton deleteAction"
                                     Click="OnDeleteBookmarkClick"
-                                    ToolTip.Tip="Удалить">
+                                    ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
                                 <TextBlock Classes="actionIcon" Text="⌫"/>
                             </Button>
                         </StackPanel>
@@ -328,13 +329,13 @@
                             Classes="menuBarButton"
                             Click="OnStranichnikMenuClick"
                             PointerEntered="OnStranichnikMenuPointerEntered">
-                        Stranichnik
+                        <TextBlock Text="{x:Static localization:UiStrings.MainMenuApp}"/>
                     </Button>
                     <Button x:Name="ServiceMenuButton"
                             Classes="menuBarButton"
                             Click="OnServiceMenuClick"
                             PointerEntered="OnServiceMenuPointerEntered">
-                        Сервис
+                        <TextBlock Text="{x:Static localization:UiStrings.MainMenuService}"/>
                     </Button>
                 </StackPanel>
 
@@ -350,16 +351,16 @@
                         <StackPanel>
                             <Button Classes="menuPopupItem"
                                     Click="OnMenuPopupItemClick">
-                                О программе
+                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppAbout}"/>
                             </Button>
                             <Border Classes="menuPopupSeparator"/>
                             <Button Classes="menuPopupItem"
                                     Click="OnMenuPopupItemClick">
-                                Настройки
+                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppSettings}"/>
                             </Button>
                             <Button Classes="menuPopupItem"
                                     Click="OnMenuPopupItemClick">
-                                Выход
+                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppExit}"/>
                             </Button>
                         </StackPanel>
                     </Border>
@@ -377,11 +378,11 @@
                         <StackPanel>
                             <Button Classes="menuPopupItem"
                                     Click="OnMenuPopupItemClick">
-                                Внешний вид
+                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceAppearance}"/>
                             </Button>
                             <Button Classes="menuPopupItem"
-                                    Click="OnMenuPopupItemClick">
-                                Язык
+                                    Click="OnLanguageMenuClick">
+                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceLanguage}"/>
                             </Button>
                         </StackPanel>
                     </Border>

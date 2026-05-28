@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Stranichnik.Localization;
 
 namespace Stranichnik.Views;
 
@@ -55,7 +56,7 @@ public sealed partial class BookmarkEditorDialog : Window
         {
             if (title.Length == 0)
             {
-                ErrorTextBlock.Text = "Заполните заголовок.";
+                ErrorTextBlock.Text = UiStrings.ValidationTitleRequired;
                 ErrorTextBlock.IsVisible = true;
                 return;
             }
@@ -67,7 +68,7 @@ public sealed partial class BookmarkEditorDialog : Window
 
         if (url.Length == 0)
         {
-            ErrorTextBlock.Text = "Заполните URL.";
+            ErrorTextBlock.Text = UiStrings.ValidationUrlRequired;
             ErrorTextBlock.IsVisible = true;
             return;
         }
@@ -117,25 +118,25 @@ public sealed partial class BookmarkEditorDialog : Window
         switch (_mode)
         {
             case BookmarkEditorDialogMode.AddBookmark:
-                Title = "Добавить закладку";
-                DialogTitleTextBlock.Text = "Добавить закладку";
-                SaveButton.Content = "Добавить";
+                Title = UiStrings.BookmarkEditorAddBookmarkTitle;
+                DialogTitleTextBlock.Text = UiStrings.BookmarkEditorAddBookmarkTitle;
+                SaveButton.Content = UiStrings.CommonAdd;
                 break;
             case BookmarkEditorDialogMode.EditBookmark:
-                Title = "Редактировать закладку";
-                DialogTitleTextBlock.Text = "Редактировать закладку";
-                SaveButton.Content = "Сохранить";
+                Title = UiStrings.BookmarkEditorEditBookmarkTitle;
+                DialogTitleTextBlock.Text = UiStrings.BookmarkEditorEditBookmarkTitle;
+                SaveButton.Content = UiStrings.CommonSave;
                 break;
             case BookmarkEditorDialogMode.AddFolder:
-                Title = "Добавить папку";
-                DialogTitleTextBlock.Text = "Добавить папку";
-                SaveButton.Content = "Добавить";
+                Title = UiStrings.BookmarkEditorAddFolderTitle;
+                DialogTitleTextBlock.Text = UiStrings.BookmarkEditorAddFolderTitle;
+                SaveButton.Content = UiStrings.CommonAdd;
                 UrlFieldPanel.IsVisible = false;
                 break;
             case BookmarkEditorDialogMode.EditFolder:
-                Title = "Редактировать папку";
-                DialogTitleTextBlock.Text = "Редактировать папку";
-                SaveButton.Content = "Сохранить";
+                Title = UiStrings.BookmarkEditorEditFolderTitle;
+                DialogTitleTextBlock.Text = UiStrings.BookmarkEditorEditFolderTitle;
+                SaveButton.Content = UiStrings.CommonSave;
                 UrlFieldPanel.IsVisible = false;
                 break;
         }

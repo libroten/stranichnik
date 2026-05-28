@@ -10,6 +10,8 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Stranichnik.Localization;
+using Stranichnik.Settings;
 using Stranichnik.ViewModels;
 
 namespace Stranichnik.Views;
@@ -109,6 +111,29 @@ public partial class MainWindow : Window
     {
         CloseMenuPopups();
         e.Handled = true;
+    }
+
+    private async void OnLanguageMenuClick(object? sender, RoutedEventArgs e)
+    {
+        CloseMenuPopups();
+        e.Handled = true;
+
+        var settings = AppSettingsService.Load();
+        var currentLanguage = string.IsNullOrWhiteSpace(settings.Language)
+            ? LanguageService.CurrentLanguage
+            : settings.Language;
+        var selectedLanguage = await LanguageDialog.Show(this, currentLanguage);
+        if (selectedLanguage is null)
+            return;
+
+        settings.Language = selectedLanguage;
+        AppSettingsService.Save(settings);
+        LanguageService.Apply(selectedLanguage);
+
+        await MessageDialog.ShowMessage(
+            this,
+            UiStrings.LanguageDialogRestartTitle,
+            UiStrings.LanguageDialogRestartMessage);
     }
 
     private void OnMenuPopupClosed(object? sender, EventArgs e)
@@ -224,7 +249,7 @@ public partial class MainWindow : Window
             return;
 
         if (!TryOpenBookmarkUrl(bookmark.Url, out var errorMessage))
-            await MessageDialog.ShowError(this, "Не удалось открыть страницу", errorMessage);
+            await MessageDialog.ShowError(this, UiStrings.ErrorOpenPageTitle, errorMessage);
     }
 
     private async void OnEditBookmarkClick(object? sender, RoutedEventArgs e)
@@ -331,13 +356,13 @@ public partial class MainWindow : Window
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
-            errorMessage = "URL закладки должен быть корректным адресом, например https://example.com.";
+            errorMessage = UiStrings.ErrorInvalidBookmarkUrl;
             return false;
         }
 
         if (uri.Scheme is not ("http" or "https"))
         {
-            errorMessage = "Можно открывать только ссылки с протоколом http или https.";
+            errorMessage = UiStrings.ErrorUnsupportedBookmarkUrlScheme;
             return false;
         }
 
@@ -351,12 +376,12 @@ public partial class MainWindow : Window
         }
         catch (Win32Exception)
         {
-            errorMessage = "Операционная система не смогла открыть ссылку в браузере.";
+            errorMessage = UiStrings.ErrorCannotLaunchBrowser;
             return false;
         }
         catch (InvalidOperationException)
         {
-            errorMessage = "Не удалось запустить браузер для этой ссылки.";
+            errorMessage = UiStrings.ErrorUrlBrowserStartFailed;
             return false;
         }
 

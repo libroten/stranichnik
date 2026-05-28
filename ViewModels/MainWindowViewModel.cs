@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Stranichnik.Localization;
 
 namespace Stranichnik.ViewModels;
 
@@ -10,7 +11,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel()
     {
         RootFolder = new BookmarkFolderViewModel(
-            "Все закладки",
+            UiStrings.RootAllBookmarks,
             SampleBookmarksFactory.Create(),
             isExpanded: true,
             isRoot: true);

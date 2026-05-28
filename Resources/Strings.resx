@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Action_AddBookmark" xml:space="preserve">
+    <value>Add bookmark</value>
+  </data>
+  <data name="Action_AddFolder" xml:space="preserve">
+    <value>Add folder</value>
+  </data>
+  <data name="Action_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Action_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Action_Open" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="BookmarkEditor_AddBookmarkTitle" xml:space="preserve">
+    <value>Add bookmark</value>
+  </data>
+  <data name="BookmarkEditor_AddFolderTitle" xml:space="preserve">
+    <value>Add folder</value>
+  </data>
+  <data name="BookmarkEditor_EditBookmarkTitle" xml:space="preserve">
+    <value>Edit bookmark</value>
+  </data>
+  <data name="BookmarkEditor_EditFolderTitle" xml:space="preserve">
+    <value>Edit folder</value>
+  </data>
+  <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="BookmarkEditor_UrlLabel" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="BookmarkEditor_UrlPlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Common_Message" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="Common_OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Confirm_DeleteBookmarkMessage" xml:space="preserve">
+    <value>Are you sure you want to delete bookmark {0}?</value>
+  </data>
+  <data name="Confirm_DeleteBookmarkTitle" xml:space="preserve">
+    <value>Delete bookmark</value>
+  </data>
+  <data name="Confirm_DeleteFolderMessage" xml:space="preserve">
+    <value>Are you sure you want to delete folder {0}? All its contents will be deleted.</value>
+  </data>
+  <data name="Confirm_DeleteFolderTitle" xml:space="preserve">
+    <value>Delete folder</value>
+  </data>
+  <data name="Confirm_Title" xml:space="preserve">
+    <value>Confirmation</value>
+  </data>
+  <data name="Error_CannotLaunchBrowser" xml:space="preserve">
+    <value>The operating system could not open the link in a browser.</value>
+  </data>
+  <data name="Error_InvalidBookmarkUrl" xml:space="preserve">
+    <value>The bookmark URL must be a valid address, for example https://example.com.</value>
+  </data>
+  <data name="Error_OpenPageTitle" xml:space="preserve">
+    <value>Could not open page</value>
+  </data>
+  <data name="Error_UnsupportedBookmarkUrlScheme" xml:space="preserve">
+    <value>Only links with the http or https protocol can be opened.</value>
+  </data>
+  <data name="Error_UrlBrowserStartFailed" xml:space="preserve">
+    <value>Could not start a browser for this link.</value>
+  </data>
+  <data name="LanguageDialog_English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="LanguageDialog_RestartMessage" xml:space="preserve">
+    <value>The language has been saved. Restart the application to update all interface text.</value>
+  </data>
+  <data name="LanguageDialog_RestartTitle" xml:space="preserve">
+    <value>Language changed</value>
+  </data>
+  <data name="LanguageDialog_Russian" xml:space="preserve">
+    <value>Russian</value>
+  </data>
+  <data name="LanguageDialog_Title" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="MainMenu_App" xml:space="preserve">
+    <value>Stranichnik</value>
+  </data>
+  <data name="MainMenu_App_About" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="MainMenu_App_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="MainMenu_App_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="MainMenu_Service" xml:space="preserve">
+    <value>Service</value>
+  </data>
+  <data name="MainMenu_Service_Appearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="MainMenu_Service_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Root_AllBookmarks" xml:space="preserve">
+    <value>All bookmarks</value>
+  </data>
+  <data name="Validation_TitleRequired" xml:space="preserve">
+    <value>Fill in the title.</value>
+  </data>
+  <data name="Validation_UrlRequired" xml:space="preserve">
+    <value>Fill in the URL.</value>
+  </data>
+</root>

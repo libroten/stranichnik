@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Stranichnik.Localization;
 
 namespace Stranichnik.Views;
 
@@ -10,6 +11,7 @@ public sealed partial class MessageDialog : Window
     public MessageDialog()
     {
         InitializeComponent();
+        Title = UiStrings.CommonMessage;
         Opened += (_, _) => OkButton.Focus();
     }
 
@@ -22,6 +24,11 @@ public sealed partial class MessageDialog : Window
     }
 
     public static Task<object?> ShowError(Window owner, string title, string message)
+    {
+        return ShowMessage(owner, title, message);
+    }
+
+    public static Task<object?> ShowMessage(Window owner, string title, string message)
     {
         var dialog = new MessageDialog(title, message);
 

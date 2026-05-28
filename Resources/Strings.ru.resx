@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Action_AddBookmark" xml:space="preserve">
+    <value>Добавить закладку</value>
+  </data>
+  <data name="Action_AddFolder" xml:space="preserve">
+    <value>Добавить папку</value>
+  </data>
+  <data name="Action_Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Action_Edit" xml:space="preserve">
+    <value>Редактировать</value>
+  </data>
+  <data name="Action_Open" xml:space="preserve">
+    <value>Открыть</value>
+  </data>
+  <data name="BookmarkEditor_AddBookmarkTitle" xml:space="preserve">
+    <value>Добавить закладку</value>
+  </data>
+  <data name="BookmarkEditor_AddFolderTitle" xml:space="preserve">
+    <value>Добавить папку</value>
+  </data>
+  <data name="BookmarkEditor_EditBookmarkTitle" xml:space="preserve">
+    <value>Редактировать закладку</value>
+  </data>
+  <data name="BookmarkEditor_EditFolderTitle" xml:space="preserve">
+    <value>Редактировать папку</value>
+  </data>
+  <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
+    <value>Заголовок</value>
+  </data>
+  <data name="BookmarkEditor_UrlLabel" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="BookmarkEditor_UrlPlaceholder" xml:space="preserve">
+    <value>https://example.com</value>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Добавить</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Отмена</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Удалить</value>
+  </data>
+  <data name="Common_Message" xml:space="preserve">
+    <value>Сообщение</value>
+  </data>
+  <data name="Common_OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Сохранить</value>
+  </data>
+  <data name="Confirm_DeleteBookmarkMessage" xml:space="preserve">
+    <value>Вы точно хотите удалить закладку {0}?</value>
+  </data>
+  <data name="Confirm_DeleteBookmarkTitle" xml:space="preserve">
+    <value>Удалить закладку</value>
+  </data>
+  <data name="Confirm_DeleteFolderMessage" xml:space="preserve">
+    <value>Вы точно хотите удалить папку {0}? Будет удалено все ее содержимое.</value>
+  </data>
+  <data name="Confirm_DeleteFolderTitle" xml:space="preserve">
+    <value>Удалить папку</value>
+  </data>
+  <data name="Confirm_Title" xml:space="preserve">
+    <value>Подтверждение</value>
+  </data>
+  <data name="Error_CannotLaunchBrowser" xml:space="preserve">
+    <value>Операционная система не смогла открыть ссылку в браузере.</value>
+  </data>
+  <data name="Error_InvalidBookmarkUrl" xml:space="preserve">
+    <value>URL закладки должен быть корректным адресом, например https://example.com.</value>
+  </data>
+  <data name="Error_OpenPageTitle" xml:space="preserve">
+    <value>Не удалось открыть страницу</value>
+  </data>
+  <data name="Error_UnsupportedBookmarkUrlScheme" xml:space="preserve">
+    <value>Можно открывать только ссылки с протоколом http или https.</value>
+  </data>
+  <data name="Error_UrlBrowserStartFailed" xml:space="preserve">
+    <value>Не удалось запустить браузер для этой ссылки.</value>
+  </data>
+  <data name="LanguageDialog_English" xml:space="preserve">
+    <value>Английский</value>
+  </data>
+  <data name="LanguageDialog_RestartMessage" xml:space="preserve">
+    <value>Язык сохранен. Перезапустите приложение, чтобы обновить весь интерфейс.</value>
+  </data>
+  <data name="LanguageDialog_RestartTitle" xml:space="preserve">
+    <value>Язык изменен</value>
+  </data>
+  <data name="LanguageDialog_Russian" xml:space="preserve">
+    <value>Русский</value>
+  </data>
+  <data name="LanguageDialog_Title" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="MainMenu_App" xml:space="preserve">
+    <value>Stranichnik</value>
+  </data>
+  <data name="MainMenu_App_About" xml:space="preserve">
+    <value>О программе</value>
+  </data>
+  <data name="MainMenu_App_Exit" xml:space="preserve">
+    <value>Выход</value>
+  </data>
+  <data name="MainMenu_App_Settings" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+  <data name="MainMenu_Service" xml:space="preserve">
+    <value>Сервис</value>
+  </data>
+  <data name="MainMenu_Service_Appearance" xml:space="preserve">
+    <value>Внешний вид</value>
+  </data>
+  <data name="MainMenu_Service_Language" xml:space="preserve">
+    <value>Язык</value>
+  </data>
+  <data name="Root_AllBookmarks" xml:space="preserve">
+    <value>Все закладки</value>
+  </data>
+  <data name="Validation_TitleRequired" xml:space="preserve">
+    <value>Заполните заголовок.</value>
+  </data>
+  <data name="Validation_UrlRequired" xml:space="preserve">
+    <value>Заполните URL.</value>
+  </data>
+</root>

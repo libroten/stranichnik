@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Stranichnik.Localization;
 
 namespace Stranichnik.Views;
 
@@ -23,8 +24,8 @@ public sealed partial class ConfirmDialog : Window
     public static Task<bool> ShowDeleteBookmark(Window owner, string title)
     {
         var dialog = new ConfirmDialog(
-            "Удалить закладку",
-            $"Вы точно хотите удалить закладку {title}?");
+            UiStrings.ConfirmDeleteBookmarkTitle,
+            UiStrings.ConfirmDeleteBookmarkMessage(title));
 
         return dialog.ShowDialog<bool>(owner);
     }
@@ -32,8 +33,8 @@ public sealed partial class ConfirmDialog : Window
     public static Task<bool> ShowDeleteFolder(Window owner, string title)
     {
         var dialog = new ConfirmDialog(
-            "Удалить папку",
-            $"Вы точно хотите удалить папку {title}? Будет удалено все ее содержимое.");
+            UiStrings.ConfirmDeleteFolderTitle,
+            UiStrings.ConfirmDeleteFolderMessage(title));
 
         return dialog.ShowDialog<bool>(owner);
     }
