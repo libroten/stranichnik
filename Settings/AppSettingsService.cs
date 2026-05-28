@@ -15,10 +15,10 @@ public static class AppSettingsService
     {
         try
         {
-            if (!File.Exists(SettingsPath))
+            if (!File.Exists(AppDataPaths.SettingsPath))
                 return new();
 
-            var json = File.ReadAllText(SettingsPath);
+            var json = File.ReadAllText(AppDataPaths.SettingsPath);
 
             return JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ?? new();
         }
@@ -38,22 +38,8 @@ public static class AppSettingsService
 
     public static void Save(AppSettings settings)
     {
-        Directory.CreateDirectory(SettingsDirectory);
+        Directory.CreateDirectory(AppDataPaths.AppDataDirectory);
         var json = JsonSerializer.Serialize(settings, SerializerOptions);
-        File.WriteAllText(SettingsPath, json);
+        File.WriteAllText(AppDataPaths.SettingsPath, json);
     }
-
-    private static string SettingsDirectory
-    {
-        get
-        {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (string.IsNullOrWhiteSpace(appData))
-                appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-            return Path.Combine(appData, "Stranichnik");
-        }
-    }
-
-    private static string SettingsPath => Path.Combine(SettingsDirectory, "settings.json");
 }
