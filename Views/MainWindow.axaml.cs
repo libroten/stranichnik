@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -78,6 +79,97 @@ public partial class MainWindow : Window
         DataContextChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         BookmarksScrollViewer.SizeChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         UpdateBookmarksHorizontalOverflow();
+    }
+
+    private void OnStranichnikMenuClick(object? sender, RoutedEventArgs e)
+    {
+        ToggleMenuPopup(StranichnikMenuPopup, StranichnikMenuButton);
+        e.Handled = true;
+    }
+
+    private void OnServiceMenuClick(object? sender, RoutedEventArgs e)
+    {
+        ToggleMenuPopup(ServiceMenuPopup, ServiceMenuButton);
+        e.Handled = true;
+    }
+
+    private void OnStranichnikMenuPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (ServiceMenuPopup.IsOpen)
+            OpenOnlyMenuPopup(StranichnikMenuPopup, StranichnikMenuButton);
+    }
+
+    private void OnServiceMenuPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (StranichnikMenuPopup.IsOpen)
+            OpenOnlyMenuPopup(ServiceMenuPopup, ServiceMenuButton);
+    }
+
+    private void OnMenuPopupItemClick(object? sender, RoutedEventArgs e)
+    {
+        CloseMenuPopups();
+        e.Handled = true;
+    }
+
+    private void OnMenuPopupClosed(object? sender, EventArgs e)
+    {
+        if (!StranichnikMenuPopup.IsOpen)
+            SetMenuButtonOpen(StranichnikMenuButton, false);
+
+        if (!ServiceMenuPopup.IsOpen)
+            SetMenuButtonOpen(ServiceMenuButton, false);
+    }
+
+    private void ToggleMenuPopup(Popup popup, Button button)
+    {
+        var shouldOpen = !popup.IsOpen;
+
+        CloseMenuPopups();
+
+        popup.IsOpen = shouldOpen;
+        SetMenuButtonOpen(button, shouldOpen);
+    }
+
+    private void OpenOnlyMenuPopup(Popup popup, Button button)
+    {
+        CloseMenuPopups();
+        popup.IsOpen = true;
+        SetMenuButtonOpen(button, true);
+    }
+
+    private void CloseMenuPopups()
+    {
+        StranichnikMenuPopup.IsOpen = false;
+        ServiceMenuPopup.IsOpen = false;
+        SetMenuButtonOpen(StranichnikMenuButton, false);
+        SetMenuButtonOpen(ServiceMenuButton, false);
+    }
+
+    private static void SetMenuButtonOpen(Button button, bool isOpen)
+    {
+        if (isOpen)
+        {
+            if (!button.Classes.Contains("open"))
+                button.Classes.Add("open");
+
+            return;
+        }
+
+        button.Classes.Remove("open");
+    }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || !HasOpenMenuPopup())
+            return;
+
+        CloseMenuPopups();
+        e.Handled = true;
+    }
+
+    private bool HasOpenMenuPopup()
+    {
+        return StranichnikMenuPopup.IsOpen || ServiceMenuPopup.IsOpen;
     }
 
     private void OnTreeRowPointerPressed(object? sender, PointerPressedEventArgs e)
