@@ -26,6 +26,11 @@ Completed broad areas:
 - First-pass localization infrastructure with English fallback and Russian translation.
 - Language selection dialog reachable from `Service -> Language`.
 - Simple last-run file logging with optional stdout duplication.
+- UI-independent storage records.
+- `IBookmarkTreeStore`.
+- `InMemoryBookmarkTreeStore`.
+- Storage-to-view-model mapper.
+- Main tree add/edit/delete/move operations routed through the in-memory store.
 
 Not implemented yet:
 
@@ -35,11 +40,13 @@ Not implemented yet:
 - Secret bookmark encryption.
 - WebDAV sync.
 
-Implemented in service layer:
+Implemented in storage/view-model layer:
 
-- `BookmarkTreeService` supports in-memory add bookmark, add folder, edit bookmark, edit folder, delete item, and move item operations.
-- UI buttons are wired to these operations.
-- Service result records should remain the boundary for future persistence, search indexing, sync metadata, and secret handling.
+- `InMemoryBookmarkTreeStore` supports in-memory add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
+- `MainWindowViewModel` loads initial data through `SampleBookmarkRecordsFactory -> InMemoryBookmarkTreeStore -> BookmarkTreeViewModelMapper`.
+- UI buttons and DnD are wired to view model operations that update the store first and then update the visible tree.
+- Operation result records live in `ViewModels/BookmarkTreeOperationResults.cs`.
+- The old `BookmarkTreeService` has been removed.
 
 Current dialogs:
 
@@ -160,9 +167,9 @@ Suggested order:
 
 1. Read `Notes/FUTURE_FEATURES_PLAN.md`.
 2. Read `Notes/DATA_SCHEMA.md`.
-3. Introduce repository/storage interfaces without letting Avalonia views mutate persistent state directly.
-4. Add SQLite migrations and real app data loading/saving.
-5. Keep `BookmarkTreeService` or its successor as the central mutation boundary.
+3. Read `Notes/STORAGE_ARCHITECTURE.md`.
+4. Add SQLite migrations and real app data loading/saving behind `IBookmarkTreeStore`.
+5. Keep store-backed view model operations as the central mutation boundary.
 6. After persistence is stable, continue with search, selective encryption, and sync.
 
 SQLite schema direction:
@@ -171,6 +178,14 @@ SQLite schema direction:
 - Keep the visible root folder synthetic; top-level database rows have `parent_id = NULL`.
 - Include metadata for future secret bookmark encryption, in-memory search, tombstone deletes, and item-level WebDAV sync.
 - See `Notes/DATA_SCHEMA.md` for the current draft.
+
+Storage architecture direction:
+
+- Add UI-independent storage/domain records.
+- Add `IBookmarkTreeStore`.
+- Use `InMemoryBookmarkTreeStore` now, then add SQLite behind the same boundary.
+- Keep search, encryption, and sync outside Avalonia view models.
+- See `Notes/STORAGE_ARCHITECTURE.md` for the current draft.
 
 For add/edit/delete/move/open, keep model changes centralized. SQLite persistence should be able to observe or wrap service operations instead of duplicating logic in the UI.
 

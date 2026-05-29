@@ -19,6 +19,7 @@ Current storage:
 - In-memory sample data only.
 - SQLite is planned later, after the in-memory model and UI behavior are stable.
 - The current SQLite schema draft is documented in `Notes/DATA_SCHEMA.md`.
+- The current storage/repository architecture draft is documented in `Notes/STORAGE_ARCHITECTURE.md`.
 - Future search is currently expected to start as an in-memory index rather than a persistent SQLite/Lucene index.
 - Future WebDAV sync should synchronize item-level objects, not the SQLite database file itself.
 
@@ -168,10 +169,11 @@ Important types:
 
 - `RootFolder`: synthetic root folder.
 - `Items`: alias for `RootFolder.Children`.
-- `BookmarkTreeService`: in-memory application service for tree mutations.
+- `IBookmarkTreeStore`: storage boundary for in-memory tree data and future SQLite persistence.
 
 `BookmarkTreeItemViewModel` is the common base for folders and bookmarks. It currently stores:
 
+- `Id`
 - `Title`
 - `Parent`
 - DnD visual state flags.
@@ -190,9 +192,16 @@ Important types:
 
 ## Sample Data
 
-Sample data lives in:
+Storage-level sample data lives in:
 
-- `ViewModels/SampleBookmarksFactory.cs`
+- `Storage/SampleBookmarkRecordsFactory.cs`
+
+It is loaded through:
+
+- `Storage/InMemoryBookmarkTreeStore.cs`
+- `ViewModels/BookmarkTreeViewModelMapper.cs`
+
+Legacy direct ViewModel sample data may still exist during cleanup, but it should not be the active loading path.
 
 It intentionally contains edge cases:
 
@@ -231,11 +240,12 @@ Important constraints:
 - Do not allow moving an item into the same parent.
 - Keep move operations centralized so SQLite persistence can later hook into one service-level operation.
 
-## Tree Service
+## Storage Boundary
 
-Tree mutation logic is extracted into:
+Tree data and mutations are currently routed through:
 
-- `ViewModels/BookmarkTreeService.cs`
+- `Storage/IBookmarkTreeStore.cs`
+- `Storage/InMemoryBookmarkTreeStore.cs`
 
 Important methods:
 
@@ -247,19 +257,36 @@ Important methods:
 - `CanMoveToFolderStart(...)`
 - `MoveToFolderStart(...)`
 
-The service returns operation result records, which contain enough information to later mirror changes to persistent storage, search indexing, sync dirty flags, and secret handling.
+`MainWindowViewModel` calls this store for initial loading and add/edit/delete/move operations.
 
-This service is covered by unit tests.
+The view model still returns operation result records from:
+
+- `ViewModels/BookmarkTreeOperationResults.cs`
+
+These records contain enough information to support UI updates and future undo/search/sync hooks.
+
+Current storage tests cover:
+
+- `InMemoryBookmarkTreeStore`
+- `BookmarkTreeViewModelMapper`
+- `MainWindowViewModel` storage-path operations
+
+Future SQLite direction:
+
+- Replace `InMemoryBookmarkTreeStore` with a SQLite implementation behind `IBookmarkTreeStore`.
+- Keep Avalonia event handlers free of direct SQLite writes.
+- Keep search, encryption, and sync outside view models.
+- See `Notes/STORAGE_ARCHITECTURE.md` before changing the storage boundary.
 
 Current UI wiring:
 
 - Add bookmark button opens `BookmarkEditorDialog` and calls `AddBookmarkToFolderStart(...)`.
 - Add folder button opens `BookmarkEditorDialog` and calls `AddFolderToFolderStart(...)`.
-- Edit bookmark/folder buttons open `BookmarkEditorDialog` and call the corresponding edit service method.
+- Edit bookmark/folder buttons open `BookmarkEditorDialog` and call the corresponding view model operation.
 - Delete bookmark/folder buttons open `ConfirmDialog` and call `DeleteItem(...)` after confirmation.
 - Open bookmark button launches the URL through the operating system after validation.
 
-Keep future persistence behind the same service/repository boundary. Avoid putting SQLite writes directly in view event handlers.
+Keep future persistence behind the same store/repository boundary. Avoid putting SQLite writes directly in view event handlers.
 
 ## Tests
 
@@ -273,7 +300,10 @@ Current test project:
 
 Current tested area:
 
-- `BookmarkTreeService`
+- storage records and in-memory store
+- storage-to-view-model mapper
+- `MainWindowViewModel` storage-path operations
+- localization
 
 Do not run tests yourself unless the user explicitly asks. Ask the user to run:
 

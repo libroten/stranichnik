@@ -1,21 +1,32 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using Stranichnik.Localization;
+using Stranichnik.Storage;
 
 namespace Stranichnik.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    private readonly BookmarkTreeService _treeService;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The view model intentionally depends on the storage abstraction so SQLite can replace the in-memory store without changing callers.")]
+    private readonly IBookmarkTreeStore _treeStore;
 
     public MainWindowViewModel()
     {
+        _treeStore = new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items);
+        var items = BookmarkTreeViewModelMapper.CreateViewModels(
+            _treeStore.Load(),
+            SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
+
         RootFolder = new BookmarkFolderViewModel(
             UiStrings.RootAllBookmarks,
-            SampleBookmarksFactory.Create(),
+            items,
             isExpanded: true,
             isRoot: true);
-        _treeService = new(Items);
     }
 
     public BookmarkFolderViewModel RootFolder { get; }
@@ -24,14 +35,47 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
     {
-        return _treeService.CanMoveToFolderStart(item, targetParent);
+        if (item is BookmarkFolderViewModel { IsRoot: true })
+            return false;
+
+        return _treeStore.CanMoveToFolderStart(
+            item.Id,
+            GetStorageParentId(targetParent));
     }
 
     public BookmarkTreeMoveResult MoveItemToFolderStart(
         BookmarkTreeItemViewModel item,
         BookmarkFolderViewModel? targetParent)
     {
-        return _treeService.MoveToFolderStart(item, targetParent);
+        var sourceParent = item.Parent;
+        var sourceItems = GetMutableItems(sourceParent);
+        var targetItems = GetMutableItems(targetParent);
+        var sourceIndex = sourceItems.IndexOf(item);
+
+        if (sourceIndex < 0 || !CanMoveItemToFolder(item, targetParent))
+            return BookmarkTreeMoveResult.NotMoved(item, targetParent);
+
+        try
+        {
+            _treeStore.MoveToFolderStart(
+                item.Id,
+                GetStorageParentId(targetParent));
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeMoveResult.NotMoved(item, targetParent);
+        }
+
+        sourceItems.RemoveAt(sourceIndex);
+        item.Parent = targetParent;
+        targetItems.Insert(0, item);
+
+        return BookmarkTreeMoveResult.Moved(
+            item,
+            sourceParent,
+            targetParent,
+            sourceIndex,
+            targetIndex: 0);
     }
 
     public BookmarkTreeAddBookmarkResult AddBookmarkToFolderStart(
@@ -39,14 +83,76 @@ public partial class MainWindowViewModel : ViewModelBase
         string title,
         string url)
     {
-        return _treeService.AddBookmarkToFolderStart(targetParent, title, url);
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.AddBookmarkToFolderStart(
+                GetStorageParentId(targetParent),
+                title,
+                url);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+        }
+
+        var bookmark = new BookmarkViewModel(
+            record.Title ?? string.Empty,
+            record.Url ?? string.Empty,
+            record.Id)
+        {
+            Parent = targetParent
+        };
+
+        targetParent.Children.Insert(0, bookmark);
+
+        return BookmarkTreeAddBookmarkResult.Added(
+            bookmark,
+            targetParent,
+            targetIndex: 0);
     }
 
     public BookmarkTreeAddFolderResult AddFolderToFolderStart(
         BookmarkFolderViewModel targetParent,
         string title)
     {
-        return _treeService.AddFolderToFolderStart(targetParent, title);
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.AddFolderToFolderStart(
+                GetStorageParentId(targetParent),
+                title);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeAddFolderResult.NotAdded(targetParent);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeAddFolderResult.NotAdded(targetParent);
+        }
+
+        var folder = new BookmarkFolderViewModel(
+            record.Title ?? string.Empty,
+            isExpanded: false,
+            isRoot: false,
+            id: record.Id)
+        {
+            Parent = targetParent
+        };
+
+        targetParent.Children.Insert(0, folder);
+
+        return BookmarkTreeAddFolderResult.Added(
+            folder,
+            targetParent,
+            targetIndex: 0);
     }
 
     public BookmarkTreeEditBookmarkResult EditBookmark(
@@ -54,19 +160,86 @@ public partial class MainWindowViewModel : ViewModelBase
         string title,
         string url)
     {
-        return _treeService.EditBookmark(bookmark, title, url);
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.EditBookmark(bookmark.Id, title, url);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+        }
+
+        var oldTitle = bookmark.Title;
+        var oldUrl = bookmark.Url;
+
+        bookmark.SetTitle(record.Title ?? string.Empty);
+        bookmark.SetUrl(record.Url ?? string.Empty);
+
+        return BookmarkTreeEditBookmarkResult.Edited(
+            bookmark,
+            oldTitle,
+            oldUrl);
     }
 
     public BookmarkTreeEditFolderResult EditFolder(
         BookmarkFolderViewModel folder,
         string title)
     {
-        return _treeService.EditFolder(folder, title);
+        if (folder.IsRoot)
+            return BookmarkTreeEditFolderResult.NotEdited(folder);
+
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.EditFolder(folder.Id, title);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeEditFolderResult.NotEdited(folder);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeEditFolderResult.NotEdited(folder);
+        }
+
+        var oldTitle = folder.Title;
+        folder.SetTitle(record.Title ?? string.Empty);
+
+        return BookmarkTreeEditFolderResult.Edited(folder, oldTitle);
     }
 
     public BookmarkTreeDeleteResult DeleteItem(BookmarkTreeItemViewModel item)
     {
-        return _treeService.DeleteItem(item);
+        if (item is BookmarkFolderViewModel { IsRoot: true })
+            return BookmarkTreeDeleteResult.NotDeleted(item);
+
+        var sourceParent = item.Parent;
+        var sourceItems = GetMutableItems(sourceParent);
+        var sourceIndex = sourceItems.IndexOf(item);
+
+        if (sourceIndex < 0)
+            return BookmarkTreeDeleteResult.NotDeleted(item);
+
+        try
+        {
+            _treeStore.DeleteItem(item.Id);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeDeleteResult.NotDeleted(item);
+        }
+
+        sourceItems.RemoveAt(sourceIndex);
+        item.Parent = null;
+
+        return BookmarkTreeDeleteResult.Deleted(item, sourceParent, sourceIndex);
     }
 
     public void ShowDropPlaceholders(BookmarkTreeItemViewModel draggedItem)
@@ -160,6 +333,16 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
     }
+
+    private ObservableCollection<BookmarkTreeItemViewModel> GetMutableItems(BookmarkFolderViewModel? parent)
+    {
+        return parent?.Children ?? Items;
+    }
+
+    private static string? GetStorageParentId(BookmarkFolderViewModel? targetParent)
+    {
+        return targetParent is null || targetParent.IsRoot ? null : targetParent.Id;
+    }
 }
 
 public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
@@ -168,10 +351,13 @@ public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
     private bool _isDragSource;
     private bool _isDragDimmed;
 
-    protected BookmarkTreeItemViewModel(string title)
+    protected BookmarkTreeItemViewModel(string title, string? id = null)
     {
+        Id = id ?? Guid.NewGuid().ToString("N");
         _title = title;
     }
+
+    public string Id { get; }
 
     public string Title
     {
@@ -210,8 +396,9 @@ public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
         string title,
         IEnumerable<BookmarkTreeItemViewModel>? children = null,
         bool isExpanded = false,
-        bool isRoot = false)
-        : base(title)
+        bool isRoot = false,
+        string? id = null)
+        : base(title, id)
     {
         Children = children is null ? new() : new(children);
         _isExpanded = isExpanded;
@@ -262,8 +449,8 @@ public sealed partial class BookmarkViewModel : BookmarkTreeItemViewModel
 {
     private string _url;
 
-    public BookmarkViewModel(string title, string url)
-        : base(title)
+    public BookmarkViewModel(string title, string url, string? id = null)
+        : base(title, id)
     {
         _url = url;
     }
