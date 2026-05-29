@@ -47,6 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase
         BookmarkTreeItemViewModel item,
         BookmarkFolderViewModel? targetParent)
     {
+        targetParent ??= RootFolder;
+
         var sourceParent = item.Parent;
         var sourceItems = GetMutableItems(sourceParent);
         var targetItems = GetMutableItems(targetParent);

@@ -299,7 +299,7 @@ These can wait until implementation:
 - Whether metadata should stay nested or be flattened.
 - Whether store methods should return full records or operation result objects.
 - How much validation belongs in application service versus store.
-- Whether `LoadAsync` should include locked secret rows as metadata-only records or hide them until unlock.
+- Whether `Load` should include locked secret rows as metadata-only records or hide them until unlock.
 
 ## Recommended Next Step
 

@@ -94,11 +94,12 @@ public sealed class MainWindowViewModelStorageTests
     public void EditFolder_rejects_root_folder()
     {
         var viewModel = new MainWindowViewModel();
+        var oldTitle = viewModel.RootFolder.Title;
 
         var result = viewModel.EditFolder(viewModel.RootFolder, "New Root");
 
         Assert.False(result.WasEdited);
-        Assert.Equal("Все закладки", viewModel.RootFolder.Title);
+        Assert.Equal(oldTitle, viewModel.RootFolder.Title);
     }
 
     [Fact]
@@ -166,6 +167,26 @@ public sealed class MainWindowViewModelStorageTests
         Assert.Same(viewModel.RootFolder, result.SourceParent);
         Assert.Same(targetFolder, result.TargetParent);
         Assert.Equal(4, result.SourceIndex);
+        Assert.Equal(0, result.TargetIndex);
+    }
+
+    [Fact]
+    public void MoveItemToFolderStart_treats_null_target_as_root_folder()
+    {
+        var viewModel = new MainWindowViewModel();
+        var sourceFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+        var bookmark = Assert.IsType<BookmarkViewModel>(
+            sourceFolder.Children.First(item => item.Id == "avalonia-docs"));
+
+        var result = viewModel.MoveItemToFolderStart(bookmark, targetParent: null);
+
+        Assert.True(result.WasMoved);
+        Assert.Same(bookmark, viewModel.Items[0]);
+        Assert.Same(viewModel.RootFolder, bookmark.Parent);
+        Assert.Same(sourceFolder, result.SourceParent);
+        Assert.Same(viewModel.RootFolder, result.TargetParent);
+        Assert.Equal(0, result.SourceIndex);
         Assert.Equal(0, result.TargetIndex);
     }
 
