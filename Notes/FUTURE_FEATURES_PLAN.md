@@ -342,8 +342,8 @@ Application services
   SyncService               WebDAV orchestration
 
 Storage
-  IBookmarkRepository
-  SQLiteBookmarkRepository
+  IBookmarkTreeStore
+  SqliteBookmarkTreeStore
 
 Search
   ISearchIndex
@@ -373,7 +373,7 @@ Near-term recommended direction:
 
 This prepares the app for:
 
-- SQLite repository writes.
+- SQLite store writes.
 - Search index updates.
 - Secret payload handling.
 - Sync dirty flags and tombstones.
@@ -382,10 +382,9 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Verify and stabilize SQLite persistence.
-2. Add first in-memory search service/index.
-3. Add selective secret bookmark support.
-4. Add WebDAV item-level sync.
+1. Add first in-memory search service/index.
+2. Add selective secret bookmark support.
+3. Add WebDAV item-level sync.
 
 ## References To Revisit
 

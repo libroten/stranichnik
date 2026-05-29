@@ -246,7 +246,7 @@ Important constraints:
 - Do not allow moving a folder into itself.
 - Do not allow moving a folder into its own descendant.
 - Do not allow moving an item into the same parent.
-- Keep move operations centralized so SQLite persistence can later hook into one service-level operation.
+- Keep move operations centralized so persistence, search, encryption, and sync hooks can stay behind one operation path.
 
 ## Storage Boundary
 
@@ -343,6 +343,6 @@ When adding new `.csproj` files, include analyzer settings:
 
 ## Git And Local Notes
 
-`Notes/` is intentionally ignored by git. It is local agent memory, not project documentation for the public repository.
+Tracked files under `Notes/` are project memory for agents and should be kept current when architecture or major project state changes.
 
 `AGENTS.md` is also local-only and ignored by git.

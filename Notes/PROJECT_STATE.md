@@ -6,7 +6,7 @@ This note records the current development state for future agents.
 
 The project has moved from the in-memory UI phase into local SQLite persistence.
 
-The current goal is to stabilize SQLite-backed bookmark storage before adding search, selective encryption, or sync.
+SQLite-backed bookmark storage is implemented and manually verified. The next large feature area is expected to be search, followed later by selective encryption and sync.
 
 Completed broad areas:
 
@@ -45,7 +45,8 @@ Implemented in storage/view-model layer:
 
 - `InMemoryBookmarkTreeStore` supports in-memory add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
 - `SqliteBookmarkTreeStore` supports SQLite add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
-- `MainWindowViewModel` loads runtime data through `SqliteBookmarkTreeStore -> BookmarkTreeViewModelMapper`.
+- `App.axaml.cs` creates the runtime `SqliteBookmarkTreeStore` and injects it into `MainWindowViewModel`.
+- `MainWindowViewModel` loads runtime data through `IBookmarkTreeStore -> BookmarkTreeViewModelMapper`.
 - New SQLite databases start empty by default.
 - `--use-sample-data` seeds sample data only when the SQLite file did not exist before startup.
 - Tests can inject `InMemoryBookmarkTreeStore` into `MainWindowViewModel`.
@@ -144,7 +145,7 @@ Known design choice:
 
 ## Current Validation State
 
-The user last confirmed that the UI changes work visually.
+The user last confirmed successful build, tests, formatting verification, normal app launch, sample-data launch, existing-database launch, and missing-database launch.
 
 The assistant must not run:
 
@@ -166,13 +167,13 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad implementation area should be chosen after SQLite persistence is manually verified and committed.
+The next broad implementation area should be chosen after SQLite persistence is committed.
 
 Likely order:
 
-1. Verify SQLite restart persistence thoroughly.
-2. Keep store-backed view model operations as the central mutation boundary.
-3. After persistence is stable, continue with search, selective encryption, and sync.
+1. Keep store-backed view model operations as the central mutation boundary.
+2. Add the first in-memory search service/index.
+3. Continue later with selective encryption and sync.
 
 SQLite schema direction:
 

@@ -1,6 +1,6 @@
-# Stranichnik Storage Architecture Draft
+# Stranichnik Storage Architecture
 
-This note records the current working design for the future storage/repository layer.
+This note records the current storage design.
 
 Important: this is not a fixed contract. It is a practical direction for the next persistence steps and may change if implementation reveals simpler or safer choices.
 
@@ -29,12 +29,13 @@ Current simplified flow:
 
 ```text
 Avalonia UI
-  -> MainWindowViewModel
-    -> IBookmarkTreeStore
-      -> InMemoryBookmarkTreeStore
+  -> App.axaml.cs composition root
+    -> MainWindowViewModel
+      -> IBookmarkTreeStore
+        -> SqliteBookmarkTreeStore
 ```
 
-This is the storage boundary. SQLite is now the runtime implementation behind the same interface rather than being called directly from UI code.
+This is the storage boundary. SQLite is the runtime implementation behind the interface rather than being called directly from UI code. `InMemoryBookmarkTreeStore` remains as a test/reference implementation.
 
 ## Target Shape
 
@@ -86,8 +87,8 @@ public sealed record BookmarkItemRecord(
 
 ```csharp
 public sealed record EncryptedBookmarkPayloadRecord(
-    byte[] Payload,
-    byte[] Nonce,
+    ReadOnlyMemory<byte> Payload,
+    ReadOnlyMemory<byte> Nonce,
     long CryptoProfileId);
 ```
 
@@ -97,7 +98,7 @@ public sealed record BookmarkItemMetadata(
     DateTimeOffset UpdatedAtUtc,
     DateTimeOffset? DeletedAtUtc,
     int Revision,
-    string SyncState,
+    BookmarkSyncState SyncState,
     string? RemoteEtag,
     DateTimeOffset? LastSyncedAtUtc,
     string ModifiedDeviceId);
@@ -228,7 +229,6 @@ Reason:
 `SqliteBookmarkTreeStore` is responsible for:
 
 - Opening the app data database.
-- Applying explicit migrations.
 - Mapping SQLite rows to `BookmarkItemRecord`.
 - Generating item IDs.
 - Allocating `sort_order`.
@@ -237,6 +237,8 @@ Reason:
 - Marking changed rows as `sync_state = dirty`.
 - Tombstoning deleted items.
 - Running multi-row operations in transactions.
+
+SQLite infrastructure applies explicit migrations before the runtime store is used.
 
 It should not be responsible for:
 

@@ -73,7 +73,7 @@ Expected keys:
 - `database_id`: stable identifier for this local database.
 - `device_id`: stable identifier for this application installation/device.
 
-The exact migration system can be designed later, but all schema changes should be explicit and versioned.
+The current migration system uses `SqliteDatabaseMigrator` and `PRAGMA user_version`. All schema changes should stay explicit and versioned.
 
 ## Crypto Metadata
 
@@ -421,5 +421,6 @@ These decisions can wait until implementation:
 - `IBookmarkTreeStore` is the persistence boundary.
 - `SqliteBookmarkTreeStore` implements the first SQLite storage layer.
 - Explicit migrations use `PRAGMA user_version`.
-- Sample data is seeded only when the database has no rows, including tombstones.
+- New SQLite databases are empty by default.
+- Sample data is seeded only when the app starts with `--use-sample-data` and the SQLite file did not exist before startup.
 - Add/edit/delete/move operations update storage metadata in one place.
