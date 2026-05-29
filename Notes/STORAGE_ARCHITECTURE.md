@@ -6,12 +6,12 @@ Important: this is not a fixed contract. It is a practical direction for the nex
 
 ## Goal
 
-The project needs a storage boundary between Avalonia view models and the future SQLite database.
+The project uses a storage boundary between Avalonia view models and the SQLite database.
 
 The storage design should support:
 
 - Current in-memory bookmark/folder CRUD behavior.
-- Future SQLite persistence.
+- SQLite persistence.
 - Future selective encryption.
 - Future in-memory search indexing.
 - Future WebDAV item-level sync.
@@ -34,7 +34,7 @@ Avalonia UI
       -> InMemoryBookmarkTreeStore
 ```
 
-This is the current in-memory storage boundary. SQLite should replace or supplement the store implementation behind the same interface rather than being called directly from UI code.
+This is the storage boundary. SQLite is now the runtime implementation behind the same interface rather than being called directly from UI code.
 
 ## Target Shape
 
@@ -59,7 +59,7 @@ Responsibilities:
 
 Do not make Avalonia view models the source of truth for persisted data.
 
-Use plain domain/storage records that map naturally to the future SQLite schema.
+Use plain domain/storage records that map naturally to the SQLite schema.
 
 Current draft:
 
@@ -203,7 +203,7 @@ Important rules to keep centralized:
 - Do not edit/delete/drag the synthetic root.
 - New and moved items go to the start of the target folder.
 
-## In-Memory Store First
+## Store Implementation Order
 
 Completed implementation order:
 
@@ -214,20 +214,18 @@ Completed implementation order:
 5. Keep behavior visually identical.
 6. Add tests around store operations.
 7. Move add/edit/delete/move operations to the store-backed path.
-
-Next implementation step:
-
 8. Add `SqliteBookmarkTreeStore` after the boundary is stable.
+9. Switch runtime loading to SQLite while keeping in-memory tests.
 
 Reason:
 
 - This keeps persistence work incremental.
-- It reduces risk of breaking the current UI while introducing SQLite.
+- It reduces risk of breaking the current UI while changing storage.
 - It allows the repository contract to be tested before database details enter the codebase.
 
-## Future SQLite Store
+## SQLite Store
 
-`SqliteBookmarkTreeStore` should be responsible for:
+`SqliteBookmarkTreeStore` is responsible for:
 
 - Opening the app data database.
 - Applying explicit migrations.
@@ -303,12 +301,6 @@ These can wait until implementation:
 
 ## Recommended Next Step
 
-Add SQLite persistence behind `IBookmarkTreeStore`.
+After SQLite persistence is verified and committed, continue with the next feature area from `Notes/FUTURE_FEATURES_PLAN.md`.
 
-Do this incrementally:
-
-1. Add SQLite package/reference and database path.
-2. Add migration runner.
-3. Create the first schema from `Notes/DATA_SCHEMA.md`.
-4. Implement `SqliteBookmarkTreeStore`.
-5. Keep `InMemoryBookmarkTreeStore` tests as contract guidance.
+Keep `InMemoryBookmarkTreeStore` tests as contract guidance when changing store behavior.

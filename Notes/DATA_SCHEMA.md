@@ -1,8 +1,8 @@
 # Stranichnik SQLite Data Schema Draft
 
-This note records the current working design for the future SQLite storage layer.
+This note records the current working design for the SQLite storage layer.
 
-Important: this is not a fixed contract. It is a practical starting point that should guide the first persistence implementation, but it may change during development if encryption, search, synchronization, or UI requirements reveal a better shape.
+Important: this is not a fixed contract. It is a practical starting point for the current persistence implementation, but it may change during development if encryption, search, synchronization, or UI requirements reveal a better shape.
 
 ## Goals
 
@@ -415,12 +415,11 @@ These decisions can wait until implementation:
 - Whether physical tombstone cleanup should be automatic or manual.
 - Whether conflict copies should be visible in the normal tree or a separate conflict UI.
 
-## Recommended Next Implementation Steps
+## Current Implementation Notes
 
-1. Introduce domain/storage models that are not Avalonia view models.
-2. Introduce repository interfaces for loading and saving tree items.
-3. Add a SQLite storage implementation with explicit migrations.
-4. Convert sample data into seed/test data behind the repository boundary.
-5. Keep `BookmarkTreeService` or its successor as the mutation boundary.
-6. Make add/edit/delete/move operations update storage metadata in one place.
-7. Add tests around repository mapping and tree mutation persistence.
+- Domain/storage models are UI-independent.
+- `IBookmarkTreeStore` is the persistence boundary.
+- `SqliteBookmarkTreeStore` implements the first SQLite storage layer.
+- Explicit migrations use `PRAGMA user_version`.
+- Sample data is seeded only when the database has no rows, including tombstones.
+- Add/edit/delete/move operations update storage metadata in one place.

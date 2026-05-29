@@ -2,7 +2,7 @@
 
 Stranichnik is a cross-platform desktop bookmark manager built with C# and Avalonia UI.
 
-The project currently uses in-memory sample bookmark data. Persistent storage is planned for a later stage.
+The application stores bookmark data in a local SQLite database under the user's application data directory. New databases are empty by default.
 
 ## AI-Generated Project
 
@@ -71,6 +71,24 @@ dotnet run
 ```
 
 This starts the desktop application.
+
+To prefill a newly created database with sample bookmarks, run:
+
+```bash
+dotnet run -- --use-sample-data
+```
+
+Sample data is inserted only when the SQLite file did not exist before application startup. Existing databases are never reseeded by this flag.
+
+The local database file is created automatically on first run. It is stored in the same application data directory as local settings and logs:
+
+```text
+stranichnik.sqlite
+settings.json
+stranichnik.log
+```
+
+The exact application data directory depends on the operating system and current user profile.
 
 ## Run Tests
 

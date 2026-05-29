@@ -335,7 +335,8 @@ Avalonia UI
   dialogs later
 
 Application services
-  BookmarkTreeService       add/edit/delete/move
+  MainWindowViewModel now, possible BookmarkTreeApplicationService later
+                            add/edit/delete/move
   SecretVaultService        lock/unlock/encrypt/decrypt
   SearchService             query/index/reindex
   SyncService               WebDAV orchestration
@@ -361,15 +362,14 @@ The exact names can change. The important idea is separation of responsibilities
 
 ## Impact On Near-Term Work
 
-Before implementing in-memory add/edit/delete UI, prefer introducing an application-service boundary.
+Add/edit/delete/move operations are currently centralized in `MainWindowViewModel` and routed through `IBookmarkTreeStore`.
 
 Near-term recommended direction:
 
-1. Create domain/application operations for add/edit/delete/move.
-2. Keep operations centralized.
-3. Make operations return useful result objects.
-4. Add tests around those operations.
-5. Let ViewModels call services instead of directly mutating collections wherever practical.
+1. Keep operations centralized.
+2. Keep SQLite mutations behind `IBookmarkTreeStore`.
+3. Keep operation result objects useful for UI updates and future hooks.
+4. Consider extracting a `BookmarkTreeApplicationService` later if search/encryption/sync orchestration makes `MainWindowViewModel` too large.
 
 This prepares the app for:
 
@@ -382,12 +382,10 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Continue refining `BookmarkTreeService` as the central in-memory tree mutation service.
-2. Add domain identity to tree items, likely stable IDs.
-3. Wire the add/edit/delete buttons to dialogs and service calls.
-4. Implement open URL.
-5. Design SQLite schema with secret/sync fields in mind.
-6. Add first in-memory search service/index.
+1. Verify and stabilize SQLite persistence.
+2. Add first in-memory search service/index.
+3. Add selective secret bookmark support.
+4. Add WebDAV item-level sync.
 
 ## References To Revisit
 

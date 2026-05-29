@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using Stranichnik.Localization;
 using Stranichnik.Storage;
+using Stranichnik.Storage.Sqlite;
 
 namespace Stranichnik.ViewModels;
 
@@ -16,11 +17,20 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IBookmarkTreeStore _treeStore;
 
     public MainWindowViewModel()
+        : this(
+            SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData),
+            SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds())
     {
-        _treeStore = new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items);
+    }
+
+    public MainWindowViewModel(
+        IBookmarkTreeStore treeStore,
+        IReadOnlySet<string>? expandedFolderIds = null)
+    {
+        _treeStore = treeStore;
         var items = BookmarkTreeViewModelMapper.CreateViewModels(
             _treeStore.Load(),
-            SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
+            expandedFolderIds);
 
         RootFolder = new BookmarkFolderViewModel(
             UiStrings.RootAllBookmarks,

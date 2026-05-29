@@ -11,17 +11,17 @@ public static class SampleBookmarkRecordsFactory
     {
         var builder = new Builder();
 
-        builder.AddFolder("work", parentId: null, "Работа");
+        builder.AddFolder("work", parentId: null, "Work");
         builder.AddBookmark("avalonia-docs", "work", "Avalonia Docs", "https://docs.avaloniaui.net/");
         builder.AddBookmark("nuget", "work", "NuGet", "https://www.nuget.org/");
 
         builder.AddBookmark(
             "long-root-bookmark",
             parentId: null,
-            "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
+            "A very long bookmark title for testing how the row behaves when the title takes much more space than a bookmark manager normally expects",
             "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing");
 
-        builder.AddFolder("development", parentId: null, "Разработка");
+        builder.AddFolder("development", parentId: null, "Development");
         builder.AddFolder("csharp", "development", "C#");
         builder.AddBookmark("dotnet-docs", "csharp", ".NET Documentation", "https://learn.microsoft.com/dotnet/");
         builder.AddBookmark("csharp-guide", "csharp", "C# Guide", "https://learn.microsoft.com/dotnet/csharp/");
@@ -54,33 +54,33 @@ public static class SampleBookmarkRecordsFactory
         for (var level = 1; level <= 20; level++)
         {
             var folderId = $"deep-level-{level}";
-            builder.AddFolder(folderId, parentId, $"Уровень вложенности {level}");
+            builder.AddFolder(folderId, parentId, $"Nesting level {level}");
             parentId = folderId;
         }
 
         builder.AddBookmark(
             "deep-level-20-bookmark",
             parentId,
-            "Закладка на двадцатом уровне вложенности",
+            "Bookmark at the twentieth nesting level",
             "https://example.com/deep/nested/bookmark");
 
         builder.AddBookmark(
             "deep-level-20-long-bookmark",
             parentId,
-            "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
+            "A very long bookmark title for testing how the row behaves when the title takes much more space than a bookmark manager normally expects",
             "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing");
     }
 
     private static void AddScrollTestFolder(Builder builder)
     {
-        builder.AddFolder("scroll-test", parentId: null, "Папка для проверки скроллинга");
+        builder.AddFolder("scroll-test", parentId: null, "Scrolling test folder");
 
         for (var index = 1; index <= 15; index++)
         {
             builder.AddBookmark(
                 $"scroll-test-bookmark-{index}",
                 "scroll-test",
-                $"Тестовая закладка для скроллинга {index}",
+                $"Scrolling test bookmark {index}",
                 $"https://example.com/scroll-test/{index}");
         }
     }

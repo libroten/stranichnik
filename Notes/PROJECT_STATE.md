@@ -4,9 +4,9 @@ This note records the current development state for future agents.
 
 ## Current Phase
 
-The project is still in the early in-memory UI phase.
+The project has moved from the in-memory UI phase into local SQLite persistence.
 
-The goal right now is to stabilize the user-facing tree interaction model before adding persistence.
+The current goal is to stabilize SQLite-backed bookmark storage before adding search, selective encryption, or sync.
 
 Completed broad areas:
 
@@ -30,12 +30,13 @@ Completed broad areas:
 - `IBookmarkTreeStore`.
 - `InMemoryBookmarkTreeStore`.
 - Storage-to-view-model mapper.
-- Main tree add/edit/delete/move operations routed through the in-memory store.
+- Main tree add/edit/delete/move operations routed through `IBookmarkTreeStore`.
+- SQLite local persistence for bookmark/folder data.
+- SQLite migrations.
+- Optional first-run sample data seeding through `--use-sample-data`.
 
 Not implemented yet:
 
-- SQLite persistence.
-- Real app data loading/saving.
 - Search.
 - Secret bookmark encryption.
 - WebDAV sync.
@@ -43,7 +44,11 @@ Not implemented yet:
 Implemented in storage/view-model layer:
 
 - `InMemoryBookmarkTreeStore` supports in-memory add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
-- `MainWindowViewModel` loads initial data through `SampleBookmarkRecordsFactory -> InMemoryBookmarkTreeStore -> BookmarkTreeViewModelMapper`.
+- `SqliteBookmarkTreeStore` supports SQLite add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
+- `MainWindowViewModel` loads runtime data through `SqliteBookmarkTreeStore -> BookmarkTreeViewModelMapper`.
+- New SQLite databases start empty by default.
+- `--use-sample-data` seeds sample data only when the SQLite file did not exist before startup.
+- Tests can inject `InMemoryBookmarkTreeStore` into `MainWindowViewModel`.
 - UI buttons and DnD are wired to view model operations that update the store first and then update the visible tree.
 - Operation result records live in `ViewModels/BookmarkTreeOperationResults.cs`.
 - The old `BookmarkTreeService` has been removed.
@@ -161,16 +166,13 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad implementation area should be persistence.
+The next broad implementation area should be chosen after SQLite persistence is manually verified and committed.
 
-Suggested order:
+Likely order:
 
-1. Read `Notes/FUTURE_FEATURES_PLAN.md`.
-2. Read `Notes/DATA_SCHEMA.md`.
-3. Read `Notes/STORAGE_ARCHITECTURE.md`.
-4. Add SQLite migrations and real app data loading/saving behind `IBookmarkTreeStore`.
-5. Keep store-backed view model operations as the central mutation boundary.
-6. After persistence is stable, continue with search, selective encryption, and sync.
+1. Verify SQLite restart persistence thoroughly.
+2. Keep store-backed view model operations as the central mutation boundary.
+3. After persistence is stable, continue with search, selective encryption, and sync.
 
 SQLite schema direction:
 
@@ -181,13 +183,14 @@ SQLite schema direction:
 
 Storage architecture direction:
 
-- Add UI-independent storage/domain records.
-- Add `IBookmarkTreeStore`.
-- Use `InMemoryBookmarkTreeStore` now, then add SQLite behind the same boundary.
+- Keep UI-independent storage/domain records.
+- Keep `IBookmarkTreeStore` as the boundary.
+- Use `SqliteBookmarkTreeStore` at runtime.
+- Keep `InMemoryBookmarkTreeStore` for tests/reference.
 - Keep search, encryption, and sync outside Avalonia view models.
-- See `Notes/STORAGE_ARCHITECTURE.md` for the current draft.
+- See `Notes/STORAGE_ARCHITECTURE.md` for the current design.
 
-For add/edit/delete/move/open, keep model changes centralized. SQLite persistence should be able to observe or wrap service operations instead of duplicating logic in the UI.
+For add/edit/delete/move/open, keep model changes centralized. Do not duplicate storage mutations in UI event handlers.
 
 Localization direction:
 

@@ -13,9 +13,12 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        AppStartupOptions.Configure(args);
+
         Logs.Configure(ShouldPrintLogsToConsole(args));
         Logs.Print("Application starting.");
         Logs.Print($"Application data directory: {AppDataPaths.AppDataDirectory}");
+        Logs.Print($"Use sample data: {AppStartupOptions.UseSampleData}");
 
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

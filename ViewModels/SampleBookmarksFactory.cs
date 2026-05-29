@@ -9,15 +9,15 @@ public static class SampleBookmarksFactory
     {
         return new()
         {
-            new BookmarkFolderViewModel("Работа", new BookmarkTreeItemViewModel[]
+            new BookmarkFolderViewModel("Work", new BookmarkTreeItemViewModel[]
             {
                 new BookmarkViewModel("Avalonia Docs", "https://docs.avaloniaui.net/"),
                 new BookmarkViewModel("NuGet", "https://www.nuget.org/")
             }, isExpanded: true),
             new BookmarkViewModel(
-                "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
+                "A very long bookmark title for testing how the row behaves when the title takes much more space than a bookmark manager normally expects",
                 "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing"),
-            new BookmarkFolderViewModel("Разработка", new BookmarkTreeItemViewModel[]
+            new BookmarkFolderViewModel("Development", new BookmarkTreeItemViewModel[]
             {
                 new BookmarkFolderViewModel("C#", new BookmarkTreeItemViewModel[]
                 {
@@ -37,10 +37,10 @@ public static class SampleBookmarksFactory
         var currentItems = new BookmarkTreeItemViewModel[]
         {
             new BookmarkViewModel(
-                "Закладка на двадцатом уровне вложенности",
+                "Bookmark at the twentieth nesting level",
                 "https://example.com/deep/nested/bookmark"),
             new BookmarkViewModel(
-                "Очень длинный заголовок закладки для проверки того, как строка ведет себя, когда название занимает намного больше места, чем обычно ожидается в менеджере закладок",
+                "A very long bookmark title for testing how the row behaves when the title takes much more space than a bookmark manager normally expects",
                 "https://example.com/articles/very/long/path/with/many/segments/and-query-parameters?utm_source=stranichnik&utm_medium=ui-test&utm_campaign=long-url-case&title=very-long-bookmark-url-for-layout-testing")
         };
 
@@ -49,7 +49,7 @@ public static class SampleBookmarksFactory
             currentItems = new BookmarkTreeItemViewModel[]
             {
                 new BookmarkFolderViewModel(
-                    $"Уровень вложенности {level}",
+                    $"Nesting level {level}",
                     currentItems,
                     isExpanded: level == 1)
             };
@@ -65,12 +65,12 @@ public static class SampleBookmarksFactory
         for (var index = 1; index <= 15; index++)
         {
             bookmarks.Add(new BookmarkViewModel(
-                $"Тестовая закладка для скроллинга {index}",
+                $"Scrolling test bookmark {index}",
                 $"https://example.com/scroll-test/{index}"));
         }
 
         return new BookmarkFolderViewModel(
-            "Папка для проверки скроллинга",
+            "Scrolling test folder",
             bookmarks,
             isExpanded: true);
     }

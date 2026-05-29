@@ -20,4 +20,6 @@ public static class AppDataPaths
     public static string SettingsPath => Path.Combine(AppDataDirectory, "settings.json");
 
     public static string LogPath => Path.Combine(AppDataDirectory, "stranichnik.log");
+
+    public static string DatabasePath => Path.Combine(AppDataDirectory, "stranichnik.sqlite");
 }

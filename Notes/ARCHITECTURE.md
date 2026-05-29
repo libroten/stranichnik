@@ -16,10 +16,13 @@ UI framework:
 
 Current storage:
 
-- In-memory sample data only.
-- SQLite is planned later, after the in-memory model and UI behavior are stable.
-- The current SQLite schema draft is documented in `Notes/DATA_SCHEMA.md`.
-- The current storage/repository architecture draft is documented in `Notes/STORAGE_ARCHITECTURE.md`.
+- SQLite is the active local application storage.
+- The SQLite database file is `stranichnik.sqlite` under the app data directory.
+- New databases are empty by default.
+- Running with `--use-sample-data` seeds sample bookmarks only when the SQLite file did not exist before startup.
+- `InMemoryBookmarkTreeStore` remains as a contract/reference implementation for tests.
+- The SQLite schema is documented in `Notes/DATA_SCHEMA.md`.
+- The storage/repository architecture is documented in `Notes/STORAGE_ARCHITECTURE.md`.
 - Future search is currently expected to start as an in-memory index rather than a persistent SQLite/Lucene index.
 - Future WebDAV sync should synchronize item-level objects, not the SQLite database file itself.
 
@@ -85,6 +88,7 @@ Current app data files:
 
 - `settings.json`
 - `stranichnik.log`
+- `stranichnik.sqlite`
 
 `Settings/AppSettingsService.cs` stores user settings in `settings.json`.
 
@@ -107,7 +111,9 @@ Current logging behavior:
 - Startup logging includes the app data directory path.
 - Running with `--print-logs-to-console` duplicates log lines to stdout.
 
-Do not treat the current logger as a complete telemetry system. It is intentionally small and local, useful for diagnostics during development and future SQLite/sync work.
+Startup logging includes the SQLite database path, whether sample data was requested, and whether migrations/sample seeding ran. Do not log bookmark titles or URLs.
+
+Do not treat the current logger as a complete telemetry system. It is intentionally small and local, useful for diagnostics during development and future sync work.
 
 ## UI Styling Direction
 
@@ -169,7 +175,7 @@ Important types:
 
 - `RootFolder`: synthetic root folder.
 - `Items`: alias for `RootFolder.Children`.
-- `IBookmarkTreeStore`: storage boundary for in-memory tree data and future SQLite persistence.
+- `IBookmarkTreeStore`: storage boundary for tree data. The default runtime implementation is SQLite.
 
 `BookmarkTreeItemViewModel` is the common base for folders and bookmarks. It currently stores:
 
@@ -196,10 +202,12 @@ Storage-level sample data lives in:
 
 - `Storage/SampleBookmarkRecordsFactory.cs`
 
-It is loaded through:
+It can be loaded through:
 
 - `Storage/InMemoryBookmarkTreeStore.cs`
 - `ViewModels/BookmarkTreeViewModelMapper.cs`
+
+At runtime, sample data is written to SQLite only when the app is launched with `--use-sample-data` and the SQLite database file did not exist before startup.
 
 Legacy direct ViewModel sample data may still exist during cleanup, but it should not be the active loading path.
 
@@ -246,6 +254,7 @@ Tree data and mutations are currently routed through:
 
 - `Storage/IBookmarkTreeStore.cs`
 - `Storage/InMemoryBookmarkTreeStore.cs`
+- `Storage/Sqlite/SqliteBookmarkTreeStore.cs`
 
 Important methods:
 
@@ -268,12 +277,15 @@ These records contain enough information to support UI updates and future undo/s
 Current storage tests cover:
 
 - `InMemoryBookmarkTreeStore`
+- `SqliteBookmarkTreeStore`
+- SQLite migrations
 - `BookmarkTreeViewModelMapper`
 - `MainWindowViewModel` storage-path operations
 
-Future SQLite direction:
+Current SQLite direction:
 
-- Replace `InMemoryBookmarkTreeStore` with a SQLite implementation behind `IBookmarkTreeStore`.
+- Keep SQLite behind `IBookmarkTreeStore`.
+- Keep `InMemoryBookmarkTreeStore` for tests and contract comparison.
 - Keep Avalonia event handlers free of direct SQLite writes.
 - Keep search, encryption, and sync outside view models.
 - See `Notes/STORAGE_ARCHITECTURE.md` before changing the storage boundary.
@@ -300,7 +312,7 @@ Current test project:
 
 Current tested area:
 
-- storage records and in-memory store
+- storage records, in-memory store, SQLite store, and migrations
 - storage-to-view-model mapper
 - `MainWindowViewModel` storage-path operations
 - localization

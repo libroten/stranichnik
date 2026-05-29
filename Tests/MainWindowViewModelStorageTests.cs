@@ -1,4 +1,5 @@
 using System.Linq;
+using Stranichnik.Storage;
 using Stranichnik.ViewModels;
 using Xunit;
 
@@ -9,7 +10,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void AddBookmarkToFolderStart_adds_bookmark_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
 
@@ -33,7 +34,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void AddFolderToFolderStart_adds_folder_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
 
@@ -56,7 +57,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void EditBookmark_updates_bookmark_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
         var bookmark = Assert.IsType<BookmarkViewModel>(
@@ -78,7 +79,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void EditFolder_updates_folder_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var folder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
 
@@ -86,14 +87,14 @@ public sealed class MainWindowViewModelStorageTests
 
         Assert.True(result.WasEdited);
         Assert.Same(folder, result.Folder);
-        Assert.Equal("Работа", result.OldTitle);
+        Assert.Equal("Work", result.OldTitle);
         Assert.Equal("New Work", folder.Title);
     }
 
     [Fact]
     public void EditFolder_rejects_root_folder()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var oldTitle = viewModel.RootFolder.Title;
 
         var result = viewModel.EditFolder(viewModel.RootFolder, "New Root");
@@ -105,7 +106,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void DeleteItem_removes_bookmark_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var folder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
         var bookmark = Assert.IsType<BookmarkViewModel>(
@@ -124,7 +125,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void DeleteItem_removes_folder_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var folder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
 
@@ -141,7 +142,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void DeleteItem_rejects_root_folder()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
 
         var result = viewModel.DeleteItem(viewModel.RootFolder);
 
@@ -152,7 +153,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void MoveItemToFolderStart_moves_bookmark_through_storage_path()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var bookmark = Assert.IsType<BookmarkViewModel>(
             viewModel.Items.First(item => item.Id == "openai"));
         var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
@@ -173,7 +174,7 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void MoveItemToFolderStart_treats_null_target_as_root_folder()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var sourceFolder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "work"));
         var bookmark = Assert.IsType<BookmarkViewModel>(
@@ -193,12 +194,19 @@ public sealed class MainWindowViewModelStorageTests
     [Fact]
     public void CanMoveItemToFolder_rejects_folder_move_to_descendant()
     {
-        var viewModel = new MainWindowViewModel();
+        var viewModel = CreateViewModel();
         var folder = Assert.IsType<BookmarkFolderViewModel>(
             viewModel.Items.First(item => item.Id == "deep-level-1"));
         var descendant = Assert.IsType<BookmarkFolderViewModel>(
             folder.Children.First(item => item.Id == "deep-level-2"));
 
         Assert.False(viewModel.CanMoveItemToFolder(folder, descendant));
+    }
+
+    private static MainWindowViewModel CreateViewModel()
+    {
+        return new MainWindowViewModel(
+            new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items),
+            SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
     }
 }
