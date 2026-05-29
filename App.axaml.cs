@@ -6,6 +6,8 @@ using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Stranichnik.Localization;
 using Stranichnik.Settings;
+using Stranichnik.Storage;
+using Stranichnik.Storage.Sqlite;
 using Stranichnik.ViewModels;
 using Stranichnik.Views;
 
@@ -28,7 +30,9 @@ public partial class App : Application
         {
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(),
+                DataContext = new MainWindowViewModel(
+                    SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData),
+                    SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds()),
             };
         }
 

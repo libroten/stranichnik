@@ -123,6 +123,26 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void AddBookmarkToFolderStart_rejects_empty_title_or_url()
+    {
+        using var database = TempSqliteDatabase.Create();
+
+        Assert.Throws<ArgumentException>(
+            () => database.Store.AddBookmarkToFolderStart(parentId: null, " ", "https://example.com"));
+        Assert.Throws<ArgumentException>(
+            () => database.Store.AddBookmarkToFolderStart(parentId: null, "Title", " "));
+    }
+
+    [Fact]
+    public void AddFolderToFolderStart_rejects_empty_title()
+    {
+        using var database = TempSqliteDatabase.Create();
+
+        Assert.Throws<ArgumentException>(
+            () => database.Store.AddFolderToFolderStart(parentId: null, " "));
+    }
+
+    [Fact]
     public void EditBookmark_updates_title_url_and_metadata()
     {
         using var database = TempSqliteDatabase.Create();
@@ -141,6 +161,24 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void EditBookmark_rejects_wrong_type_and_tombstoned_item()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("folder", parentId: null, sortOrder: 1000),
+            CreateBookmark("bookmark", parentId: null, sortOrder: 500),
+        ]));
+
+        database.Store.DeleteItem("bookmark");
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.EditBookmark("folder", "Title", "https://example.com"));
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.EditBookmark("bookmark", "Title", "https://example.com"));
+    }
+
+    [Fact]
     public void EditFolder_updates_title_and_metadata()
     {
         using var database = TempSqliteDatabase.Create();
@@ -155,6 +193,24 @@ public sealed class SqliteBookmarkTreeStoreTests
         Assert.Equal(2, edited.Metadata.Revision);
         Assert.Equal(UpdatedAt, edited.Metadata.UpdatedAtUtc);
         Assert.Equal(BookmarkSyncState.Dirty, edited.Metadata.SyncState);
+    }
+
+    [Fact]
+    public void EditFolder_rejects_wrong_type_and_tombstoned_item()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("folder", parentId: null, sortOrder: 1000),
+            CreateBookmark("bookmark", parentId: null, sortOrder: 500),
+        ]));
+
+        database.Store.DeleteItem("folder");
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.EditFolder("bookmark", "Folder"));
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.EditFolder("folder", "Folder"));
     }
 
     [Fact]
@@ -194,6 +250,23 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void DeleteItem_rejects_missing_and_tombstoned_items()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+
+        database.Store.DeleteItem("bookmark");
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.DeleteItem("missing"));
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.DeleteItem("bookmark"));
+    }
+
+    [Fact]
     public void MoveToFolderStart_moves_bookmark_to_target_folder_start()
     {
         using var database = TempSqliteDatabase.Create();
@@ -217,6 +290,32 @@ public sealed class SqliteBookmarkTreeStoreTests
             targetItems,
             item => Assert.Equal("bookmark", item.Id),
             item => Assert.Equal("target-existing", item.Id));
+    }
+
+    [Fact]
+    public void MoveToFolderStart_moves_bookmark_to_root_start()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("source", parentId: null, sortOrder: 1000),
+            CreateBookmark("bookmark", "source", 1000),
+            CreateBookmark("root-existing", parentId: null, sortOrder: 500),
+        ]));
+
+        var moved = database.Store.MoveToFolderStart("bookmark", targetParentId: null);
+
+        var rootItems = database.Store.Load().Items
+            .Where(item => item.ParentId is null)
+            .ToList();
+
+        Assert.Null(moved.ParentId);
+        Assert.Equal(2000, moved.SortOrder);
+        Assert.Collection(
+            rootItems,
+            item => Assert.Equal("bookmark", item.Id),
+            item => Assert.Equal("source", item.Id),
+            item => Assert.Equal("root-existing", item.Id));
     }
 
     [Fact]
@@ -358,6 +457,7 @@ public sealed class SqliteBookmarkTreeStoreTests
         {
             _directoryPath = directoryPath;
             var connectionFactory = new SqliteConnectionFactory(Path.Combine(_directoryPath, "test.sqlite"));
+            new SqliteDatabaseMigrator(connectionFactory).Migrate();
             Store = new SqliteBookmarkTreeStore(
                 connectionFactory,
                 idFactory: () => $"created-{_nextId++}",

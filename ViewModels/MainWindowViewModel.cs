@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using Stranichnik.Localization;
 using Stranichnik.Storage;
-using Stranichnik.Storage.Sqlite;
 
 namespace Stranichnik.ViewModels;
 
@@ -15,13 +14,6 @@ public partial class MainWindowViewModel : ViewModelBase
         "CA1859:Use concrete types when possible for improved performance",
         Justification = "The view model intentionally depends on the storage abstraction so SQLite can replace the in-memory store without changing callers.")]
     private readonly IBookmarkTreeStore _treeStore;
-
-    public MainWindowViewModel()
-        : this(
-            SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData),
-            SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds())
-    {
-    }
 
     public MainWindowViewModel(
         IBookmarkTreeStore treeStore,

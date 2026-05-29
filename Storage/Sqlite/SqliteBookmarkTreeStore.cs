@@ -25,8 +25,6 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         _modifiedDeviceId = string.IsNullOrWhiteSpace(modifiedDeviceId)
             ? "local"
             : modifiedDeviceId;
-
-        new SqliteDatabaseMigrator(_connectionFactory).Migrate();
     }
 
     public BookmarkTreeSnapshot Load()
