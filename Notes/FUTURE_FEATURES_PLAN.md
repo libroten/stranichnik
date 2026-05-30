@@ -202,6 +202,12 @@ Current preference:
 - Start with a custom in-memory index.
 - Keep the architecture open enough to replace or supplement it with SQLite FTS5 or Lucene.NET later.
 
+Detailed standalone search-library planning documents:
+
+- `Notes/SEARCH_ENGINE_DESIGN.md`
+- `Notes/SEARCH_ENGINE_ARCHITECTURE.md`
+- `Notes/SEARCH_ENGINE_IMPLEMENTATION_PLAN.md`
+
 ### Secret Bookmark Search
 
 For secret bookmarks:

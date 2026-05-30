@@ -34,10 +34,23 @@ Completed broad areas:
 - SQLite local persistence for bookmark/folder data.
 - SQLite migrations.
 - Optional first-run sample data seeding through `--use-sample-data`.
+- Standalone search architecture is documented in `Notes/SEARCH_ENGINE_ARCHITECTURE.md`.
+- Search implementation plan is documented in `Notes/SEARCH_ENGINE_IMPLEMENTATION_PLAN.md`.
+- Search application integration guide is documented in `Notes/SEARCH_ENGINE_INTEGRATION_GUIDE.md`.
+- Standalone search library first version exists in `Stranichnik.Search/`:
+  - public API records and `IBookmarkSearchIndex` are defined;
+  - `InMemoryBookmarkSearchIndex` supports validation, rebuild/add/update/remove/clear, exact token search, prefix search, fuzzy typo search, multi-word quality bonuses, and opt-in diagnostics;
+  - text normalization, text tokenization, URL tokenization, and BM25-style field-weighted scoring are implemented;
+  - average field length statistics are cached for scoring;
+  - prefix expansion uses a sorted in-memory term set instead of scanning the full postings dictionary;
+  - `Rebuild` is failure-atomic and duplicate IDs use last-document-wins semantics;
+  - `AddOrUpdate` prepares the new indexed document before replacing the old one;
+  - library usage and privacy notes are documented in `Stranichnik.Search/README.md`;
+  - independent `Stranichnik.Search.Tests/` test project covers normalization, tokenization, URL parsing, exact/prefix/fuzzy search, ranking, diagnostics, mutation behavior, and edge cases.
 
 Not implemented yet:
 
-- Search.
+- App integration for the search library.
 - Secret bookmark encryption.
 - WebDAV sync.
 
@@ -145,7 +158,14 @@ Known design choice:
 
 ## Current Validation State
 
-The user last confirmed successful build, tests, formatting verification, normal app launch, sample-data launch, existing-database launch, and missing-database launch.
+The user last confirmed successful build, tests, formatting verification, normal app launch, sample-data launch, existing-database launch, and missing-database launch for the main app.
+
+The user also confirmed successful standalone search library verification after the latest review fixes:
+
+```bash
+dotnet build Stranichnik.Search/Stranichnik.Search.csproj
+dotnet test Stranichnik.Search.Tests/Stranichnik.Search.Tests.csproj
+```
 
 The assistant must not run:
 
@@ -162,17 +182,19 @@ Useful commands for the user:
 dotnet build
 dotnet run
 dotnet test Tests/Stranichnik.Tests.csproj
+dotnet build Stranichnik.Search/Stranichnik.Search.csproj
+dotnet test Stranichnik.Search.Tests/Stranichnik.Search.Tests.csproj
 dotnet format --verify-no-changes
 ```
 
 ## Recommended Next Steps
 
-The next broad implementation area should be chosen after SQLite persistence is committed.
+The next broad implementation area should be chosen after SQLite persistence and the standalone search library are committed.
 
 Likely order:
 
 1. Keep store-backed view model operations as the central mutation boundary.
-2. Add the first in-memory search service/index.
+2. Integrate the standalone in-memory search library into the application through an application/search service boundary.
 3. Continue later with selective encryption and sync.
 
 SQLite schema direction:
