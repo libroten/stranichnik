@@ -15,9 +15,9 @@
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="#2563EB"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
@@ -36,26 +36,26 @@
             </Setter>
         </Style>
         <Style Selector="Button.dialogButton:pointerover">
-            <Setter Property="Background" Value="#1D4ED8"/>
-            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton:focus">
-            <Setter Property="Background" Value="#3B82F6"/>
-            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
         </Style>
     </Window.Styles>
 
     <Border Padding="20"
-            Background="#FFFFFF">
+            Background="{DynamicResource DialogBackgroundBrush}">
         <StackPanel Spacing="14">
             <TextBlock x:Name="TitleTextBlock"
                        FontSize="18"
                        FontWeight="SemiBold"
-                       Foreground="#1F2937"/>
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
 
             <TextBlock x:Name="MessageTextBlock"
                        TextWrapping="Wrap"
-                       Foreground="#526071"/>
+                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
 
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">

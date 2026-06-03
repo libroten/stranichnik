@@ -15,9 +15,9 @@
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="Background" Value="{DynamicResource DialogButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogButtonBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
@@ -36,39 +36,39 @@
             </Setter>
         </Style>
         <Style Selector="Button.dialogButton:pointerover">
-            <Setter Property="Background" Value="#F8FAFC"/>
-            <Setter Property="BorderBrush" Value="#94A3B8"/>
+            <Setter Property="Background" Value="{DynamicResource DialogButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton:focus">
-            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton.danger">
-            <Setter Property="Background" Value="#DC2626"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#DC2626"/>
+            <Setter Property="Background" Value="{DynamicResource DialogDangerButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonBackgroundBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton.danger:pointerover">
-            <Setter Property="Background" Value="#B91C1C"/>
-            <Setter Property="BorderBrush" Value="#B91C1C"/>
+            <Setter Property="Background" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton.danger:focus">
-            <Setter Property="Background" Value="#EF4444"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#B91C1C"/>
+            <Setter Property="Background" Value="{DynamicResource ActionDeleteBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
         </Style>
     </Window.Styles>
 
     <Border Padding="20"
-            Background="#FFFFFF">
+            Background="{DynamicResource DialogBackgroundBrush}">
         <StackPanel Spacing="14">
             <TextBlock x:Name="TitleTextBlock"
                        FontSize="18"
                        FontWeight="SemiBold"
-                       Foreground="#1F2937"/>
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
 
             <TextBlock x:Name="MessageTextBlock"
                        TextWrapping="Wrap"
-                       Foreground="#526071"/>
+                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
 
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"

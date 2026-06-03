@@ -10,6 +10,7 @@ using Stranichnik.Searching;
 using Stranichnik.Settings;
 using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
+using Stranichnik.Theming;
 using Stranichnik.ViewModels;
 using Stranichnik.Views;
 
@@ -27,6 +28,8 @@ public partial class App : Application
         var settings = AppSettingsService.Load();
         if (!string.IsNullOrWhiteSpace(settings.Language))
             LanguageService.Apply(settings.Language);
+
+        ThemeService.Apply(settings.Theme);
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {

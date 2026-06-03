@@ -43,6 +43,10 @@ public static class UiStrings
     public static string RootAllBookmarks => TextResources.Get("Root_AllBookmarks");
     public static string SearchNoMatches => TextResources.Get("Search_NoMatches");
     public static string SearchPlaceholder => TextResources.Get("Search_Placeholder");
+    public static string AppearanceDialogDarkTheme => TextResources.Get("AppearanceDialog_DarkTheme");
+    public static string AppearanceDialogLightTheme => TextResources.Get("AppearanceDialog_LightTheme");
+    public static string AppearanceDialogTheme => TextResources.Get("AppearanceDialog_Theme");
+    public static string AppearanceDialogTitle => TextResources.Get("AppearanceDialog_Title");
     public static string ValidationTitleRequired => TextResources.Get("Validation_TitleRequired");
     public static string ValidationUrlRequired => TextResources.Get("Validation_UrlRequired");
 

@@ -14,9 +14,9 @@
             <Setter Property="Padding" Value="12,0"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="Background" Value="{DynamicResource DialogButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogButtonBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
@@ -35,12 +35,12 @@
             </Setter>
         </Style>
         <Style Selector="Button.languageOption:pointerover">
-            <Setter Property="Background" Value="#EEF6FF"/>
-            <Setter Property="BorderBrush" Value="#93C5FD"/>
+            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.languageOption.selected">
-            <Setter Property="Background" Value="#DBEAFE"/>
-            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton">
             <Setter Property="Width" Value="104"/>
@@ -48,9 +48,9 @@
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1F2937"/>
-            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="Background" Value="{DynamicResource DialogButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogButtonBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
@@ -69,27 +69,31 @@
             </Setter>
         </Style>
         <Style Selector="Button.dialogButton:pointerover">
-            <Setter Property="Background" Value="#F8FAFC"/>
-            <Setter Property="BorderBrush" Value="#94A3B8"/>
+            <Setter Property="Background" Value="{DynamicResource DialogButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton.accent">
-            <Setter Property="Background" Value="#2563EB"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#2563EB"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton.accent:pointerover">
-            <Setter Property="Background" Value="#1D4ED8"/>
-            <Setter Property="BorderBrush" Value="#1D4ED8"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton.accent:focus">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
         </Style>
     </Window.Styles>
 
     <Border Padding="20"
-            Background="#FFFFFF">
+            Background="{DynamicResource DialogBackgroundBrush}">
         <StackPanel Spacing="14">
             <TextBlock Text="{x:Static localization:UiStrings.LanguageDialogTitle}"
                        FontSize="18"
                        FontWeight="SemiBold"
-                       Foreground="#1F2937"/>
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
 
             <StackPanel Spacing="8">
                 <Button x:Name="EnglishButton"

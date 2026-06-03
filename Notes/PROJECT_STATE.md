@@ -55,6 +55,12 @@ Completed broad areas:
   - folder delete rebuilds the search index from storage;
   - the main window has a search bar and a search-results view that replaces the tree while search is active;
   - search result rows have an open action.
+- Project-owned light/dark theme support is implemented:
+  - theme state is stored in `settings.json`;
+  - theme logic lives in `Theming/`;
+  - the app does not use Avalonia theme variants as the theme model;
+  - `Service -> Appearance` opens an appearance dialog with Light/Dark choices;
+  - main window and dialogs use semantic theme resources for visible colors.
 
 Not implemented yet:
 
@@ -81,6 +87,7 @@ Current dialogs:
 - `ConfirmDialog` is used for delete confirmations.
 - `LanguageDialog` is used for selecting the UI language.
 - `MessageDialog` is used for one-button error/information messages.
+- `AppearanceDialog` is used for selecting the application theme.
 - Dialogs can be closed with `Esc` where that makes sense.
 
 ## Current UI Behavior
@@ -93,6 +100,14 @@ Main window:
 - Search bar is displayed above the work area.
 - When search is active, search results replace the tree in the same work area.
 - When search is inactive, the normal tree is shown.
+- Uses semantic theme resources so light/dark colors can switch at runtime.
+
+Theme:
+
+- Light is the default for missing or invalid settings.
+- Dark can be selected from `Service -> Appearance`.
+- Theme changes apply immediately and are persisted to `settings.json`.
+- The implementation is project-owned and does not use Avalonia `ThemeVariant` as the model.
 
 Root:
 

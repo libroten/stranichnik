@@ -13,6 +13,7 @@ using Avalonia.VisualTree;
 using Stranichnik.Localization;
 using Stranichnik.Searching;
 using Stranichnik.Settings;
+using Stranichnik.Theming;
 using Stranichnik.ViewModels;
 
 namespace Stranichnik.Views;
@@ -112,6 +113,22 @@ public partial class MainWindow : Window
     {
         CloseMenuPopups();
         e.Handled = true;
+    }
+
+    private async void OnAppearanceMenuClick(object? sender, RoutedEventArgs e)
+    {
+        CloseMenuPopups();
+        e.Handled = true;
+
+        var settings = AppSettingsService.Load();
+        var currentTheme = ThemeService.NormalizeTheme(settings.Theme);
+        var selectedTheme = await AppearanceDialog.Show(this, currentTheme);
+        if (selectedTheme is null)
+            return;
+
+        settings.Theme = ThemeService.ToSettingsValue(selectedTheme.Value);
+        AppSettingsService.Save(settings);
+        ThemeService.Apply(selectedTheme.Value);
     }
 
     private async void OnLanguageMenuClick(object? sender, RoutedEventArgs e)

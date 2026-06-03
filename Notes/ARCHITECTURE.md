@@ -129,9 +129,32 @@ Do not treat the current logger as a complete telemetry system. It is intentiona
 
 ## UI Styling Direction
 
-The app currently uses a custom light visual style. For visually important controls, prefer explicit local styles and custom `ControlTemplate`s over relying on Avalonia's default themed templates.
+The app uses a custom project-owned visual style with light and dark themes. For visually important controls, prefer explicit local styles and custom `ControlTemplate`s over relying on Avalonia's default themed templates.
 
 Avalonia built-in controls may still be used for behavior, layout, focus handling, popups, scrolling, and accessibility. However, hover/pressed/focused backgrounds, borders, foregrounds, spacing, and popup surfaces should be controlled by project styles so the default Avalonia theme palette does not leak into the UI.
+
+Theme support is implemented by Stranichnik, not by Avalonia's built-in light/dark theme switching:
+
+- Do not use `RequestedThemeVariant` as the app theme state.
+- Do not use Avalonia `ThemeVariant.Light` or `ThemeVariant.Dark` as the app theme model.
+- Keep the app theme mode in `Settings/AppSettings.cs`.
+- Apply theme palettes through `Theming/ThemeService.cs`.
+- Use semantic `DynamicResource` brushes in XAML for theme-dependent colors.
+
+Theme implementation files:
+
+- `Theming/ThemeMode.cs`
+- `Theming/ThemeResourceKeys.cs`
+- `Theming/ThemePalette.cs`
+- `Theming/ThemePalettes.cs`
+- `Theming/ThemeService.cs`
+
+Theme switching UI:
+
+- `Service -> Appearance` opens `Views/AppearanceDialog.axaml`.
+- `Stranichnik -> Settings` is currently a placeholder and only closes the menu.
+- The appearance dialog currently supports `Light` and `Dark`.
+- The selected theme is saved in `settings.json` and applied immediately.
 
 ## Localization Direction
 
