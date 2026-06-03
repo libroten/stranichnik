@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Stranichnik.Localization;
+using Stranichnik.Searching;
 using Stranichnik.Settings;
 using Stranichnik.ViewModels;
 
@@ -250,6 +251,25 @@ public partial class MainWindow : Window
 
         if (!TryOpenBookmarkUrl(bookmark.Url, out var errorMessage))
             await MessageDialog.ShowError(this, UiStrings.ErrorOpenPageTitle, errorMessage);
+    }
+
+    private async void OnOpenSearchResultClick(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        if (sender is not Control { DataContext: BookmarkSearchResultItem result })
+            return;
+
+        if (!TryOpenBookmarkUrl(result.Url, out var errorMessage))
+            await MessageDialog.ShowError(this, UiStrings.ErrorOpenPageTitle, errorMessage);
+    }
+
+    private void OnClearSearchClick(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+            viewModel.ClearSearch();
+
+        e.Handled = true;
     }
 
     private async void OnEditBookmarkClick(object? sender, RoutedEventArgs e)

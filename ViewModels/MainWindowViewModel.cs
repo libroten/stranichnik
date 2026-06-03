@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Stranichnik.Localization;
+using Stranichnik.Search;
+using Stranichnik.Searching;
 using Stranichnik.Storage;
 
 namespace Stranichnik.ViewModels;
@@ -14,14 +17,26 @@ public partial class MainWindowViewModel : ViewModelBase
         "CA1859:Use concrete types when possible for improved performance",
         Justification = "The view model intentionally depends on the storage abstraction so SQLite can replace the in-memory store without changing callers.")]
     private readonly IBookmarkTreeStore _treeStore;
+    private readonly BookmarkSearchService _searchService;
+    private readonly Dictionary<string, BookmarkViewModel> _bookmarkViewModelsById = new(StringComparer.Ordinal);
+    private string _searchQuery = string.Empty;
 
     public MainWindowViewModel(
         IBookmarkTreeStore treeStore,
+        BookmarkSearchService searchService,
         IReadOnlySet<string>? expandedFolderIds = null)
     {
+        ArgumentNullException.ThrowIfNull(treeStore);
+        ArgumentNullException.ThrowIfNull(searchService);
+
         _treeStore = treeStore;
+        _searchService = searchService;
+
+        var snapshot = _treeStore.Load();
+        _searchService.Rebuild(snapshot);
+
         var items = BookmarkTreeViewModelMapper.CreateViewModels(
-            _treeStore.Load(),
+            snapshot,
             expandedFolderIds);
 
         RootFolder = new BookmarkFolderViewModel(
@@ -29,11 +44,47 @@ public partial class MainWindowViewModel : ViewModelBase
             items,
             isExpanded: true,
             isRoot: true);
+
+        RebuildBookmarkLookup();
     }
 
     public BookmarkFolderViewModel RootFolder { get; }
 
     public ObservableCollection<BookmarkTreeItemViewModel> Items => RootFolder.Children;
+
+    public ObservableCollection<BookmarkSearchResultItem> SearchResults { get; } = [];
+
+    public string SearchQuery
+    {
+        get => _searchQuery;
+        set
+        {
+            if (!SetProperty(ref _searchQuery, value))
+                return;
+
+            UpdateSearchResults();
+        }
+    }
+
+    public bool IsSearchActive => !string.IsNullOrWhiteSpace(SearchQuery);
+
+    public bool IsBookmarksTreeVisible => !IsSearchActive;
+
+    public bool HasSearchResults => SearchResults.Count > 0;
+
+    public bool HasNoSearchResults => IsSearchActive && SearchResults.Count == 0;
+
+    public IReadOnlyList<BookmarkSearchResult> SearchBookmarks(
+        string query,
+        BookmarkSearchOptions? options = null)
+    {
+        return _searchService.Search(query, options);
+    }
+
+    public void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+    }
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
     {
@@ -114,6 +165,9 @@ public partial class MainWindowViewModel : ViewModelBase
         };
 
         targetParent.Children.Insert(0, bookmark);
+        _bookmarkViewModelsById[bookmark.Id] = bookmark;
+        _searchService.AddOrUpdate(record);
+        UpdateSearchResults();
 
         return BookmarkTreeAddBookmarkResult.Added(
             bookmark,
@@ -184,6 +238,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         bookmark.SetTitle(record.Title ?? string.Empty);
         bookmark.SetUrl(record.Url ?? string.Empty);
+        _searchService.AddOrUpdate(record);
+        UpdateSearchResults();
 
         return BookmarkTreeEditBookmarkResult.Edited(
             bookmark,
@@ -242,6 +298,19 @@ public partial class MainWindowViewModel : ViewModelBase
 
         sourceItems.RemoveAt(sourceIndex);
         item.Parent = null;
+
+        if (item is BookmarkViewModel)
+        {
+            _searchService.Remove(item.Id);
+            _bookmarkViewModelsById.Remove(item.Id);
+        }
+        else
+        {
+            _searchService.Rebuild(_treeStore.Load());
+            RebuildBookmarkLookup();
+        }
+
+        UpdateSearchResults();
 
         return BookmarkTreeDeleteResult.Deleted(item, sourceParent, sourceIndex);
     }
@@ -341,6 +410,38 @@ public partial class MainWindowViewModel : ViewModelBase
     private ObservableCollection<BookmarkTreeItemViewModel> GetMutableItems(BookmarkFolderViewModel? parent)
     {
         return parent?.Children ?? Items;
+    }
+
+    private void UpdateSearchResults()
+    {
+        SearchResults.Clear();
+
+        if (IsSearchActive)
+        {
+            foreach (var result in _searchService.Search(SearchQuery, new BookmarkSearchOptions { MaxResults = 20 }))
+            {
+                if (!_bookmarkViewModelsById.TryGetValue(result.Id, out var bookmark))
+                    continue;
+
+                SearchResults.Add(new BookmarkSearchResultItem(
+                    bookmark.Id,
+                    bookmark.Title,
+                    bookmark.Url));
+            }
+        }
+
+        OnPropertyChanged(nameof(IsSearchActive));
+        OnPropertyChanged(nameof(IsBookmarksTreeVisible));
+        OnPropertyChanged(nameof(HasSearchResults));
+        OnPropertyChanged(nameof(HasNoSearchResults));
+    }
+
+    private void RebuildBookmarkLookup()
+    {
+        _bookmarkViewModelsById.Clear();
+
+        foreach (var bookmark in EnumerateItems(Items).OfType<BookmarkViewModel>())
+            _bookmarkViewModelsById[bookmark.Id] = bookmark;
     }
 
     private static string? GetStorageParentId(BookmarkFolderViewModel? targetParent)

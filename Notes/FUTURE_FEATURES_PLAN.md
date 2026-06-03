@@ -20,7 +20,7 @@ Preferred long-term direction:
 
 - Local SQLite database as the app's working storage.
 - Application-level selective encryption for secret bookmark payloads. The first implementation may favor simplicity over maximum cryptographic sophistication.
-- Search index as a separate concern, not hardcoded into UI. The current preferred first approach is to build the search index in memory at app startup/unlock.
+- Search index as a separate concern, not hardcoded into UI. The first application integration uses the standalone in-memory `Stranichnik.Search` library.
 - WebDAV sync as item-level sync, not whole SQLite file sync.
 - Application services as the central place for add/edit/delete/move operations.
 
@@ -199,7 +199,7 @@ Option C: Lucene.NET
 
 Current preference:
 
-- Start with a custom in-memory index.
+- Use the standalone custom in-memory `Stranichnik.Search` index for the first integrated version.
 - Keep the architecture open enough to replace or supplement it with SQLite FTS5 or Lucene.NET later.
 
 Detailed standalone search-library planning documents:
@@ -207,6 +207,14 @@ Detailed standalone search-library planning documents:
 - `Notes/SEARCH_ENGINE_DESIGN.md`
 - `Notes/SEARCH_ENGINE_ARCHITECTURE.md`
 - `Notes/SEARCH_ENGINE_IMPLEMENTATION_PLAN.md`
+
+Current application integration:
+
+- Application-side search glue lives in `Searching/`.
+- The main app rebuilds search from non-secret visible bookmark records.
+- The main window shows search results in place of the bookmark tree while search is active.
+- Results are mapped back to current bookmark view models by ID.
+- Search quality can be tuned later without changing storage or UI boundaries.
 
 ### Secret Bookmark Search
 

@@ -135,6 +135,12 @@
   <data name="Root_AllBookmarks" xml:space="preserve">
     <value>All bookmarks</value>
   </data>
+  <data name="Search_NoMatches" xml:space="preserve">
+    <value>No matching bookmarks</value>
+  </data>
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>Search bookmarks</value>
+  </data>
   <data name="Validation_TitleRequired" xml:space="preserve">
     <value>Fill in the title.</value>
   </data>

@@ -3,9 +3,11 @@
 This document is a handoff guide for an agent that will integrate the standalone
 `Stranichnik.Search` library into the Stranichnik desktop application.
 
-The search library itself already exists in `Stranichnik.Search/`. The next task
-is application integration: connect SQLite-backed bookmark data, an application
-search service, the main view model, and then UI.
+The search library itself already exists in `Stranichnik.Search/`.
+
+Current status: the first application integration has been implemented. This
+document remains useful as historical handoff context and as guidance for future
+search refinements.
 
 ## Read First
 
@@ -111,15 +113,15 @@ namespace Stranichnik.Searching;
 Using `Searching` avoids name conflicts with the `Stranichnik.Search` library
 namespace.
 
-## First Integration Shape
+## Current Integration Shape
 
-Add a project reference from the main app project to the search library:
+The main app project references the search library:
 
 ```xml
 <ProjectReference Include="Stranichnik.Search/Stranichnik.Search.csproj" />
 ```
 
-Recommended new application-side files:
+Application-side files:
 
 ```text
 Searching/
@@ -135,7 +137,7 @@ Searching/
   IBookmarkSearchService.cs
 ```
 
-An interface is useful if tests need to inject a fake search service into view
+An interface may be useful if tests need to inject a fake search service into view
 models. If the first integration stays small, a concrete service is acceptable.
 
 ## Mapping Storage Records To Search Documents
@@ -419,7 +421,7 @@ Until secret unlock/decryption exists:
 Do not implement searchable encryption. It is out of scope and easy to get
 wrong.
 
-## Suggested Implementation Phases
+## Implementation Phases
 
 ### Phase 1: Reference And Service
 
@@ -434,6 +436,8 @@ dotnet build
 dotnet test Tests/Stranichnik.Tests.csproj
 ```
 
+Status: implemented.
+
 ### Phase 2: View Model Wiring
 
 1. Inject `BookmarkSearchService` into `MainWindowViewModel`.
@@ -443,6 +447,8 @@ dotnet test Tests/Stranichnik.Tests.csproj
 5. Add view-model tests for search synchronization.
 6. Ask the user to run build and tests again.
 
+Status: implemented.
+
 ### Phase 3: Minimal UI
 
 1. Add localized UI strings.
@@ -451,12 +457,18 @@ dotnet test Tests/Stranichnik.Tests.csproj
 4. Add clear-search behavior.
 5. Verify manually with normal app launch and sample-data launch.
 
+Status: implemented. Current UI shows a search bar above the work area. While
+search is active, search results replace the bookmark tree in the same area.
+Search result rows include an open action.
+
 ### Phase 4: Polish
 
 1. Add keyboard focus behavior.
 2. Add result click behavior to reveal/select a bookmark if needed.
 3. Tune spacing, empty states, and long URL/title layout.
 4. Consider debouncing only if search feels too eager on large datasets.
+
+Status: optional future work.
 
 ## Things To Avoid
 

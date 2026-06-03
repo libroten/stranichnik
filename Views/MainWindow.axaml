@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Stranichnik.ViewModels"
+        xmlns:searching="using:Stranichnik.Searching"
         xmlns:localization="using:Stranichnik.Localization"
         xmlns:sys="clr-namespace:System;assembly=System.Runtime"
         xmlns:primitives="using:Avalonia.Controls.Primitives"
@@ -237,6 +238,37 @@
                 </Grid>
             </Border>
         </DataTemplate>
+
+        <DataTemplate DataType="searching:BookmarkSearchResultItem">
+            <Border Classes="searchResultRow"
+                    Padding="10,7">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Spacing="2"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}"
+                                   Classes="bookmarkTitle"
+                                   FontSize="14"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Url}"
+                                   Classes="bookmarkUrl"
+                                   FontSize="12"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1"
+                                Classes="rowActions"
+                                Orientation="Horizontal"
+                                Spacing="4"
+                                VerticalAlignment="Center">
+                        <Button Classes="actionButton openAction"
+                                Click="OnOpenSearchResultClick"
+                                ToolTip.Tip="{x:Static localization:UiStrings.ActionOpen}">
+                            <TextBlock Classes="actionIcon" Text="↗"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
     </Window.DataTemplates>
 
     <Grid Background="#F7F8FA"
@@ -401,15 +433,99 @@
                 BorderBrush="#E2E5EA"
                 BorderThickness="1"
                 CornerRadius="8">
-            <ScrollViewer x:Name="BookmarksScrollViewer"
-                          Background="#FFFFFF"
-                          HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Auto"
-                          PointerPressed="OnBookmarksScrollPointerPressed"
-                          PointerMoved="OnBookmarksScrollPointerMoved"
-                          PointerReleased="OnBookmarksScrollPointerReleased"
-                          PointerCaptureLost="OnBookmarksScrollPointerCaptureLost">
-                <ScrollViewer.Styles>
+            <Grid RowDefinitions="Auto,*"
+                  RowSpacing="10">
+                <Grid.Styles>
+                    <Style Selector="Border.searchBoxContainer">
+                        <Setter Property="Height" Value="36"/>
+                        <Setter Property="Padding" Value="10,0"/>
+                        <Setter Property="Background" Value="#FFFFFF"/>
+                        <Setter Property="BorderBrush" Value="#CBD5E1"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="6"/>
+                    </Style>
+                    <Style Selector="Border.searchBoxContainer:pointerover">
+                        <Setter Property="Background" Value="#FFFFFF"/>
+                        <Setter Property="BorderBrush" Value="#94A3B8"/>
+                    </Style>
+                    <Style Selector="TextBlock.searchIcon">
+                        <Setter Property="Foreground" Value="#94A3B8"/>
+                        <Setter Property="FontSize" Value="40"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                    </Style>
+                    <Style Selector="TextBox.searchBoxInput">
+                        <Setter Property="Height" Value="34"/>
+                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#1F2937"/>
+                        <Setter Property="PlaceholderForeground" Value="#94A3B8"/>
+                        <Setter Property="CaretBrush" Value="#1F2937"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="FocusAdorner" Value="{x:Null}"/>
+                    </Style>
+                    <Style Selector="TextBox.searchBoxInput:pointerover">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#1F2937"/>
+                    </Style>
+                    <Style Selector="TextBox.searchBoxInput:focus">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#1F2937"/>
+                    </Style>
+                    <Style Selector="TextBox.searchBoxInput /template/ Border#PART_BorderElement">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                    <Style Selector="TextBox.searchBoxInput:pointerover /template/ Border#PART_BorderElement">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="TextBox.searchBoxInput:focus /template/ Border#PART_BorderElement">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                    </Style>
+                    <Style Selector="Button.searchClearButton">
+                        <Setter Property="Width" Value="24"/>
+                        <Setter Property="Height" Value="24"/>
+                        <Setter Property="MinWidth" Value="0"/>
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#667085"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="FocusAdorner" Value="{x:Null}"/>
+                        <Setter Property="Template">
+                            <ControlTemplate>
+                                <Border Background="{TemplateBinding Background}"
+                                        CornerRadius="12">
+                                    <ContentPresenter Content="{TemplateBinding Content}"
+                                                      HorizontalContentAlignment="Center"
+                                                      VerticalContentAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter>
+                    </Style>
+                    <Style Selector="Button.searchClearButton:pointerover">
+                        <Setter Property="Background" Value="#EEF6FF"/>
+                        <Setter Property="Foreground" Value="#1F2937"/>
+                    </Style>
+                    <Style Selector="Border.searchResultsPanel">
+                        <Setter Property="Background" Value="#FFFFFF"/>
+                        <Setter Property="Padding" Value="0"/>
+                    </Style>
+                    <Style Selector="Border.searchResultRow">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="CornerRadius" Value="4"/>
+                        <Setter Property="Margin" Value="0,1"/>
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <BrushTransition Property="Background"
+                                                 Duration="{StaticResource HoverTransitionDuration}"/>
+                            </Transitions>
+                        </Setter>
+                    </Style>
+                    <Style Selector="Border.searchResultRow:pointerover">
+                        <Setter Property="Background" Value="#EEF6FF"/>
+                    </Style>
                     <Style Selector="Border.treeRow">
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="CornerRadius" Value="4"/>
@@ -483,6 +599,10 @@
                         </Setter>
                     </Style>
                     <Style Selector="Border.treeRow:pointerover StackPanel.rowActions">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="IsHitTestVisible" Value="True"/>
+                    </Style>
+                    <Style Selector="Border.searchResultRow:pointerover StackPanel.rowActions">
                         <Setter Property="Opacity" Value="1"/>
                         <Setter Property="IsHitTestVisible" Value="True"/>
                     </Style>
@@ -655,11 +775,63 @@
                             </TextDecorationCollection>
                         </Setter>
                     </Style>
-                </ScrollViewer.Styles>
+                </Grid.Styles>
 
-                <ContentControl MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}"
-                                Content="{Binding RootFolder}"/>
-            </ScrollViewer>
+                <StackPanel Grid.Row="0"
+                            Spacing="8">
+                    <Border Classes="searchBoxContainer">
+                        <Grid ColumnDefinitions="Auto,*,Auto"
+                              ColumnSpacing="6"
+                              VerticalAlignment="Center">
+                            <TextBlock Grid.Column="0"
+                                       Classes="searchIcon"
+                                       Text="⌕"/>
+                            <TextBox Grid.Column="1"
+                                     Classes="searchBoxInput"
+                                     PlaceholderText="{x:Static localization:UiStrings.SearchPlaceholder}"
+                                     Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <Button Grid.Column="2"
+                                    Classes="searchClearButton"
+                                    IsVisible="{Binding IsSearchActive}"
+                                    Click="OnClearSearchClick"
+                                    ToolTip.Tip="{x:Static localization:UiStrings.CommonCancel}">
+                                <TextBlock Text="×"
+                                           FontSize="16"
+                                           VerticalAlignment="Center"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <Border Grid.Row="1"
+                        Classes="searchResultsPanel"
+                        IsVisible="{Binding IsSearchActive}">
+                    <Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      IsVisible="{Binding HasSearchResults}">
+                            <ItemsControl ItemsSource="{Binding SearchResults}"/>
+                        </ScrollViewer>
+                        <TextBlock Text="{x:Static localization:UiStrings.SearchNoMatches}"
+                                   IsVisible="{Binding HasNoSearchResults}"
+                                   Padding="10,8"
+                                   Foreground="#667085"/>
+                    </Grid>
+                </Border>
+
+                <ScrollViewer x:Name="BookmarksScrollViewer"
+                              Grid.Row="1"
+                              IsVisible="{Binding IsBookmarksTreeVisible}"
+                              Background="#FFFFFF"
+                              HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto"
+                              PointerPressed="OnBookmarksScrollPointerPressed"
+                              PointerMoved="OnBookmarksScrollPointerMoved"
+                              PointerReleased="OnBookmarksScrollPointerReleased"
+                              PointerCaptureLost="OnBookmarksScrollPointerCaptureLost">
+                    <ContentControl MinWidth="{Binding Viewport.Width, ElementName=BookmarksScrollViewer}"
+                                    Content="{Binding RootFolder}"/>
+                </ScrollViewer>
+            </Grid>
         </Border>
 
         <Canvas x:Name="DragGhostLayer"

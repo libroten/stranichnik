@@ -5,6 +5,8 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Stranichnik.Localization;
+using Stranichnik.Search;
+using Stranichnik.Searching;
 using Stranichnik.Settings;
 using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
@@ -32,6 +34,7 @@ public partial class App : Application
             {
                 DataContext = new MainWindowViewModel(
                     SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData),
+                    new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
                     SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds()),
             };
         }

@@ -41,6 +41,8 @@ public static class UiStrings
     public static string MainMenuServiceAppearance => TextResources.Get("MainMenu_Service_Appearance");
     public static string MainMenuServiceLanguage => TextResources.Get("MainMenu_Service_Language");
     public static string RootAllBookmarks => TextResources.Get("Root_AllBookmarks");
+    public static string SearchNoMatches => TextResources.Get("Search_NoMatches");
+    public static string SearchPlaceholder => TextResources.Get("Search_Placeholder");
     public static string ValidationTitleRequired => TextResources.Get("Validation_TitleRequired");
     public static string ValidationUrlRequired => TextResources.Get("Validation_UrlRequired");
 

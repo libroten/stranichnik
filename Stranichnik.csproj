@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs" />
+    <Compile Remove="Stranichnik.Search\**\*.cs" />
+    <Compile Remove="Stranichnik.Search.Tests\**\*.cs" />
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
@@ -27,5 +29,9 @@
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Stranichnik.Search/Stranichnik.Search.csproj" />
   </ItemGroup>
 </Project>

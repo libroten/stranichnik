@@ -23,7 +23,7 @@ Current storage:
 - `InMemoryBookmarkTreeStore` remains as a contract/reference implementation for tests.
 - The SQLite schema is documented in `Notes/DATA_SCHEMA.md`.
 - The storage/repository architecture is documented in `Notes/STORAGE_ARCHITECTURE.md`.
-- Future search is currently expected to start as an in-memory index rather than a persistent SQLite/Lucene index.
+- Search currently uses the standalone in-memory `Stranichnik.Search` library.
 - Future WebDAV sync should synchronize item-level objects, not the SQLite database file itself.
 
 ## Main UI Structure
@@ -49,10 +49,12 @@ The UI is a tree-like bookmark catalog:
 - A synthetic root folder named `Все закладки`.
 - Folder rows can be expanded and collapsed.
 - Bookmark rows show title and URL.
+- A search bar can replace the tree area with bookmark search results.
 - Folder and bookmark rows have hover actions.
 - Folders have container borders on the left and bottom.
 - DnD placeholders appear inside folders while dragging.
 - Bookmark URLs can be opened in the system browser.
+- Bookmark URLs can also be opened from search results.
 
 The synthetic root folder is special:
 
@@ -77,6 +79,16 @@ URL opening:
 - Uses `ProcessStartInfo` with `UseShellExecute = true`.
 - Only absolute `http` and `https` URLs are accepted.
 - Invalid URLs and system launch errors show `MessageDialog` instead of failing silently.
+
+Search UI:
+
+- Implemented in `Views/MainWindow.axaml` and `Views/MainWindow.axaml.cs`.
+- The search bar is shown above the main bookmark work area.
+- When search is inactive, the bookmark tree is visible.
+- When search is active, the tree is hidden and the same work area displays search results or an empty state.
+- Search result rows show title, URL, and an open action.
+- The search result URL hover style matches normal bookmark URL hover behavior.
+- The clear button resets `MainWindowViewModel.SearchQuery`.
 
 ## App Data And Logging
 
@@ -176,6 +188,8 @@ Important types:
 - `RootFolder`: synthetic root folder.
 - `Items`: alias for `RootFolder.Children`.
 - `IBookmarkTreeStore`: storage boundary for tree data. The default runtime implementation is SQLite.
+- `BookmarkSearchService`: application-side search boundary backed by `Stranichnik.Search`.
+- `SearchQuery` and `SearchResults`: current search UI state.
 
 `BookmarkTreeItemViewModel` is the common base for folders and bookmarks. It currently stores:
 
@@ -195,6 +209,37 @@ Important types:
 `BookmarkViewModel` stores:
 
 - `Url`
+
+## Search
+
+The standalone search library lives in:
+
+- `Stranichnik.Search/`
+
+The application integration layer lives in:
+
+- `Searching/BookmarkSearchDocumentMapper.cs`
+- `Searching/BookmarkSearchService.cs`
+- `Searching/BookmarkSearchResultItem.cs`
+
+Current search behavior:
+
+- The main app references `Stranichnik.Search`.
+- `BookmarkSearchService` owns an `InMemoryBookmarkSearchIndex`.
+- `MainWindowViewModel` loads storage once at startup, rebuilds the search index from that snapshot, and builds the visible tree from the same snapshot.
+- Only visible non-secret bookmark records are indexed.
+- Folders are not indexed.
+- Search index updates happen after successful add/edit/delete bookmark operations.
+- Folder deletion currently rebuilds the index from storage so descendant bookmarks do not remain searchable.
+- Moving bookmarks or folders does not update search because title/URL search does not depend on folder path yet.
+- Search results return IDs and are mapped back to current `BookmarkViewModel` instances before display.
+
+Privacy constraints:
+
+- The index is in memory only.
+- Do not persist search index files.
+- Do not log search queries, search diagnostics, bookmark titles, URLs, or indexed tokens.
+- Secret bookmarks must stay unindexed until future unlock/decryption support exists.
 
 ## Sample Data
 

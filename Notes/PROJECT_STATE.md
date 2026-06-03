@@ -6,7 +6,7 @@ This note records the current development state for future agents.
 
 The project has moved from the in-memory UI phase into local SQLite persistence.
 
-SQLite-backed bookmark storage is implemented and manually verified. The next large feature area is expected to be search, followed later by selective encryption and sync.
+SQLite-backed bookmark storage is implemented and manually verified. The standalone search library is implemented, and the first application integration is in place. The next large feature area is expected to be selective encryption, followed later by sync.
 
 Completed broad areas:
 
@@ -47,10 +47,17 @@ Completed broad areas:
   - `AddOrUpdate` prepares the new indexed document before replacing the old one;
   - library usage and privacy notes are documented in `Stranichnik.Search/README.md`;
   - independent `Stranichnik.Search.Tests/` test project covers normalization, tokenization, URL parsing, exact/prefix/fuzzy search, ranking, diagnostics, mutation behavior, and edge cases.
+- Search is integrated into the main app:
+  - the main app references `Stranichnik.Search`;
+  - application-side search integration lives in `Searching/`;
+  - `MainWindowViewModel` rebuilds the in-memory index from the same storage snapshot used to build the tree;
+  - add/edit/delete bookmark operations update the search index;
+  - folder delete rebuilds the search index from storage;
+  - the main window has a search bar and a search-results view that replaces the tree while search is active;
+  - search result rows have an open action.
 
 Not implemented yet:
 
-- App integration for the search library.
 - Secret bookmark encryption.
 - WebDAV sync.
 
@@ -58,8 +65,9 @@ Implemented in storage/view-model layer:
 
 - `InMemoryBookmarkTreeStore` supports in-memory add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
 - `SqliteBookmarkTreeStore` supports SQLite add bookmark, add folder, edit bookmark, edit folder, delete item, can-move checks, and move item operations.
-- `App.axaml.cs` creates the runtime `SqliteBookmarkTreeStore` and injects it into `MainWindowViewModel`.
+- `App.axaml.cs` creates the runtime `SqliteBookmarkTreeStore`, creates the search service, and injects both into `MainWindowViewModel`.
 - `MainWindowViewModel` loads runtime data through `IBookmarkTreeStore -> BookmarkTreeViewModelMapper`.
+- `MainWindowViewModel` also rebuilds search from the initial storage snapshot and keeps search in sync with successful bookmark mutations.
 - New SQLite databases start empty by default.
 - `--use-sample-data` seeds sample data only when the SQLite file did not exist before startup.
 - Tests can inject `InMemoryBookmarkTreeStore` into `MainWindowViewModel`.
@@ -82,6 +90,9 @@ Main window:
 - Shows only the bookmark work area.
 - No separate top header.
 - Main tree is centered and width-limited.
+- Search bar is displayed above the work area.
+- When search is active, search results replace the tree in the same work area.
+- When search is inactive, the normal tree is shown.
 
 Root:
 
@@ -115,6 +126,15 @@ Bookmarks:
   - delete
 - Opening a bookmark accepts only absolute `http` and `https` URLs.
 - Invalid or unsupported URLs show an error dialog instead of failing silently.
+
+Search:
+
+- Search is better than substring matching because it uses the standalone in-memory search library.
+- Search results are separate from the tree; the tree is not filtered or mutated for search display.
+- Search result rows show bookmark title and URL.
+- Search result rows have an open action.
+- URL hover styling in search results matches normal bookmark URL hover styling.
+- The clear button empties the query and returns to the tree.
 
 Action buttons:
 
@@ -160,6 +180,8 @@ Known design choice:
 
 The user last confirmed successful build, tests, formatting verification, normal app launch, sample-data launch, existing-database launch, and missing-database launch for the main app.
 
+The user confirmed the first search integration works in the app. The current search quality is acceptable as a first pass, with possible future tuning.
+
 The user also confirmed successful standalone search library verification after the latest review fixes:
 
 ```bash
@@ -189,12 +211,12 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad implementation area should be chosen after SQLite persistence and the standalone search library are committed.
+The next broad implementation area should be chosen after the current search integration is committed.
 
 Likely order:
 
 1. Keep store-backed view model operations as the central mutation boundary.
-2. Integrate the standalone in-memory search library into the application through an application/search service boundary.
+2. Optionally polish search UX further, for example result navigation/reveal-in-tree or ranking tuning.
 3. Continue later with selective encryption and sync.
 
 SQLite schema direction:
@@ -210,7 +232,8 @@ Storage architecture direction:
 - Keep `IBookmarkTreeStore` as the boundary.
 - Use `SqliteBookmarkTreeStore` at runtime.
 - Keep `InMemoryBookmarkTreeStore` for tests/reference.
-- Keep search, encryption, and sync outside Avalonia view models.
+- Keep search library internals, encryption, and sync outside Avalonia view models.
+- Keep application search integration behind `Searching/BookmarkSearchService`.
 - See `Notes/STORAGE_ARCHITECTURE.md` for the current design.
 
 For add/edit/delete/move/open, keep model changes centralized. Do not duplicate storage mutations in UI event handlers.

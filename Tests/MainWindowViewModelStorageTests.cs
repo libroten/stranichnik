@@ -1,4 +1,6 @@
 using System.Linq;
+using Stranichnik.Search;
+using Stranichnik.Searching;
 using Stranichnik.Storage;
 using Stranichnik.ViewModels;
 using Xunit;
@@ -203,10 +205,130 @@ public sealed class MainWindowViewModelStorageTests
         Assert.False(viewModel.CanMoveItemToFolder(folder, descendant));
     }
 
+    [Fact]
+    public void Constructor_rebuilds_search_from_initial_snapshot()
+    {
+        var viewModel = CreateViewModel();
+
+        var results = viewModel.SearchBookmarks("avaloniaui");
+
+        Assert.Equal("avalonia-docs", Assert.Single(results).Id);
+    }
+
+    [Fact]
+    public void AddBookmarkToFolderStart_updates_search_index()
+    {
+        var viewModel = CreateViewModel();
+        var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+
+        var result = viewModel.AddBookmarkToFolderStart(
+            targetFolder,
+            "Zephyr Manuals",
+            "https://zephyr-manuals.example.com");
+
+        var searchResult = Assert.Single(viewModel.SearchBookmarks("zephyr manuals"));
+
+        Assert.True(result.WasAdded);
+        Assert.Equal(result.Bookmark?.Id, searchResult.Id);
+    }
+
+    [Fact]
+    public void EditBookmark_updates_search_index()
+    {
+        var viewModel = CreateViewModel();
+        var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+        var bookmark = Assert.IsType<BookmarkViewModel>(
+            targetFolder.Children.First(item => item.Id == "avalonia-docs"));
+
+        viewModel.EditBookmark(
+            bookmark,
+            "Renamed Search Target",
+            "https://renamed.example.com");
+
+        Assert.Empty(viewModel.SearchBookmarks("avaloniaui"));
+        Assert.Equal("avalonia-docs", Assert.Single(viewModel.SearchBookmarks("renamed target")).Id);
+    }
+
+    [Fact]
+    public void DeleteItem_removes_bookmark_from_search_index()
+    {
+        var viewModel = CreateViewModel();
+        var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+        var bookmark = Assert.IsType<BookmarkViewModel>(
+            targetFolder.Children.First(item => item.Id == "avalonia-docs"));
+
+        viewModel.DeleteItem(bookmark);
+
+        Assert.Empty(viewModel.SearchBookmarks("avaloniaui"));
+    }
+
+    [Fact]
+    public void DeleteItem_removes_folder_descendants_from_search_index()
+    {
+        var viewModel = CreateViewModel();
+        var folder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+
+        viewModel.DeleteItem(folder);
+
+        Assert.Empty(viewModel.SearchBookmarks("avaloniaui"));
+        Assert.Empty(viewModel.SearchBookmarks("nuget"));
+    }
+
+    [Fact]
+    public void SearchQuery_populates_display_results()
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.SearchQuery = "github";
+
+        var result = Assert.Single(viewModel.SearchResults);
+        Assert.True(viewModel.IsSearchActive);
+        Assert.False(viewModel.IsBookmarksTreeVisible);
+        Assert.True(viewModel.HasSearchResults);
+        Assert.False(viewModel.HasNoSearchResults);
+        Assert.Equal("github", result.Id);
+        Assert.Equal("GitHub", result.Title);
+        Assert.Equal("https://github.com/", result.Url);
+    }
+
+    [Fact]
+    public void SearchQuery_shows_empty_state_when_no_results_match()
+    {
+        var viewModel = CreateViewModel();
+
+        viewModel.SearchQuery = "zzzzzzzzzzzz";
+
+        Assert.Empty(viewModel.SearchResults);
+        Assert.True(viewModel.IsSearchActive);
+        Assert.False(viewModel.IsBookmarksTreeVisible);
+        Assert.False(viewModel.HasSearchResults);
+        Assert.True(viewModel.HasNoSearchResults);
+    }
+
+    [Fact]
+    public void ClearSearch_clears_display_results_and_shows_tree()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.SearchQuery = "github";
+
+        viewModel.ClearSearch();
+
+        Assert.Empty(viewModel.SearchResults);
+        Assert.False(viewModel.IsSearchActive);
+        Assert.True(viewModel.IsBookmarksTreeVisible);
+        Assert.False(viewModel.HasSearchResults);
+        Assert.False(viewModel.HasNoSearchResults);
+    }
+
     private static MainWindowViewModel CreateViewModel()
     {
         return new MainWindowViewModel(
             new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items),
+            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
             SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
     }
 }

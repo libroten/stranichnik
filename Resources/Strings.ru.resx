@@ -135,6 +135,12 @@
   <data name="Root_AllBookmarks" xml:space="preserve">
     <value>Все закладки</value>
   </data>
+  <data name="Search_NoMatches" xml:space="preserve">
+    <value>Подходящих закладок нет</value>
+  </data>
+  <data name="Search_Placeholder" xml:space="preserve">
+    <value>Поиск закладок</value>
+  </data>
   <data name="Validation_TitleRequired" xml:space="preserve">
     <value>Заполните заголовок.</value>
   </data>
