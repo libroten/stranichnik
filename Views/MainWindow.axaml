@@ -274,7 +274,7 @@
     <Grid Background="{DynamicResource AppBackgroundBrush}"
           RowDefinitions="Auto,*">
         <Border Grid.Row="0"
-                Background="{DynamicResource AppTopBarBackgroundBrush}"
+                Background="{DynamicResource WorkAreaBackgroundBrush}"
                 BorderBrush="{DynamicResource AppTopBarBorderBrush}"
                 BorderThickness="0,0,0,1">
             <Grid x:Name="MenuBarRoot">
@@ -292,7 +292,7 @@
                         <Setter Property="Template">
                             <ControlTemplate>
                                 <Border Background="{TemplateBinding Background}"
-                                        CornerRadius="3">
+                                        CornerRadius="6">
                                     <ContentPresenter Content="{TemplateBinding Content}"
                                                       Padding="{TemplateBinding Padding}"
                                                       HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -302,17 +302,17 @@
                         </Setter>
                     </Style>
                     <Style Selector="Button.menuBarButton:pointerover">
-                        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource FolderRowBackgroundBrush}"/>
                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                     </Style>
                     <Style Selector="Button.menuBarButton.open">
-                        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource FolderRowBackgroundBrush}"/>
                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                     </Style>
                     <Style Selector="Border.menuPopup">
                         <Setter Property="MinWidth" Value="160"/>
                         <Setter Property="Padding" Value="4"/>
-                        <Setter Property="Background" Value="{DynamicResource SurfaceRaisedBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource WorkAreaBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource WorkAreaBorderBrush}"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="6"/>
@@ -331,7 +331,7 @@
                         <Setter Property="Template">
                             <ControlTemplate>
                                 <Border Background="{TemplateBinding Background}"
-                                        CornerRadius="4">
+                                        CornerRadius="6">
                                     <ContentPresenter Content="{TemplateBinding Content}"
                                                       Padding="{TemplateBinding Padding}"
                                                       HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
@@ -341,7 +341,7 @@
                         </Setter>
                     </Style>
                     <Style Selector="Button.menuPopupItem:pointerover">
-                        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource FolderRowBackgroundBrush}"/>
                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                     </Style>
                     <Style Selector="Button.menuPopupItem:pressed">
@@ -351,12 +351,12 @@
                     <Style Selector="Border.menuPopupSeparator">
                         <Setter Property="Height" Value="1"/>
                         <Setter Property="Margin" Value="6,4"/>
-                        <Setter Property="Background" Value="{DynamicResource SeparatorBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource FolderRowBackgroundBrush}"/>
                     </Style>
                 </Grid.Styles>
 
                 <StackPanel Orientation="Horizontal"
-                            Margin="4,2">
+                            Margin="6,4">
                     <Button x:Name="StranichnikMenuButton"
                             Classes="menuBarButton"
                             Click="OnStranichnikMenuClick"
@@ -374,7 +374,7 @@
                 <primitives:Popup x:Name="StranichnikMenuPopup"
                                   PlacementTarget="{Binding ElementName=StranichnikMenuButton}"
                                   Placement="BottomEdgeAlignedLeft"
-                                  VerticalOffset="6"
+                                  VerticalOffset="8"
                                   IsLightDismissEnabled="True"
                                   OverlayDismissEventPassThrough="True"
                                   OverlayInputPassThroughElement="{Binding ElementName=MenuBarRoot}"
@@ -401,7 +401,7 @@
                 <primitives:Popup x:Name="ServiceMenuPopup"
                                   PlacementTarget="{Binding ElementName=ServiceMenuButton}"
                                   Placement="BottomEdgeAlignedLeft"
-                                  VerticalOffset="6"
+                                  VerticalOffset="8"
                                   IsLightDismissEnabled="True"
                                   OverlayDismissEventPassThrough="True"
                                   OverlayInputPassThroughElement="{Binding ElementName=MenuBarRoot}"
@@ -560,7 +560,7 @@
                     </Style>
                     <Style Selector="Border.dropPlaceholder">
                         <Setter Property="Height" Value="44"/>
-                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Background" Value="{DynamicResource DropPlaceholderBackgroundBrush}"/>
                         <Setter Property="CornerRadius" Value="4"/>
                         <Setter Property="Opacity" Value="0"/>
                         <Setter Property="Transitions">
