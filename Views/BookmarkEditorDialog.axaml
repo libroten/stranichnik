@@ -93,6 +93,53 @@
             <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
         </Style>
+        <Style Selector="Button.metadataSuggestion">
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.metadataSuggestion:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource UrlHoverTextBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.metadataSuggestionText">
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="TextDecorations">
+                <TextDecorationCollection>
+                    <TextDecoration Location="Underline"
+                                    Stroke="{DynamicResource TextMutedBrush}"
+                                    StrokeDashArray="2,2"
+                                    StrokeThickness="1"/>
+                </TextDecorationCollection>
+            </Setter>
+        </Style>
+        <Style Selector="Button.metadataSuggestion:pointerover TextBlock.metadataSuggestionText">
+            <Setter Property="Foreground" Value="{DynamicResource UrlHoverTextBrush}"/>
+            <Setter Property="TextDecorations">
+                <TextDecorationCollection>
+                    <TextDecoration Location="Underline"
+                                    Stroke="{DynamicResource UrlUnderlineBrush}"
+                                    StrokeDashArray="2,2"
+                                    StrokeThickness="1"/>
+                </TextDecorationCollection>
+            </Setter>
+        </Style>
+        <Style Selector="ProgressBar.metadataLoading">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
     </Window.Styles>
 
     <Border Padding="20"
@@ -117,6 +164,19 @@
                 <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorTitleLabel}"
                            Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
                 <TextBox x:Name="TitleTextBox"/>
+                <ProgressBar x:Name="MetadataLoadingIndicator"
+                             Classes="metadataLoading"
+                             IsVisible="False"
+                             IsIndeterminate="True"
+                             Height="3"/>
+                <Button x:Name="MetadataSuggestionButton"
+                        Classes="metadataSuggestion"
+                        IsVisible="False"
+                        Click="OnMetadataSuggestionClick">
+                    <TextBlock x:Name="MetadataSuggestionTextBlock"
+                               Classes="metadataSuggestionText"
+                               TextTrimming="CharacterEllipsis"/>
+                </Button>
             </StackPanel>
 
             <TextBlock x:Name="ErrorTextBlock"
