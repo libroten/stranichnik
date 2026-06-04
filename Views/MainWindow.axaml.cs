@@ -11,6 +11,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Stranichnik.Localization;
+using Stranichnik.Opening;
 using Stranichnik.Searching;
 using Stranichnik.Settings;
 using Stranichnik.Theming;
@@ -391,17 +392,20 @@ public partial class MainWindow : Window
 
     private static bool TryOpenBookmarkUrl(string url, out string errorMessage)
     {
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        var normalizeStatus = BookmarkUrlNormalizer.TryNormalizeForOpening(url, out var uri);
+        if (normalizeStatus == BookmarkUrlOpenStatus.InvalidAddress)
         {
             errorMessage = UiStrings.ErrorInvalidBookmarkUrl;
             return false;
         }
 
-        if (uri.Scheme is not ("http" or "https"))
+        if (normalizeStatus == BookmarkUrlOpenStatus.UnsupportedScheme)
         {
             errorMessage = UiStrings.ErrorUnsupportedBookmarkUrlScheme;
             return false;
         }
+
+        ArgumentNullException.ThrowIfNull(uri);
 
         try
         {
