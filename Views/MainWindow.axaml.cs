@@ -116,23 +116,23 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private async void OnAppearanceMenuClick(object? sender, RoutedEventArgs e)
+    private void OnAppearanceMenuClick(object? sender, RoutedEventArgs e)
     {
         CloseMenuPopups();
         e.Handled = true;
 
         var settings = AppSettingsService.Load();
         var currentTheme = ThemeService.NormalizeTheme(settings.Theme);
-        var selectedTheme = await AppearanceDialog.Show(this, currentTheme);
-        if (selectedTheme is null)
-            return;
-
-        settings.Theme = ThemeService.ToSettingsValue(selectedTheme.Value);
-        AppSettingsService.Save(settings);
-        ThemeService.Apply(selectedTheme.Value);
+        AppearanceDialog.Open(this, currentTheme, selectedTheme =>
+        {
+            var updatedSettings = AppSettingsService.Load();
+            updatedSettings.Theme = ThemeService.ToSettingsValue(selectedTheme);
+            AppSettingsService.Save(updatedSettings);
+            ThemeService.Apply(selectedTheme);
+        });
     }
 
-    private async void OnLanguageMenuClick(object? sender, RoutedEventArgs e)
+    private void OnLanguageMenuClick(object? sender, RoutedEventArgs e)
     {
         CloseMenuPopups();
         e.Handled = true;
@@ -141,18 +141,18 @@ public partial class MainWindow : Window
         var currentLanguage = string.IsNullOrWhiteSpace(settings.Language)
             ? LanguageService.CurrentLanguage
             : settings.Language;
-        var selectedLanguage = await LanguageDialog.Show(this, currentLanguage);
-        if (selectedLanguage is null)
-            return;
+        LanguageDialog.Open(this, currentLanguage, async selectedLanguage =>
+        {
+            var updatedSettings = AppSettingsService.Load();
+            updatedSettings.Language = selectedLanguage;
+            AppSettingsService.Save(updatedSettings);
+            LanguageService.Apply(selectedLanguage);
 
-        settings.Language = selectedLanguage;
-        AppSettingsService.Save(settings);
-        LanguageService.Apply(selectedLanguage);
-
-        await MessageDialog.ShowMessage(
-            this,
-            UiStrings.LanguageDialogRestartTitle,
-            UiStrings.LanguageDialogRestartMessage);
+            await MessageDialog.ShowMessage(
+                this,
+                UiStrings.LanguageDialogRestartTitle,
+                UiStrings.LanguageDialogRestartMessage);
+        });
     }
 
     private void OnMenuPopupClosed(object? sender, EventArgs e)

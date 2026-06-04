@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -9,32 +8,35 @@ namespace Stranichnik.Views;
 
 public sealed partial class LanguageDialog : Window
 {
-    private string _selectedLanguage;
+    private readonly Action<string> _applyLanguage;
+    private string _currentLanguage;
 
     public LanguageDialog()
-        : this(LanguageService.CurrentLanguage)
+        : this(LanguageService.CurrentLanguage, _ => { })
     {
     }
 
-    private LanguageDialog(string currentLanguage)
+    private LanguageDialog(string currentLanguage, Action<string> applyLanguage)
     {
-        _selectedLanguage = LanguageService.NormalizeLanguage(currentLanguage);
+        _currentLanguage = LanguageService.NormalizeLanguage(currentLanguage);
+        _applyLanguage = applyLanguage;
         InitializeComponent();
         Title = UiStrings.LanguageDialogTitle;
         UpdateSelection();
         Opened += OnOpened;
     }
 
-    public static Task<string?> Show(Window owner, string currentLanguage)
+    public static void Open(Window owner, string currentLanguage, Action<string> applyLanguage)
     {
-        var dialog = new LanguageDialog(currentLanguage);
+        ArgumentNullException.ThrowIfNull(applyLanguage);
 
-        return dialog.ShowDialog<string?>(owner);
+        var dialog = new LanguageDialog(currentLanguage, applyLanguage);
+        dialog.Show(owner);
     }
 
     private void OnOpened(object? sender, EventArgs e)
     {
-        var focusTarget = _selectedLanguage == LanguageService.RussianLanguage
+        var focusTarget = _currentLanguage == LanguageService.RussianLanguage
             ? RussianButton
             : EnglishButton;
         focusTarget.Focus();
@@ -42,25 +44,13 @@ public sealed partial class LanguageDialog : Window
 
     private void OnEnglishClick(object? sender, RoutedEventArgs e)
     {
-        SelectLanguage(LanguageService.EnglishLanguage);
+        ApplyLanguage(LanguageService.EnglishLanguage);
         e.Handled = true;
     }
 
     private void OnRussianClick(object? sender, RoutedEventArgs e)
     {
-        SelectLanguage(LanguageService.RussianLanguage);
-        e.Handled = true;
-    }
-
-    private void OnApplyClick(object? sender, RoutedEventArgs e)
-    {
-        Close(_selectedLanguage);
-        e.Handled = true;
-    }
-
-    private void OnCancelClick(object? sender, RoutedEventArgs e)
-    {
-        Close();
+        ApplyLanguage(LanguageService.RussianLanguage);
         e.Handled = true;
     }
 
@@ -73,16 +63,21 @@ public sealed partial class LanguageDialog : Window
         e.Handled = true;
     }
 
-    private void SelectLanguage(string language)
-    {
-        _selectedLanguage = LanguageService.NormalizeLanguage(language);
-        UpdateSelection();
-    }
-
     private void UpdateSelection()
     {
-        SetSelected(EnglishButton, _selectedLanguage == LanguageService.EnglishLanguage);
-        SetSelected(RussianButton, _selectedLanguage == LanguageService.RussianLanguage);
+        SetSelected(EnglishButton, _currentLanguage == LanguageService.EnglishLanguage);
+        SetSelected(RussianButton, _currentLanguage == LanguageService.RussianLanguage);
+    }
+
+    private void ApplyLanguage(string language)
+    {
+        var normalizedLanguage = LanguageService.NormalizeLanguage(language);
+        if (_currentLanguage == normalizedLanguage)
+            return;
+
+        _currentLanguage = normalizedLanguage;
+        UpdateSelection();
+        _applyLanguage(normalizedLanguage);
     }
 
     private static void SetSelected(Button button, bool isSelected)

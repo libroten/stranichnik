@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -10,32 +9,35 @@ namespace Stranichnik.Views;
 
 public sealed partial class AppearanceDialog : Window
 {
-    private ThemeMode _selectedTheme;
+    private readonly Action<ThemeMode> _applyTheme;
+    private ThemeMode _currentTheme;
 
     public AppearanceDialog()
-        : this(ThemeService.CurrentTheme)
+        : this(ThemeService.CurrentTheme, _ => { })
     {
     }
 
-    private AppearanceDialog(ThemeMode currentTheme)
+    private AppearanceDialog(ThemeMode currentTheme, Action<ThemeMode> applyTheme)
     {
-        _selectedTheme = currentTheme;
+        _currentTheme = currentTheme;
+        _applyTheme = applyTheme;
         InitializeComponent();
         Title = UiStrings.AppearanceDialogTitle;
         UpdateSelection();
         Opened += OnOpened;
     }
 
-    public static Task<ThemeMode?> Show(Window owner, ThemeMode currentTheme)
+    public static void Open(Window owner, ThemeMode currentTheme, Action<ThemeMode> applyTheme)
     {
-        var dialog = new AppearanceDialog(currentTheme);
+        ArgumentNullException.ThrowIfNull(applyTheme);
 
-        return dialog.ShowDialog<ThemeMode?>(owner);
+        var dialog = new AppearanceDialog(currentTheme, applyTheme);
+        dialog.Show(owner);
     }
 
     private void OnOpened(object? sender, EventArgs e)
     {
-        var focusTarget = _selectedTheme == ThemeMode.Dark
+        var focusTarget = _currentTheme == ThemeMode.Dark
             ? DarkButton
             : LightButton;
         focusTarget.Focus();
@@ -43,25 +45,13 @@ public sealed partial class AppearanceDialog : Window
 
     private void OnLightClick(object? sender, RoutedEventArgs e)
     {
-        SelectTheme(ThemeMode.Light);
+        ApplyTheme(ThemeMode.Light);
         e.Handled = true;
     }
 
     private void OnDarkClick(object? sender, RoutedEventArgs e)
     {
-        SelectTheme(ThemeMode.Dark);
-        e.Handled = true;
-    }
-
-    private void OnSaveClick(object? sender, RoutedEventArgs e)
-    {
-        Close(_selectedTheme);
-        e.Handled = true;
-    }
-
-    private void OnCancelClick(object? sender, RoutedEventArgs e)
-    {
-        Close();
+        ApplyTheme(ThemeMode.Dark);
         e.Handled = true;
     }
 
@@ -74,16 +64,20 @@ public sealed partial class AppearanceDialog : Window
         e.Handled = true;
     }
 
-    private void SelectTheme(ThemeMode theme)
-    {
-        _selectedTheme = theme;
-        UpdateSelection();
-    }
-
     private void UpdateSelection()
     {
-        SetSelected(LightButton, _selectedTheme == ThemeMode.Light);
-        SetSelected(DarkButton, _selectedTheme == ThemeMode.Dark);
+        SetSelected(LightButton, _currentTheme == ThemeMode.Light);
+        SetSelected(DarkButton, _currentTheme == ThemeMode.Dark);
+    }
+
+    private void ApplyTheme(ThemeMode theme)
+    {
+        if (_currentTheme == theme)
+            return;
+
+        _currentTheme = theme;
+        UpdateSelection();
+        _applyTheme(theme);
     }
 
     private static void SetSelected(Button button, bool isSelected)

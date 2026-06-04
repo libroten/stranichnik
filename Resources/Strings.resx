@@ -147,9 +147,6 @@
   <data name="AppearanceDialog_LightTheme" xml:space="preserve">
     <value>Light</value>
   </data>
-  <data name="AppearanceDialog_Theme" xml:space="preserve">
-    <value>Theme</value>
-  </data>
   <data name="AppearanceDialog_Title" xml:space="preserve">
     <value>Appearance</value>
   </data>

@@ -3,129 +3,73 @@
         xmlns:localization="using:Stranichnik.Localization"
         x:Class="Stranichnik.Views.AppearanceDialog"
         Title="{x:Static localization:UiStrings.AppearanceDialogTitle}"
-        Width="400"
+        Width="360"
         SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         KeyDown="OnKeyDown">
     <Window.Styles>
-        <Style Selector="Button.themeOption">
-            <Setter Property="Height" Value="38"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="{DynamicResource DialogButtonBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DialogButtonBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="FocusAdorner" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <ControlTemplate>
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{TemplateBinding CornerRadius}">
-                        <ContentPresenter Content="{TemplateBinding Content}"
-                                          Padding="{TemplateBinding Padding}"
-                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
-                    </Border>
-                </ControlTemplate>
-            </Setter>
-        </Style>
-        <Style Selector="Button.themeOption:pointerover">
-            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
-        </Style>
-        <Style Selector="Button.themeOption.selected">
-            <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
-        </Style>
-        <Style Selector="Button.dialogButton">
-            <Setter Property="Width" Value="104"/>
-            <Setter Property="Height" Value="34"/>
-            <Setter Property="Padding" Value="14,6"/>
+        <Style Selector="Button.optionRow">
+            <Setter Property="Height" Value="54"/>
+            <Setter Property="Padding" Value="18,0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="{DynamicResource DialogButtonBackgroundBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DialogButtonBorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{TemplateBinding CornerRadius}">
+                    <Border Background="{TemplateBinding Background}">
                         <ContentPresenter Content="{TemplateBinding Content}"
                                           Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Stretch"
                                           HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Border>
                 </ControlTemplate>
             </Setter>
         </Style>
-        <Style Selector="Button.dialogButton:pointerover">
+        <Style Selector="Button.optionRow:pointerover">
             <Setter Property="Background" Value="{DynamicResource DialogButtonHoverBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
-        <Style Selector="Button.dialogButton.accent">
-            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
-        </Style>
-        <Style Selector="Button.dialogButton.accent:pointerover">
-            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
-        </Style>
-        <Style Selector="Button.dialogButton.accent:focus">
-            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+        <Style Selector="Button.optionRow.selected">
+            <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
         </Style>
     </Window.Styles>
 
     <Border Padding="20"
             Background="{DynamicResource DialogBackgroundBrush}">
-        <StackPanel Spacing="16">
-            <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogTitle}"
-                       FontSize="18"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
-
-            <StackPanel Spacing="8">
-                <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogTheme}"
-                           FontSize="12"
-                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
-
-                <StackPanel Spacing="8">
-                    <Button x:Name="LightButton"
-                            Classes="themeOption"
-                            Click="OnLightClick">
-                        <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogLightTheme}"/>
-                    </Button>
-                    <Button x:Name="DarkButton"
-                            Classes="themeOption"
-                            Click="OnDarkClick">
-                        <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogDarkTheme}"/>
-                    </Button>
-                </StackPanel>
-            </StackPanel>
-
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Spacing="8">
-                <Button Classes="dialogButton"
-                        Click="OnCancelClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"/>
+        <Border Background="{DynamicResource DialogButtonBackgroundBrush}"
+                BorderBrush="{DynamicResource DialogButtonBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                ClipToBounds="True">
+            <Grid RowDefinitions="Auto,1,Auto">
+                <Button x:Name="LightButton"
+                        Grid.Row="0"
+                        Classes="optionRow"
+                        Click="OnLightClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogLightTheme}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               FontSize="18"/>
                 </Button>
-                <Button Classes="dialogButton accent"
-                        Click="OnSaveClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonSave}"/>
+
+                <Border Grid.Row="1"
+                        Background="{DynamicResource DialogButtonBorderBrush}"/>
+
+                <Button x:Name="DarkButton"
+                        Grid.Row="2"
+                        Classes="optionRow"
+                        Click="OnDarkClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogDarkTheme}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               FontSize="18"/>
                 </Button>
-            </StackPanel>
-        </StackPanel>
+            </Grid>
+        </Border>
     </Border>
 </Window>
