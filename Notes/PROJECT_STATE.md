@@ -61,6 +61,13 @@ Completed broad areas:
   - the app does not use Avalonia theme variants as the theme model;
   - `Service -> Appearance` opens an appearance dialog with Light/Dark choices;
   - main window and dialogs use semantic theme resources for visible colors.
+- Bookmark title metadata fetching is implemented:
+  - `BookmarkEditorDialog` fetches page metadata for bookmark URLs after a debounce;
+  - the discovered page title is shown as a clickable suggestion and is not forced into the title field automatically;
+  - network requests are cancellable and stale responses are ignored;
+  - HTML parsing uses AngleSharp;
+  - large HTML responses use a title-only fallback from the downloaded prefix;
+  - logs record fetch states and fallback outcomes without logging URLs or discovered titles.
 
 Not implemented yet:
 
@@ -84,6 +91,7 @@ Implemented in storage/view-model layer:
 Current dialogs:
 
 - `BookmarkEditorDialog` is used for adding/editing bookmarks and folders.
+  - For bookmark add/edit, it can suggest a fetched page title below the title field.
 - `ConfirmDialog` is used for delete confirmations.
 - `LanguageDialog` is used for selecting the UI language.
 - `MessageDialog` is used for one-button error/information messages.
@@ -135,6 +143,7 @@ Bookmarks:
 - Show title and URL.
 - URL is underlined with a dashed underline.
 - URL becomes blue on hover.
+- While adding/editing a bookmark, the app can fetch the page title from the URL and show it as an italic dashed-underlined suggestion.
 - Bookmark action buttons show on row hover:
   - open
   - edit
@@ -226,13 +235,15 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad implementation area should be chosen after the current search integration is committed.
+The next broad implementation area is selective encryption for secret bookmarks.
 
 Likely order:
 
-1. Keep store-backed view model operations as the central mutation boundary.
-2. Optionally polish search UX further, for example result navigation/reveal-in-tree or ranking tuning.
-3. Continue later with selective encryption and sync.
+1. Design selective encryption before writing code.
+2. Decide the first SQLite schema migration for secret bookmark metadata and encrypted payloads.
+3. Add the application-level unlock/lock model.
+4. Route secret bookmark visibility through storage/search boundaries instead of Avalonia-only state.
+5. Continue later with WebDAV sync after encryption data shapes are clear.
 
 SQLite schema direction:
 
@@ -269,6 +280,7 @@ Logging direction:
 - The log file is overwritten on each application start and contains only the latest run.
 - `--print-logs-to-console` duplicates log lines to stdout.
 - The app logs the app data directory path during startup.
+- Bookmark metadata fetching logs diagnostic states and fallback outcomes, but must not log bookmark URLs or discovered page titles.
 
 Important future requirements:
 

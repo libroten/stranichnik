@@ -43,6 +43,8 @@ Current dialog windows:
 - `Views/LanguageDialog.axaml.cs`
 - `Views/MessageDialog.axaml`
 - `Views/MessageDialog.axaml.cs`
+- `Views/AppearanceDialog.axaml`
+- `Views/AppearanceDialog.axaml.cs`
 
 The UI is a tree-like bookmark catalog:
 
@@ -68,9 +70,11 @@ The synthetic root folder is special:
 Dialogs:
 
 - `BookmarkEditorDialog` handles add/edit for both bookmarks and folders.
+- For bookmark add/edit, `BookmarkEditorDialog` can fetch page metadata from the entered URL and show the discovered page title as a clickable suggestion.
 - `ConfirmDialog` handles delete confirmation for bookmarks and folders.
 - `LanguageDialog` handles choosing the application UI language.
 - `MessageDialog` handles one-button messages, currently used when opening a page fails.
+- `AppearanceDialog` handles choosing the application theme.
 - Dialogs use `Esc` as cancel/close behavior.
 
 URL opening:
@@ -79,6 +83,19 @@ URL opening:
 - Uses `ProcessStartInfo` with `UseShellExecute = true`.
 - Only absolute `http` and `https` URLs are accepted.
 - Invalid URLs and system launch errors show `MessageDialog` instead of failing silently.
+
+Bookmark metadata fetching:
+
+- Implemented in `Opening/BookmarkMetadataFetcher.cs` and `Opening/BookmarkMetadataParser.cs`.
+- The main app uses AngleSharp for normal HTML metadata parsing.
+- `BookmarkMetadataFetcher` reuses `BookmarkUrlNormalizer` rules and supports typed web addresses without an explicit scheme.
+- The fetcher requests only HTML/XHTML, uses a bounded timeout, supports cancellation, and reads a bounded response prefix.
+- The first version extracts titles in this order:
+  - `meta[property="og:title"]`
+  - `meta[name="twitter:title"]`
+  - `<title>`
+- If the response exceeds the configured HTML size limit, the fetcher does not keep reading the full response. It tries a title-only fallback by searching for a complete `<title>...</title>` in the already downloaded prefix.
+- Metadata fetching logs diagnostic states, but must not log bookmark URLs or discovered titles.
 
 Search UI:
 
@@ -123,7 +140,7 @@ Current logging behavior:
 - Startup logging includes the app data directory path.
 - Running with `--print-logs-to-console` duplicates log lines to stdout.
 
-Startup logging includes the SQLite database path, whether sample data was requested, and whether migrations/sample seeding ran. Do not log bookmark titles or URLs.
+Startup logging includes the SQLite database path, whether sample data was requested, and whether migrations/sample seeding ran. Metadata fetching logs success/failure states and fallback usage. Do not log bookmark titles, discovered page titles, or URLs.
 
 Do not treat the current logger as a complete telemetry system. It is intentionally small and local, useful for diagnostics during development and future sync work.
 
