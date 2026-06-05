@@ -396,9 +396,10 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Add first in-memory search service/index.
-2. Add selective secret bookmark support.
-3. Add WebDAV item-level sync.
+1. Design selective secret bookmark support before writing code.
+2. Implement the first selective encryption storage/model slice.
+3. Add unlock/lock UI and hide locked secret bookmarks from tree/search.
+4. Add WebDAV item-level sync after encryption data shapes are clear.
 
 ## References To Revisit
 

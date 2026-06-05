@@ -53,9 +53,11 @@ The UI is a tree-like bookmark catalog:
 - Bookmark rows show title and URL.
 - A search bar can replace the tree area with bookmark search results.
 - Folder and bookmark rows have hover actions.
+- Folder and bookmark rows also have right-click context menus.
 - Folders have container borders on the left and bottom.
 - DnD placeholders appear inside folders while dragging.
 - Bookmark URLs can be opened in the system browser.
+- Bookmark URLs can be copied to the system clipboard from the context menu.
 - Bookmark URLs can also be opened from search results.
 
 The synthetic root folder is special:
@@ -65,6 +67,7 @@ The synthetic root folder is special:
 - It cannot be dragged.
 - It cannot be edited or deleted.
 - It has always-visible add buttons.
+- Its context menu contains only add bookmark and add folder actions.
 - The root drop placeholder is inside this folder, not above the tree.
 
 Dialogs:
@@ -77,12 +80,31 @@ Dialogs:
 - `AppearanceDialog` handles choosing the application theme.
 - Dialogs use `Esc` as cancel/close behavior.
 
+Menus:
+
+- The top menu row is custom-styled in `Views/MainWindow.axaml`.
+- Tree rows have a custom right-click context menu implemented in `Views/MainWindow.axaml` and `Views/MainWindow.axaml.cs`.
+- The tree context menu intentionally uses the same visual language as the top popup menus.
+- Popup menu shadows are drawn with `BoxShadow` on the menu surface inside a transparent padded host. The padded host closes the popup when clicked outside the actual menu surface.
+- This avoids relying on platform-specific popup window shadows, which may not render consistently across macOS, Windows, and Linux.
+- Bookmark context menus contain go/open, copy URL, edit, and delete actions.
+- Folder context menus contain add bookmark, add folder, edit, and delete actions.
+- The synthetic root folder context menu contains only add bookmark and add folder.
+
 URL opening:
 
 - Implemented in `Views/MainWindow.axaml.cs`.
 - Uses `ProcessStartInfo` with `UseShellExecute = true`.
 - Only absolute `http` and `https` URLs are accepted.
 - Invalid URLs and system launch errors show `MessageDialog` instead of failing silently.
+- User-entered web addresses without a scheme are normalized before opening when they look like web addresses.
+- The open action is labeled as "Go" / "Перейти" in the UI.
+
+Clipboard:
+
+- Bookmark URL copying is implemented in `Views/MainWindow.axaml.cs`.
+- It uses Avalonia's top-level clipboard abstraction so it remains cross-platform.
+- Clipboard diagnostics must not log copied URL values.
 
 Bookmark metadata fetching:
 

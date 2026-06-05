@@ -81,6 +81,12 @@ Completed broad areas:
   - uploaded icon files are selected through Avalonia's cross-platform storage provider;
   - downloaded/uploaded icon data is persisted only when the editor dialog is saved;
   - icon-related logs do not include URLs, page titles, local file paths, or raw hashes.
+- Bookmark tree context menus are implemented:
+  - right-clicking a bookmark opens a custom context menu with go, copy URL, edit, and delete actions;
+  - right-clicking a normal folder opens a custom context menu with add bookmark, add folder, edit, and delete actions;
+  - right-clicking the synthetic root folder opens a custom context menu with only add bookmark and add folder actions;
+  - bookmark URL copying uses Avalonia's cross-platform clipboard abstraction;
+  - popup menus use project-owned styling and custom shadows instead of relying on platform-specific popup shadows.
 
 Not implemented yet:
 
@@ -139,6 +145,7 @@ Root:
 - It has always-visible add bookmark and add folder buttons.
 - It has no edit/delete buttons.
 - It cannot be dragged.
+- Its context menu contains only add bookmark and add folder actions.
 
 Folders:
 
@@ -152,6 +159,7 @@ Folders:
   - add folder
   - edit
   - delete
+- Normal folders also have a right-click context menu with the same actions.
 
 Bookmarks:
 
@@ -163,6 +171,11 @@ Bookmarks:
 - While adding/editing a bookmark, the app can fetch and offer a favicon as an icon option.
 - Bookmark action buttons show on row hover:
   - open
+  - edit
+  - delete
+- Bookmark right-click context menus provide:
+  - go/open
+  - copy URL to clipboard
   - edit
   - delete
 - Opening a bookmark accepts only absolute `http` and `https` URLs.
@@ -189,6 +202,17 @@ Action buttons:
   - add folder: blue
   - edit: yellow
   - delete: red
+
+Menus:
+
+- The top menu row currently contains:
+  - `Stranichnik`
+  - `Service`
+- `Service -> Appearance` opens the appearance selector.
+- `Service -> Language` opens the language selector.
+- `Stranichnik -> Settings` is currently a placeholder.
+- Top popup menus and tree context menus share custom menu styling.
+- Menu shadows are drawn inside transparent padded popup hosts. Clicking the padded shadow area closes the popup.
 
 Hover transitions:
 
