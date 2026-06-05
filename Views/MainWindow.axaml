@@ -26,6 +26,11 @@
 
     <Window.Resources>
         <sys:TimeSpan x:Key="HoverTransitionDuration">0:0:0.10</sys:TimeSpan>
+        <StreamGeometry x:Key="ActionOpenIconGeometry">M8.75 5.75H6.25C5.42 5.75 4.75 6.42 4.75 7.25V17.75C4.75 18.58 5.42 19.25 6.25 19.25H16.75C17.58 19.25 18.25 18.58 18.25 17.75V15.25M12.75 5.25H18.75V11.25M18.5 5.5L10.75 13.25</StreamGeometry>
+        <StreamGeometry x:Key="ActionAddBookmarkIconGeometry">M7.25 4.75C7.25 3.78 8.03 3 9 3H15C15.97 3 16.75 3.78 16.75 4.75V20.25L12 16.75L7.25 20.25V4.75ZM12 7.25V11.75M9.75 9.5H14.25</StreamGeometry>
+        <StreamGeometry x:Key="ActionAddFolderIconGeometry">M3.75 6.75C3.75 5.92 4.42 5.25 5.25 5.25H9.1L10.75 7.25H18.75C19.58 7.25 20.25 7.92 20.25 8.75V17.75C20.25 18.58 19.58 19.25 18.75 19.25H5.25C4.42 19.25 3.75 18.58 3.75 17.75V6.75ZM12 10.75V15.25M9.75 13H14.25</StreamGeometry>
+        <StreamGeometry x:Key="ActionEditIconGeometry">M4.75 19.25L8.2 18.45L18.85 7.8C19.42 7.23 19.42 6.31 18.85 5.74L18.26 5.15C17.69 4.58 16.77 4.58 16.2 5.15L5.55 15.8L4.75 19.25ZM14.75 6.6L17.4 9.25M8.2 18.45L5.55 15.8</StreamGeometry>
+        <StreamGeometry x:Key="ActionDeleteIconGeometry">M5.75 7.25H18.25M9.25 7.25V5.75C9.25 4.92 9.92 4.25 10.75 4.25H13.25C14.08 4.25 14.75 4.92 14.75 5.75V7.25M7.25 7.25L8 18.25C8.06 19.09 8.75 19.75 9.59 19.75H14.41C15.25 19.75 15.94 19.09 16 18.25L16.75 7.25M10.25 11V16M13.75 11V16</StreamGeometry>
     </Window.Resources>
 
     <Window.DataTemplates>
@@ -87,24 +92,36 @@
                                     <Button Classes="actionButton addAction"
                                             Click="OnAddBookmarkClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionAddBookmark}">
-                                        <TextBlock Classes="actionIcon" Text="+"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionAddBookmarkIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                     <Button Classes="actionButton addFolderAction"
                                             Click="OnAddFolderClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionAddFolder}">
-                                        <TextBlock Classes="actionIcon" Text="F"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionAddFolderIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                     <Button Classes="actionButton editAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnEditFolderClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
-                                        <TextBlock Classes="actionIcon" Text="✎"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionEditIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                     <Button Classes="actionButton deleteAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnDeleteFolderClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
-                                        <TextBlock Classes="actionIcon" Text="⌫"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionDeleteIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                 </StackPanel>
                             </Grid>
@@ -155,24 +172,36 @@
                                     <Button Classes="actionButton addAction"
                                             Click="OnAddBookmarkClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionAddBookmark}">
-                                        <TextBlock Classes="actionIcon" Text="+"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionAddBookmarkIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                     <Button Classes="actionButton addFolderAction"
                                             Click="OnAddFolderClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionAddFolder}">
-                                        <TextBlock Classes="actionIcon" Text="F"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionAddFolderIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                     <Button Classes="actionButton editAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnEditFolderClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
-                                        <TextBlock Classes="actionIcon" Text="✎"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionEditIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                     <Button Classes="actionButton deleteAction"
                                             IsVisible="{Binding CanShowActions}"
                                             Click="OnDeleteFolderClick"
                                             ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
-                                        <TextBlock Classes="actionIcon" Text="⌫"/>
+                                        <Viewbox Classes="actionIconFrame">
+                                            <Path Classes="actionIcon"
+                                                  Data="{StaticResource ActionDeleteIconGeometry}"/>
+                                        </Viewbox>
                                     </Button>
                                 </StackPanel>
                             </StackPanel>
@@ -258,17 +287,26 @@
                             <Button Classes="actionButton openAction"
                                     Click="OnOpenBookmarkClick"
                                     ToolTip.Tip="{x:Static localization:UiStrings.ActionOpen}">
-                                <TextBlock Classes="actionIcon" Text="↗"/>
+                                <Viewbox Classes="actionIconFrame">
+                                    <Path Classes="actionIcon"
+                                          Data="{StaticResource ActionOpenIconGeometry}"/>
+                                </Viewbox>
                             </Button>
                             <Button Classes="actionButton editAction"
                                     Click="OnEditBookmarkClick"
                                     ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
-                                <TextBlock Classes="actionIcon" Text="✎"/>
+                                <Viewbox Classes="actionIconFrame">
+                                    <Path Classes="actionIcon"
+                                          Data="{StaticResource ActionEditIconGeometry}"/>
+                                </Viewbox>
                             </Button>
                             <Button Classes="actionButton deleteAction"
                                     Click="OnDeleteBookmarkClick"
                                     ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
-                                <TextBlock Classes="actionIcon" Text="⌫"/>
+                                <Viewbox Classes="actionIconFrame">
+                                    <Path Classes="actionIcon"
+                                          Data="{StaticResource ActionDeleteIconGeometry}"/>
+                                </Viewbox>
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -329,17 +367,26 @@
                             <Button Classes="actionButton openAction"
                                     Click="OnOpenBookmarkClick"
                                     ToolTip.Tip="{x:Static localization:UiStrings.ActionOpen}">
-                                <TextBlock Classes="actionIcon" Text="↗"/>
+                                <Viewbox Classes="actionIconFrame">
+                                    <Path Classes="actionIcon"
+                                          Data="{StaticResource ActionOpenIconGeometry}"/>
+                                </Viewbox>
                             </Button>
                             <Button Classes="actionButton editAction"
                                     Click="OnEditBookmarkClick"
                                     ToolTip.Tip="{x:Static localization:UiStrings.ActionEdit}">
-                                <TextBlock Classes="actionIcon" Text="✎"/>
+                                <Viewbox Classes="actionIconFrame">
+                                    <Path Classes="actionIcon"
+                                          Data="{StaticResource ActionEditIconGeometry}"/>
+                                </Viewbox>
                             </Button>
                             <Button Classes="actionButton deleteAction"
                                     Click="OnDeleteBookmarkClick"
                                     ToolTip.Tip="{x:Static localization:UiStrings.ActionDelete}">
-                                <TextBlock Classes="actionIcon" Text="⌫"/>
+                                <Viewbox Classes="actionIconFrame">
+                                    <Path Classes="actionIcon"
+                                          Data="{StaticResource ActionDeleteIconGeometry}"/>
+                                </Viewbox>
                             </Button>
                         </StackPanel>
                     </StackPanel>
@@ -403,7 +450,10 @@
                         <Button Classes="actionButton openAction"
                                 Click="OnOpenSearchResultClick"
                                 ToolTip.Tip="{x:Static localization:UiStrings.ActionOpen}">
-                            <TextBlock Classes="actionIcon" Text="↗"/>
+                            <Viewbox Classes="actionIconFrame">
+                                <Path Classes="actionIcon"
+                                      Data="{StaticResource ActionOpenIconGeometry}"/>
+                            </Viewbox>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -765,15 +815,58 @@
                         <Setter Property="MinWidth" Value="0"/>
                         <Setter Property="Padding" Value="0"/>
                         <Setter Property="FontSize" Value="14"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="BorderBrush" Value="Transparent"/>
                         <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="Template">
+                            <ControlTemplate>
+                                <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6">
+                                    <ContentPresenter Content="{TemplateBinding Content}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      HorizontalContentAlignment="Center"
+                                                      VerticalContentAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter>
                     </Style>
-                    <Style Selector="TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
-                        <Setter Property="FontSize" Value="14"/>
+                    <Style Selector="Viewbox.actionIconFrame">
+                        <Setter Property="Width" Value="22"/>
+                        <Setter Property="Height" Value="22"/>
+                        <Setter Property="Stretch" Value="Uniform"/>
                         <Setter Property="HorizontalAlignment" Value="Center"/>
                         <Setter Property="VerticalAlignment" Value="Center"/>
+                    </Style>
+                    <Style Selector="Path.actionIcon">
+                        <Setter Property="Width" Value="24"/>
+                        <Setter Property="Height" Value="24"/>
+                        <Setter Property="Stretch" Value="None"/>
+                        <Setter Property="Stroke" Value="{DynamicResource FocusBorderBrush}"/>
+                        <Setter Property="StrokeThickness" Value="1.75"/>
+                        <Setter Property="StrokeLineCap" Value="Round"/>
+                        <Setter Property="StrokeJoin" Value="Round"/>
+                        <Setter Property="HorizontalAlignment" Value="Center"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                    </Style>
+                    <Style Selector="Button.openAction Path.actionIcon">
+                        <Setter Property="Stroke" Value="{DynamicResource ActionOpenBrush}"/>
+                    </Style>
+                    <Style Selector="Button.addAction Path.actionIcon">
+                        <Setter Property="Stroke" Value="{DynamicResource ActionAddBookmarkBrush}"/>
+                    </Style>
+                    <Style Selector="Button.addFolderAction Path.actionIcon">
+                        <Setter Property="Stroke" Value="{DynamicResource ActionAddFolderBrush}"/>
+                    </Style>
+                    <Style Selector="Button.editAction Path.actionIcon">
+                        <Setter Property="Stroke" Value="{DynamicResource ActionEditBrush}"/>
+                    </Style>
+                    <Style Selector="Button.deleteAction Path.actionIcon">
+                        <Setter Property="Stroke" Value="{DynamicResource ActionDeleteBrush}"/>
                     </Style>
                     <Style Selector="Button.openAction">
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionOpenBrush}"/>
@@ -790,31 +883,7 @@
                     <Style Selector="Button.deleteAction">
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionDeleteBrush}"/>
                     </Style>
-                    <Style Selector="Button.openAction /template/ ContentPresenter">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionOpenBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addAction /template/ ContentPresenter">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionAddBookmarkBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addFolderAction /template/ ContentPresenter">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionAddFolderBrush}"/>
-                    </Style>
-                    <Style Selector="Button.editAction /template/ ContentPresenter">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionEditBrush}"/>
-                    </Style>
-                    <Style Selector="Button.deleteAction /template/ ContentPresenter">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionDeleteBrush}"/>
-                    </Style>
                     <Style Selector="Button.openAction:pointerover">
-                        <Setter Property="Background" Value="{DynamicResource ActionOpenHoverBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionOpenBrush}"/>
-                    </Style>
-                    <Style Selector="Button.openAction:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="{DynamicResource ActionOpenHoverBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionOpenBrush}"/>
                     </Style>
@@ -822,15 +891,7 @@
                         <Setter Property="Background" Value="{DynamicResource ActionAddBookmarkHoverBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionAddBookmarkBrush}"/>
                     </Style>
-                    <Style Selector="Button.addAction:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource ActionAddBookmarkHoverBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionAddBookmarkBrush}"/>
-                    </Style>
                     <Style Selector="Button.addFolderAction:pointerover">
-                        <Setter Property="Background" Value="{DynamicResource ActionAddFolderHoverBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionAddFolderBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addFolderAction:pointerover /template/ ContentPresenter">
                         <Setter Property="Background" Value="{DynamicResource ActionAddFolderHoverBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionAddFolderBrush}"/>
                     </Style>
@@ -838,47 +899,9 @@
                         <Setter Property="Background" Value="{DynamicResource ActionEditHoverBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionEditBrush}"/>
                     </Style>
-                    <Style Selector="Button.editAction:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource ActionEditHoverBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionEditBrush}"/>
-                    </Style>
                     <Style Selector="Button.deleteAction:pointerover">
                         <Setter Property="Background" Value="{DynamicResource ActionDeleteHoverBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource ActionDeleteBrush}"/>
-                    </Style>
-                    <Style Selector="Button.deleteAction:pointerover /template/ ContentPresenter">
-                        <Setter Property="Background" Value="{DynamicResource ActionDeleteHoverBackgroundBrush}"/>
-                        <Setter Property="BorderBrush" Value="{DynamicResource ActionDeleteBrush}"/>
-                    </Style>
-                    <Style Selector="Button.openAction TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionOpenBrush}"/>
-                    </Style>
-                    <Style Selector="Button.openAction:pointerover TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionOpenBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addAction TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionAddBookmarkBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addAction:pointerover TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionAddBookmarkBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addFolderAction TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionAddFolderBrush}"/>
-                    </Style>
-                    <Style Selector="Button.addFolderAction:pointerover TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionAddFolderBrush}"/>
-                    </Style>
-                    <Style Selector="Button.editAction TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionEditBrush}"/>
-                    </Style>
-                    <Style Selector="Button.editAction:pointerover TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionEditBrush}"/>
-                    </Style>
-                    <Style Selector="Button.deleteAction TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionDeleteBrush}"/>
-                    </Style>
-                    <Style Selector="Button.deleteAction:pointerover TextBlock.actionIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource ActionDeleteBrush}"/>
                     </Style>
                     <Style Selector="TextBlock.folderGlyph">
                         <Setter Property="Foreground" Value="{DynamicResource GlyphBrush}"/>
