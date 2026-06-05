@@ -1,0 +1,7 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Open link</title>
+  <desc id="desc">A minimal external-link arrow leaving a small window outline.</desc>
+  <path d="M8.75 5.75H6.25C5.42 5.75 4.75 6.42 4.75 7.25V17.75C4.75 18.58 5.42 19.25 6.25 19.25H16.75C17.58 19.25 18.25 18.58 18.25 17.75V15.25"/>
+  <path d="M12.75 5.25H18.75V11.25"/>
+  <path d="M18.5 5.5L10.75 13.25"/>
+</svg>

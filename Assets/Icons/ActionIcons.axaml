@@ -1,0 +1,8 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StreamGeometry x:Key="ActionOpenIconGeometry">M8.75 5.75H6.25C5.42 5.75 4.75 6.42 4.75 7.25V17.75C4.75 18.58 5.42 19.25 6.25 19.25H16.75C17.58 19.25 18.25 18.58 18.25 17.75V15.25M12.75 5.25H18.75V11.25M18.5 5.5L10.75 13.25</StreamGeometry>
+    <StreamGeometry x:Key="ActionAddBookmarkIconGeometry">M7.25 4.75C7.25 3.78 8.03 3 9 3H15C15.97 3 16.75 3.78 16.75 4.75V20.25L12 16.75L7.25 20.25V4.75ZM12 7.25V11.75M9.75 9.5H14.25</StreamGeometry>
+    <StreamGeometry x:Key="ActionAddFolderIconGeometry">M3.75 6.75C3.75 5.92 4.42 5.25 5.25 5.25H9.1L10.75 7.25H18.75C19.58 7.25 20.25 7.92 20.25 8.75V17.75C20.25 18.58 19.58 19.25 18.75 19.25H5.25C4.42 19.25 3.75 18.58 3.75 17.75V6.75ZM12 10.75V15.25M9.75 13H14.25</StreamGeometry>
+    <StreamGeometry x:Key="ActionEditIconGeometry">M4.75 19.25L8.2 18.45L18.85 7.8C19.42 7.23 19.42 6.31 18.85 5.74L18.26 5.15C17.69 4.58 16.77 4.58 16.2 5.15L5.55 15.8L4.75 19.25ZM14.75 6.6L17.4 9.25M8.2 18.45L5.55 15.8</StreamGeometry>
+    <StreamGeometry x:Key="ActionDeleteIconGeometry">M5.75 7.25H18.25M9.25 7.25V5.75C9.25 4.92 9.92 4.25 10.75 4.25H13.25C14.08 4.25 14.75 4.92 14.75 5.75V7.25M7.25 7.25L8 18.25C8.06 19.09 8.75 19.75 9.59 19.75H14.41C15.25 19.75 15.94 19.09 16 18.25L16.75 7.25M10.25 11V16M13.75 11V16</StreamGeometry>
+</ResourceDictionary>

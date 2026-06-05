@@ -1,0 +1,7 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Edit</title>
+  <desc id="desc">A minimal pencil glyph for editing.</desc>
+  <path d="M4.75 19.25L8.2 18.45L18.85 7.8C19.42 7.23 19.42 6.31 18.85 5.74L18.26 5.15C17.69 4.58 16.77 4.58 16.2 5.15L5.55 15.8L4.75 19.25Z"/>
+  <path d="M14.75 6.6L17.4 9.25"/>
+  <path d="M8.2 18.45L5.55 15.8"/>
+</svg>

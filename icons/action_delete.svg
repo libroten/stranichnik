@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Delete</title>
+  <desc id="desc">A minimal trash can outline for deleting.</desc>
+  <path d="M5.75 7.25H18.25"/>
+  <path d="M9.25 7.25V5.75C9.25 4.92 9.92 4.25 10.75 4.25H13.25C14.08 4.25 14.75 4.92 14.75 5.75V7.25"/>
+  <path d="M7.25 7.25L8 18.25C8.06 19.09 8.75 19.75 9.59 19.75H14.41C15.25 19.75 15.94 19.09 16 18.25L16.75 7.25"/>
+  <path d="M10.25 11V16"/>
+  <path d="M13.75 11V16"/>
+</svg>
