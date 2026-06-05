@@ -20,7 +20,9 @@ public sealed class SqliteDatabaseMigratorTests
 
         Assert.True(TableExists(connection, "app_meta"));
         Assert.True(TableExists(connection, "crypto_profiles"));
+        Assert.True(TableExists(connection, "icon_assets"));
         Assert.True(TableExists(connection, "items"));
+        Assert.True(ColumnExists(connection, "items", "icon_asset_id"));
     }
 
     [Fact]
@@ -68,6 +70,42 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.Equal("id-2", GetMetaValue(connection, "device_id"));
     }
 
+    [Fact]
+    public void Migrate_upgrades_version_1_schema_to_current_version()
+    {
+        using var database = TempSqliteDatabase.Create();
+        using (var connection = database.OpenConnection())
+        {
+            CreateLegacyVersion1Schema(connection);
+        }
+
+        var migrator = database.CreateMigrator();
+
+        var result = migrator.Migrate();
+
+        using var upgradedConnection = database.OpenConnection();
+
+        Assert.True(result.MigrationApplied);
+        Assert.Equal(1, result.PreviousVersion);
+        Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
+        Assert.True(TableExists(upgradedConnection, "icon_assets"));
+        Assert.True(ColumnExists(upgradedConnection, "items", "icon_asset_id"));
+    }
+
+    [Fact]
+    public void Icon_assets_source_hash_is_unique()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var migrator = database.CreateMigrator();
+        migrator.Migrate();
+
+        using var connection = database.OpenConnection();
+
+        InsertIconAsset(connection, "icon-1", "same-hash");
+
+        Assert.Throws<SqliteException>(() => InsertIconAsset(connection, "icon-2", "same-hash"));
+    }
+
     private static bool TableExists(SqliteConnection connection, string tableName)
     {
         using var command = connection.CreateCommand();
@@ -80,6 +118,72 @@ public sealed class SqliteDatabaseMigratorTests
         command.Parameters.AddWithValue("$tableName", tableName);
 
         return command.ExecuteScalar() is not null;
+    }
+
+    private static bool ColumnExists(SqliteConnection connection, string tableName, string columnName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM pragma_table_info($tableName);";
+        command.Parameters.AddWithValue("$tableName", tableName);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(0), columnName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void CreateLegacyVersion1Schema(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE app_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            CREATE TABLE items (
+                id TEXT PRIMARY KEY
+            );
+
+            PRAGMA user_version = 1;
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void InsertIconAsset(SqliteConnection connection, string id, string sourceHash)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc)
+            VALUES (
+                $id,
+                'sha256',
+                $sourceHash,
+                12,
+                'image/png',
+                64,
+                64,
+                X'010203',
+                '2026-01-01T00:00:00.0000000Z');
+            """;
+        command.Parameters.AddWithValue("$id", id);
+        command.Parameters.AddWithValue("$sourceHash", sourceHash);
+        command.ExecuteNonQuery();
     }
 
     private static int GetUserVersion(SqliteConnection connection)

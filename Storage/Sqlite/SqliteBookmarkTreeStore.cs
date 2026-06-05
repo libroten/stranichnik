@@ -39,6 +39,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 sort_order,
                 title,
                 url,
+                icon_asset_id,
                 is_secret,
                 encrypted_payload,
                 encryption_nonce,
@@ -63,6 +64,62 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             items.Add(ReadRecord(reader));
 
         return new BookmarkTreeSnapshot(items);
+    }
+
+    public BookmarkIconAssetRecord? GetIconAsset(string iconAssetId)
+    {
+        ArgumentNullException.ThrowIfNull(iconAssetId);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = CreateIconAssetByIdCommand(connection, iconAssetId);
+        using var reader = command.ExecuteReader();
+
+        return reader.Read()
+            ? ReadIconAssetRecord(reader)
+            : null;
+    }
+
+    public BookmarkIconAssetRecord? GetIconAssetBySourceHash(
+        string sourceHashAlgorithm,
+        string sourceHash)
+    {
+        ArgumentNullException.ThrowIfNull(sourceHashAlgorithm);
+        ArgumentNullException.ThrowIfNull(sourceHash);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+        var iconAsset = TryGetIconAssetBySourceHash(
+            connection,
+            transaction,
+            sourceHashAlgorithm,
+            sourceHash);
+        transaction.Commit();
+        return iconAsset;
+    }
+
+    public BookmarkIconAssetRecord GetOrCreateIconAsset(BookmarkIconAssetRecord iconAsset)
+    {
+        ArgumentNullException.ThrowIfNull(iconAsset);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var existing = TryGetIconAssetBySourceHash(
+            connection,
+            transaction,
+            iconAsset.SourceHashAlgorithm,
+            iconAsset.SourceHash);
+
+        if (existing is not null)
+        {
+            transaction.Commit();
+            return existing;
+        }
+
+        InsertIconAsset(connection, transaction, iconAsset);
+        transaction.Commit();
+
+        return iconAsset;
     }
 
     public BookmarkItemRecord AddBookmarkToFolderStart(
@@ -149,6 +206,30 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             Title = normalizedTitle,
             Url = normalizedUrl,
             Metadata = Touch(bookmark.Metadata)
+        };
+
+        UpdateRecord(connection, transaction, updated);
+        transaction.Commit();
+
+        return updated;
+    }
+
+    public BookmarkItemRecord SetItemIconAsset(
+        string itemId,
+        string? iconAssetId)
+    {
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var item = GetVisibleItem(connection, transaction, itemId);
+
+        if (iconAssetId is not null && !IconAssetExists(connection, transaction, iconAssetId))
+            throw new InvalidOperationException("Icon asset was not found.");
+
+        var updated = item with
+        {
+            IconAssetId = iconAssetId,
+            Metadata = Touch(item.Metadata)
         };
 
         UpdateRecord(connection, transaction, updated);
@@ -341,7 +422,23 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 SqliteBookmarkItemMapper.ToBookmarkSyncState(reader.GetString(reader.GetOrdinal("sync_state"))),
                 SqliteBookmarkItemMapper.ReadNullableString(reader, "remote_etag"),
                 SqliteBookmarkItemMapper.ReadNullableDateTime(reader, "last_synced_at_utc"),
-                reader.GetString(reader.GetOrdinal("modified_device_id"))));
+                reader.GetString(reader.GetOrdinal("modified_device_id"))),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "icon_asset_id"));
+    }
+
+    private static BookmarkIconAssetRecord ReadIconAssetRecord(SqliteDataReader reader)
+    {
+        return new(
+            reader.GetString(reader.GetOrdinal("id")),
+            reader.GetString(reader.GetOrdinal("source_hash_algorithm")),
+            reader.GetString(reader.GetOrdinal("source_hash")),
+            reader.GetInt64(reader.GetOrdinal("source_size_bytes")),
+            reader.GetString(reader.GetOrdinal("processed_mime_type")),
+            reader.GetInt32(reader.GetOrdinal("processed_width")),
+            reader.GetInt32(reader.GetOrdinal("processed_height")),
+            SqliteBookmarkItemMapper.ReadNullableBytes(reader, "processed_bytes")
+                ?? throw new InvalidOperationException("SQLite icon asset payload is missing."),
+            SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("created_at_utc"))));
     }
 
     private static void InsertRecord(
@@ -359,6 +456,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 sort_order,
                 title,
                 url,
+                icon_asset_id,
                 is_secret,
                 encrypted_payload,
                 encryption_nonce,
@@ -378,6 +476,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 $sortOrder,
                 $title,
                 $url,
+                $iconAssetId,
                 $isSecret,
                 $encryptedPayload,
                 $encryptionNonce,
@@ -410,6 +509,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 sort_order = $sortOrder,
                 title = $title,
                 url = $url,
+                icon_asset_id = $iconAssetId,
                 is_secret = $isSecret,
                 encrypted_payload = $encryptedPayload,
                 encryption_nonce = $encryptionNonce,
@@ -438,6 +538,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.Parameters.AddWithValue("$sortOrder", record.SortOrder);
         command.Parameters.AddWithValue("$title", SqliteBookmarkItemMapper.ToDatabaseValue(record.Title));
         command.Parameters.AddWithValue("$url", SqliteBookmarkItemMapper.ToDatabaseValue(record.Url));
+        command.Parameters.AddWithValue("$iconAssetId", SqliteBookmarkItemMapper.ToDatabaseValue(record.IconAssetId));
         command.Parameters.AddWithValue("$isSecret", record.IsSecret ? 1 : 0);
         command.Parameters.AddWithValue("$encryptedPayload", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.Payload.ToArray()));
         command.Parameters.AddWithValue("$encryptionNonce", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.Nonce.ToArray()));
@@ -531,6 +632,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 sort_order,
                 title,
                 url,
+                icon_asset_id,
                 is_secret,
                 encrypted_payload,
                 encryption_nonce,
@@ -549,6 +651,115 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             """;
         command.Parameters.AddWithValue("$itemId", itemId);
         return command;
+    }
+
+    private static SqliteCommand CreateIconAssetByIdCommand(SqliteConnection connection, string iconAssetId)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc
+            FROM icon_assets
+            WHERE id = $iconAssetId;
+            """;
+        command.Parameters.AddWithValue("$iconAssetId", iconAssetId);
+        return command;
+    }
+
+    private static BookmarkIconAssetRecord? TryGetIconAssetBySourceHash(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string sourceHashAlgorithm,
+        string sourceHash)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc
+            FROM icon_assets
+            WHERE source_hash_algorithm = $sourceHashAlgorithm
+                AND source_hash = $sourceHash;
+            """;
+        command.Parameters.AddWithValue("$sourceHashAlgorithm", sourceHashAlgorithm);
+        command.Parameters.AddWithValue("$sourceHash", sourceHash);
+
+        using var reader = command.ExecuteReader();
+        return reader.Read()
+            ? ReadIconAssetRecord(reader)
+            : null;
+    }
+
+    private static bool IconAssetExists(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string iconAssetId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT 1 FROM icon_assets WHERE id = $iconAssetId;";
+        command.Parameters.AddWithValue("$iconAssetId", iconAssetId);
+
+        return command.ExecuteScalar() is not null;
+    }
+
+    private static void InsertIconAsset(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        BookmarkIconAssetRecord iconAsset)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc)
+            VALUES (
+                $id,
+                $sourceHashAlgorithm,
+                $sourceHash,
+                $sourceSizeBytes,
+                $processedMimeType,
+                $processedWidth,
+                $processedHeight,
+                $processedBytes,
+                $createdAtUtc);
+            """;
+        command.Parameters.AddWithValue("$id", iconAsset.Id);
+        command.Parameters.AddWithValue("$sourceHashAlgorithm", iconAsset.SourceHashAlgorithm);
+        command.Parameters.AddWithValue("$sourceHash", iconAsset.SourceHash);
+        command.Parameters.AddWithValue("$sourceSizeBytes", iconAsset.SourceSizeBytes);
+        command.Parameters.AddWithValue("$processedMimeType", iconAsset.ProcessedMimeType);
+        command.Parameters.AddWithValue("$processedWidth", iconAsset.ProcessedWidth);
+        command.Parameters.AddWithValue("$processedHeight", iconAsset.ProcessedHeight);
+        command.Parameters.AddWithValue("$processedBytes", iconAsset.ProcessedBytes.ToArray());
+        command.Parameters.AddWithValue(
+            "$createdAtUtc",
+            SqliteBookmarkItemMapper.FormatDateTime(iconAsset.CreatedAtUtc));
+        command.ExecuteNonQuery();
     }
 
     private static long AllocateStartSortOrder(

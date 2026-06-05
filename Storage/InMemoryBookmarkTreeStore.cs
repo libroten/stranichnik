@@ -9,6 +9,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
     private const long SortOrderStep = 1000;
 
     private readonly List<BookmarkItemRecord> _items;
+    private readonly List<BookmarkIconAssetRecord> _iconAssets = [];
     private readonly Func<string> _idFactory;
     private readonly Func<DateTimeOffset> _clock;
     private readonly string _modifiedDeviceId;
@@ -42,6 +43,38 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             .ThenByDescending(item => item.SortOrder)
             .ThenBy(item => item.Id, StringComparer.Ordinal)
             .ToList());
+    }
+
+    public BookmarkIconAssetRecord? GetIconAsset(string iconAssetId)
+    {
+        ArgumentNullException.ThrowIfNull(iconAssetId);
+
+        return _iconAssets.FirstOrDefault(iconAsset => iconAsset.Id == iconAssetId);
+    }
+
+    public BookmarkIconAssetRecord? GetIconAssetBySourceHash(
+        string sourceHashAlgorithm,
+        string sourceHash)
+    {
+        ArgumentNullException.ThrowIfNull(sourceHashAlgorithm);
+        ArgumentNullException.ThrowIfNull(sourceHash);
+
+        return _iconAssets.FirstOrDefault(iconAsset =>
+            string.Equals(iconAsset.SourceHashAlgorithm, sourceHashAlgorithm, StringComparison.Ordinal)
+            && string.Equals(iconAsset.SourceHash, sourceHash, StringComparison.Ordinal));
+    }
+
+    public BookmarkIconAssetRecord GetOrCreateIconAsset(BookmarkIconAssetRecord iconAsset)
+    {
+        ArgumentNullException.ThrowIfNull(iconAsset);
+
+        var existing = GetIconAssetBySourceHash(iconAsset.SourceHashAlgorithm, iconAsset.SourceHash);
+
+        if (existing is not null)
+            return existing;
+
+        _iconAssets.Add(iconAsset);
+        return iconAsset;
     }
 
     public BookmarkItemRecord AddBookmarkToFolderStart(
@@ -131,6 +164,22 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         {
             Title = normalizedTitle,
             Metadata = Touch(folder.Metadata)
+        });
+    }
+
+    public BookmarkItemRecord SetItemIconAsset(
+        string itemId,
+        string? iconAssetId)
+    {
+        var item = GetVisibleItem(itemId);
+
+        if (iconAssetId is not null && GetIconAsset(iconAssetId) is null)
+            throw new InvalidOperationException("Icon asset was not found.");
+
+        return Replace(item with
+        {
+            IconAssetId = iconAssetId,
+            Metadata = Touch(item.Metadata)
         });
     }
 

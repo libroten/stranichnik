@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Stranichnik.Icons;
 using Stranichnik.Localization;
 using Stranichnik.Search;
 using Stranichnik.Searching;
@@ -33,11 +34,13 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            var treeStore = SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData);
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainWindowViewModel(
-                    SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData),
+                    treeStore,
                     new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+                    new BookmarkIconImageCache(treeStore),
                     SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds()),
             };
         }

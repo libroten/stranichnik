@@ -250,7 +250,11 @@ public partial class MainWindow : Window
         if (result is null)
             return;
 
-        var addResult = viewModel.AddBookmarkToFolderStart(folder, result.Title, result.Url);
+        var addResult = viewModel.AddBookmarkToFolderStart(
+            folder,
+            result.Title,
+            result.Url,
+            result.IconSelection);
         if (addResult.WasAdded)
         {
             folder.IsExpanded = true;
@@ -298,12 +302,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = BookmarkEditorDialog.EditBookmark(bookmark.Title, bookmark.Url);
+        var dialog = BookmarkEditorDialog.EditBookmark(bookmark.Title, bookmark.Url, bookmark.IconImage);
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
 
         if (result is not null)
         {
-            viewModel.EditBookmark(bookmark, result.Title, result.Url);
+            viewModel.EditBookmark(bookmark, result.Title, result.Url, result.IconSelection);
             UpdateBookmarksHorizontalOverflow();
         }
 
@@ -323,7 +327,7 @@ public partial class MainWindow : Window
 
         if (result is not null)
         {
-            var addResult = viewModel.AddFolderToFolderStart(folder, result.Title);
+            var addResult = viewModel.AddFolderToFolderStart(folder, result.Title, result.IconSelection);
             if (addResult.WasAdded)
             {
                 folder.IsExpanded = true;
@@ -342,12 +346,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        var dialog = BookmarkEditorDialog.EditFolder(folder.Title);
+        var dialog = BookmarkEditorDialog.EditFolder(folder.Title, folder.IconImage);
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
 
         if (result is not null)
         {
-            viewModel.EditFolder(folder, result.Title);
+            viewModel.EditFolder(folder, result.Title, result.IconSelection);
             UpdateBookmarksHorizontalOverflow();
         }
 

@@ -81,6 +81,52 @@ public sealed class InMemoryBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void GetOrCreateIconAsset_reuses_existing_asset_with_same_source_hash()
+    {
+        var store = CreateStore();
+        var first = CreateIconAsset("icon-1", "same-hash");
+        var second = CreateIconAsset("icon-2", "same-hash");
+
+        var created = store.GetOrCreateIconAsset(first);
+        var reused = store.GetOrCreateIconAsset(second);
+
+        Assert.Same(first, created);
+        Assert.Same(first, reused);
+        Assert.Same(first, store.GetIconAsset("icon-1"));
+        Assert.Same(first, store.GetIconAssetBySourceHash("sha256", "same-hash"));
+        Assert.Null(store.GetIconAsset("icon-2"));
+    }
+
+    [Fact]
+    public void SetItemIconAsset_updates_and_clears_icon_reference()
+    {
+        var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+        store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
+
+        var withIcon = store.SetItemIconAsset("bookmark", "icon");
+        var withoutIcon = store.SetItemIconAsset("bookmark", iconAssetId: null);
+
+        Assert.Equal("icon", withIcon.IconAssetId);
+        Assert.Null(withoutIcon.IconAssetId);
+        Assert.Equal(3, withoutIcon.Metadata.Revision);
+    }
+
+    [Fact]
+    public void DeleteItem_does_not_delete_shared_icon_asset()
+    {
+        var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+        var iconAsset = CreateIconAsset("icon", "hash");
+        store.GetOrCreateIconAsset(iconAsset);
+        store.SetItemIconAsset("bookmark", "icon");
+
+        store.DeleteItem("bookmark");
+
+        Assert.Same(iconAsset, store.GetIconAsset("icon"));
+    }
+
+    [Fact]
     public void DeleteItem_tombstones_bookmark_and_hides_it_from_load()
     {
         var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
@@ -229,6 +275,21 @@ public sealed class InMemoryBookmarkTreeStoreTests
             "seed-device");
     }
 
+    private static BookmarkIconAssetRecord CreateIconAsset(string id, string sourceHash)
+    {
+        return new(
+            id,
+            "sha256",
+            sourceHash,
+            SourceSizeBytes: 3,
+            "image/png",
+            ProcessedWidth: 64,
+            ProcessedHeight: 64,
+            ProcessedIconBytes,
+            CreatedAt);
+    }
+
+    private static readonly byte[] ProcessedIconBytes = [1, 2, 3];
     private static readonly DateTimeOffset CreatedAt = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset UpdatedAt = new(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);
 }

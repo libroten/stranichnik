@@ -1,0 +1,10 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Default bookmark icon for light theme</title>
+  <desc id="desc">A blue bookmark ribbon matching the Stranichnik light theme accent.</desc>
+  <path d="M74 36C74 25.51 82.51 17 93 17H163C173.49 17 182 25.51 182 36V222C182 228.34 174.62 231.83 169.71 227.81L132.75 197.58C129.98 195.31 126.02 195.31 123.25 197.58L86.29 227.81C81.38 231.83 74 228.34 74 222V36Z" fill="#27335F"/>
+  <path d="M89 43C89 36.37 94.37 31 101 31H155C161.63 31 167 36.37 167 43V199.45L138.45 176.1C132.34 171.1 123.66 171.1 117.55 176.1L89 199.45V43Z" fill="#35416D"/>
+  <path d="M101 31H155C161.63 31 167 36.37 167 43V67H89V43C89 36.37 94.37 31 101 31Z" fill="#4F587F"/>
+  <path d="M106 76H150" stroke="#E3E7F3" stroke-width="10" stroke-linecap="round"/>
+  <path d="M106 101H138" stroke="#DDE2F0" stroke-width="10" stroke-linecap="round"/>
+  <path d="M139 176.56L167 199.45V43C167 36.37 161.63 31 155 31H142V170.22C142 172.69 140.9 174.99 139 176.56Z" fill="#202336" opacity=".35"/>
+</svg>

@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Stranichnik.Icons;
 using Stranichnik.Opening;
 using Xunit;
 
@@ -39,7 +40,7 @@ public sealed class BookmarkMetadataFetcherTests
         Uri? actualUri = null;
         using var httpClient = CreateSyncClient((request, _) =>
         {
-            actualUri = request.RequestUri;
+            actualUri ??= request.RequestUri;
             return CreateHtmlResponse("<title>Title</title>");
         });
         var fetcher = CreateFetcher(httpClient);
@@ -48,6 +49,127 @@ public sealed class BookmarkMetadataFetcherTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(expectedUri, actualUri?.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task FetchAsync_returns_icon_candidates_resolved_against_request_uri()
+    {
+        using var httpClient = CreateSyncClient((_, _) => CreateHtmlResponse("""
+            <html>
+              <head>
+                <title>Title</title>
+                <link rel="icon" href="/custom-icon.png">
+              </head>
+            </html>
+            """));
+        var fetcher = CreateFetcher(httpClient);
+
+        var result = await fetcher.FetchAsync("example.com/articles/page");
+
+        Assert.True(result.IsSuccess);
+        Assert.Collection(
+            Assert.IsType<BookmarkPageMetadata>(result.Metadata).IconCandidates,
+            candidate => Assert.Equal(new Uri("https://example.com/custom-icon.png"), candidate.Uri),
+            candidate => Assert.Equal(new Uri("https://example.com/favicon.ico"), candidate.Uri));
+    }
+
+    [Fact]
+    public async Task FetchAsync_downloads_and_processes_first_usable_favicon()
+    {
+        var processor = new FakeIconImageProcessor();
+        using var httpClient = CreateSyncClient((request, _) =>
+        {
+            return request.RequestUri?.AbsolutePath switch
+            {
+                "/articles/page" => CreateHtmlResponse("""
+                    <html>
+                      <head>
+                        <title>Title</title>
+                        <link rel="icon" href="/custom-icon.png">
+                      </head>
+                    </html>
+                    """),
+                "/custom-icon.png" => CreateBinaryResponse(CustomFaviconBytes, "image/png"),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var fetcher = CreateFetcher(httpClient, iconImageProcessor: processor);
+
+        var result = await fetcher.FetchAsync("https://example.com/articles/page");
+
+        Assert.True(result.IsSuccess);
+        var favicon = Assert.IsType<BookmarkFetchedIcon>(result.Metadata?.Favicon);
+        Assert.Equal(new Uri("https://example.com/custom-icon.png"), favicon.Candidate.Uri);
+        Assert.Equal(CustomFaviconBytes, favicon.OriginalBytes.ToArray());
+        Assert.Equal(ProcessedFaviconBytes, favicon.Image.Bytes.ToArray());
+        Assert.Equal(CustomFaviconBytes, processor.LastInputBytes);
+        Assert.Equal(1, processor.CallCount);
+    }
+
+    [Fact]
+    public async Task FetchAsync_tries_fallback_favicon_when_declared_candidate_fails()
+    {
+        var processor = new FakeIconImageProcessor();
+        using var httpClient = CreateSyncClient((request, _) =>
+        {
+            return request.RequestUri?.AbsolutePath switch
+            {
+                "/" => CreateHtmlResponse("""
+                    <html>
+                      <head>
+                        <title>Title</title>
+                        <link rel="icon" href="/missing.png">
+                      </head>
+                    </html>
+                    """),
+                "/missing.png" => new HttpResponseMessage(HttpStatusCode.NotFound),
+                "/favicon.ico" => CreateBinaryResponse(FallbackFaviconBytes, "image/x-icon"),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var fetcher = CreateFetcher(httpClient, iconImageProcessor: processor);
+
+        var result = await fetcher.FetchAsync("https://example.com");
+
+        Assert.True(result.IsSuccess);
+        var favicon = Assert.IsType<BookmarkFetchedIcon>(result.Metadata?.Favicon);
+        Assert.Equal(new Uri("https://example.com/favicon.ico"), favicon.Candidate.Uri);
+        Assert.Equal(FallbackFaviconBytes, favicon.OriginalBytes.ToArray());
+        Assert.Equal(FallbackFaviconBytes, processor.LastInputBytes);
+        Assert.Equal(1, processor.CallCount);
+    }
+
+    [Fact]
+    public async Task FetchAsync_skips_oversized_favicon_candidate()
+    {
+        var processor = new FakeIconImageProcessor();
+        using var httpClient = CreateSyncClient((request, _) =>
+        {
+            return request.RequestUri?.AbsolutePath switch
+            {
+                "/" => CreateHtmlResponse("""
+                    <html>
+                      <head>
+                        <title>Title</title>
+                        <link rel="icon" href="/large.png">
+                      </head>
+                    </html>
+                    """),
+                "/large.png" => CreateBinaryResponse(LargeFaviconBytes, "image/png"),
+                "/favicon.ico" => new HttpResponseMessage(HttpStatusCode.NotFound),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var fetcher = CreateFetcher(
+            httpClient,
+            iconImageProcessor: processor,
+            maxFaviconBytes: 2);
+
+        var result = await fetcher.FetchAsync("https://example.com");
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Metadata?.Favicon);
+        Assert.Equal(0, processor.CallCount);
     }
 
     [Theory]
@@ -190,6 +312,34 @@ public sealed class BookmarkMetadataFetcherTests
     }
 
     [Fact]
+    public async Task FetchAsync_keeps_title_when_favicon_fetch_exceeds_timeout()
+    {
+        using var httpClient = CreateClient(async (request, cancellationToken) =>
+        {
+            return request.RequestUri?.AbsolutePath switch
+            {
+                "/" => CreateHtmlResponse("""
+                    <html>
+                      <head>
+                        <title>Title before favicon timeout</title>
+                        <link rel="icon" href="/slow-icon.png">
+                      </head>
+                    </html>
+                    """),
+                "/slow-icon.png" => await CreateSlowFaviconResponseAsync(cancellationToken),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var fetcher = CreateFetcher(httpClient, timeout: TimeSpan.FromMilliseconds(20));
+
+        var result = await fetcher.FetchAsync("https://example.com");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Title before favicon timeout", result.Metadata?.Title);
+        Assert.Null(result.Metadata?.Favicon);
+    }
+
+    [Fact]
     public async Task FetchAsync_returns_response_too_large_when_html_exceeds_limit()
     {
         using var httpClient = CreateSyncClient((_, _) => CreateHtmlResponse("<title>Large</title>"));
@@ -216,6 +366,42 @@ public sealed class BookmarkMetadataFetcherTests
     }
 
     [Fact]
+    public async Task FetchAsync_downloads_favicon_from_large_html_fallback_candidates()
+    {
+        var processor = new FakeIconImageProcessor();
+        var html = """
+            <html>
+              <head>
+                <title>Large title</title>
+                <link rel="icon" href="/early-icon.png">
+              </head>
+              <body>
+            """ + new string('x', 200);
+        using var httpClient = CreateSyncClient((request, _) =>
+        {
+            return request.RequestUri?.AbsolutePath switch
+            {
+                "/" => CreateHtmlResponse(html),
+                "/early-icon.png" => CreateBinaryResponse(CustomFaviconBytes, "image/png"),
+                _ => new HttpResponseMessage(HttpStatusCode.NotFound),
+            };
+        });
+        var fetcher = CreateFetcher(
+            httpClient,
+            maxHtmlBytes: 160,
+            iconImageProcessor: processor);
+
+        var result = await fetcher.FetchAsync("https://example.com");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Large title", result.Metadata?.Title);
+        var favicon = Assert.IsType<BookmarkFetchedIcon>(result.Metadata?.Favicon);
+        Assert.Equal(new Uri("https://example.com/early-icon.png"), favicon.Candidate.Uri);
+        Assert.Equal(CustomFaviconBytes, favicon.OriginalBytes.ToArray());
+        Assert.Equal(1, processor.CallCount);
+    }
+
+    [Fact]
     public async Task FetchAsync_returns_response_too_large_when_title_only_fallback_cannot_find_complete_title()
     {
         var html = "<html><head><title>Large title without closing tag in downloaded prefix</title></head><body>" +
@@ -232,12 +418,17 @@ public sealed class BookmarkMetadataFetcherTests
     private static BookmarkMetadataFetcher CreateFetcher(
         HttpClient httpClient,
         int maxHtmlBytes = 512 * 1024,
+        int maxFaviconBytes = 256 * 1024,
+        IIconImageProcessor? iconImageProcessor = null,
         TimeSpan? timeout = null)
     {
         return new BookmarkMetadataFetcher(
             httpClient,
             new BookmarkMetadataParser(),
+            iconImageProcessor ?? new FakeIconImageProcessor(),
             maxHtmlBytes,
+            maxFaviconBytes,
+            maxFaviconCandidates: 4,
             timeout ?? TimeSpan.FromSeconds(5));
     }
 
@@ -261,6 +452,46 @@ public sealed class BookmarkMetadataFetcherTests
         response.Content.Headers.ContentType = new("text/html");
         return response;
     }
+
+    private static HttpResponseMessage CreateBinaryResponse(byte[] bytes, string mediaType)
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(bytes)
+        };
+        response.Content.Headers.ContentType = new(mediaType);
+        return response;
+    }
+
+    private static async Task<HttpResponseMessage> CreateSlowFaviconResponseAsync(CancellationToken cancellationToken)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+        return CreateBinaryResponse(CustomFaviconBytes, "image/png");
+    }
+
+    private sealed class FakeIconImageProcessor : IIconImageProcessor
+    {
+        public int CallCount { get; private set; }
+
+        public byte[] LastInputBytes { get; private set; } = [];
+
+        public ProcessedIconImage Process(ReadOnlyMemory<byte> originalBytes)
+        {
+            CallCount++;
+            LastInputBytes = originalBytes.ToArray();
+
+            return new(
+                "image/png",
+                Width: 64,
+                Height: 64,
+                ProcessedFaviconBytes);
+        }
+    }
+
+    private static readonly byte[] CustomFaviconBytes = [1, 2, 3];
+    private static readonly byte[] FallbackFaviconBytes = [4, 5, 6];
+    private static readonly byte[] LargeFaviconBytes = [1, 2, 3, 4];
+    private static readonly byte[] ProcessedFaviconBytes = [9, 8, 7];
 
     private sealed class FakeHttpMessageHandler(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler) : HttpMessageHandler

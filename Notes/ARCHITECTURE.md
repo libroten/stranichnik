@@ -90,12 +90,32 @@ Bookmark metadata fetching:
 - The main app uses AngleSharp for normal HTML metadata parsing.
 - `BookmarkMetadataFetcher` reuses `BookmarkUrlNormalizer` rules and supports typed web addresses without an explicit scheme.
 - The fetcher requests only HTML/XHTML, uses a bounded timeout, supports cancellation, and reads a bounded response prefix.
-- The first version extracts titles in this order:
+- The fetcher extracts titles in this order:
   - `meta[property="og:title"]`
   - `meta[name="twitter:title"]`
   - `<title>`
-- If the response exceeds the configured HTML size limit, the fetcher does not keep reading the full response. It tries a title-only fallback by searching for a complete `<title>...</title>` in the already downloaded prefix.
+- It also extracts favicon candidates from supported `<link rel="...">` tags and adds a `/favicon.ico` fallback candidate.
+- It downloads only a bounded number of favicon candidates, with a separate favicon byte limit.
+- Downloaded favicons are processed in memory and exposed to `BookmarkEditorDialog` as a pending option; they are persisted only if the user saves the dialog with that icon selected.
+- If the response exceeds the configured HTML size limit, the fetcher does not keep reading the full response. It tries a partial fallback by searching the already downloaded prefix for:
+  - a complete `<title>...</title>`;
+  - supported favicon `<link ...>` tags.
 - Metadata fetching logs diagnostic states, but must not log bookmark URLs or discovered titles.
+
+Icons:
+
+- Default icon visuals are drawn in XAML/vector UI and are selected by item kind and current theme.
+- Custom and favicon icons are stored as immutable processed PNG blobs in SQLite table `icon_assets`.
+- Bookmark/folder rows reference custom icons through nullable `items.icon_asset_id`.
+- `items.icon_asset_id = NULL` means "use the default icon".
+- Icon processing code lives in `IconProcessing/` with namespace `Stranichnik.Icons`.
+- `IconAssetService` hashes original source bytes with SHA-256, reuses an existing asset with the same source hash, or creates a new immutable icon asset.
+- `IconImageProcessor` normalizes source images into `64x64` PNG with aspect ratio preserved.
+- `BookmarkIconImageCache` decodes stored icon blobs lazily and avoids repeated SQLite blob decoding.
+- `BookmarkEditorDialog` lets the user choose current/default/favicon/uploaded icon options.
+- Uploaded icon files use Avalonia's cross-platform storage provider.
+- Dialog code never writes icon blobs directly to SQLite. It returns a pending `BookmarkIconSelection`; `MainWindowViewModel` applies it through `IconAssetService` and `IBookmarkTreeStore`.
+- Icon logs must not include URLs, page titles, local file paths, raw hashes, or raw image data.
 
 Search UI:
 
@@ -236,6 +256,7 @@ Important types:
 - `Id`
 - `Title`
 - `Parent`
+- `IconImage`
 - DnD visual state flags.
 
 `BookmarkFolderViewModel` stores:

@@ -39,6 +39,36 @@
   <data name="BookmarkEditor_EditFolderTitle" xml:space="preserve">
     <value>Edit folder</value>
   </data>
+  <data name="BookmarkEditor_IconCurrent" xml:space="preserve">
+    <value>Current</value>
+  </data>
+  <data name="BookmarkEditor_IconDefault" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="BookmarkEditor_IconFavicon" xml:space="preserve">
+    <value>Favicon</value>
+  </data>
+  <data name="BookmarkEditor_IconFileInvalid" xml:space="preserve">
+    <value>Could not use the selected image.</value>
+  </data>
+  <data name="BookmarkEditor_IconImageFiles" xml:space="preserve">
+    <value>Image files</value>
+  </data>
+  <data name="BookmarkEditor_IconLabel" xml:space="preserve">
+    <value>Icon</value>
+  </data>
+  <data name="BookmarkEditor_IconPickerTitle" xml:space="preserve">
+    <value>Choose icon</value>
+  </data>
+  <data name="BookmarkEditor_IconPickerUnavailable" xml:space="preserve">
+    <value>File picker is not available on this system.</value>
+  </data>
+  <data name="BookmarkEditor_IconUpload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="BookmarkEditor_IconUploaded" xml:space="preserve">
+    <value>Uploaded</value>
+  </data>
   <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
     <value>Title</value>
   </data>

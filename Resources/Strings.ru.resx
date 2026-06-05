@@ -39,6 +39,36 @@
   <data name="BookmarkEditor_EditFolderTitle" xml:space="preserve">
     <value>Редактировать папку</value>
   </data>
+  <data name="BookmarkEditor_IconCurrent" xml:space="preserve">
+    <value>Текущая</value>
+  </data>
+  <data name="BookmarkEditor_IconDefault" xml:space="preserve">
+    <value>Стандартная</value>
+  </data>
+  <data name="BookmarkEditor_IconFavicon" xml:space="preserve">
+    <value>Favicon</value>
+  </data>
+  <data name="BookmarkEditor_IconFileInvalid" xml:space="preserve">
+    <value>Не удалось использовать выбранную картинку.</value>
+  </data>
+  <data name="BookmarkEditor_IconImageFiles" xml:space="preserve">
+    <value>Изображения</value>
+  </data>
+  <data name="BookmarkEditor_IconLabel" xml:space="preserve">
+    <value>Иконка</value>
+  </data>
+  <data name="BookmarkEditor_IconPickerTitle" xml:space="preserve">
+    <value>Выбрать иконку</value>
+  </data>
+  <data name="BookmarkEditor_IconPickerUnavailable" xml:space="preserve">
+    <value>Выбор файла недоступен в этой системе.</value>
+  </data>
+  <data name="BookmarkEditor_IconUpload" xml:space="preserve">
+    <value>Загрузить</value>
+  </data>
+  <data name="BookmarkEditor_IconUploaded" xml:space="preserve">
+    <value>Загруженная</value>
+  </data>
   <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
     <value>Заголовок</value>
   </data>

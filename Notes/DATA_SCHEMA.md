@@ -75,6 +75,42 @@ Expected keys:
 
 The current migration system uses `SqliteDatabaseMigrator` and `PRAGMA user_version`. All schema changes should stay explicit and versioned.
 
+## Icon Assets
+
+Custom and downloaded icons are stored as immutable processed image assets.
+
+Default bookmark/folder icons are not stored in SQLite. They live in `Assets/Icons` and are selected by item kind and current theme when `items.icon_asset_id` is `NULL`.
+
+Current table draft:
+
+```sql
+CREATE TABLE icon_assets (
+    id TEXT PRIMARY KEY,
+
+    source_hash_algorithm TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    source_size_bytes INTEGER NOT NULL,
+
+    processed_mime_type TEXT NOT NULL,
+    processed_width INTEGER NOT NULL,
+    processed_height INTEGER NOT NULL,
+    processed_bytes BLOB NOT NULL,
+
+    created_at_utc TEXT NOT NULL,
+
+    UNIQUE (source_hash_algorithm, source_hash)
+);
+```
+
+Field notes:
+
+- `source_hash_algorithm` is initially `sha256`.
+- `source_hash` is computed from the original downloaded/selected bytes before image processing.
+- `processed_mime_type` is initially `image/png`.
+- `processed_width` and `processed_height` are initially expected to be `64`.
+- Icon rows should be treated as immutable. Changing an item's icon means changing `items.icon_asset_id`, not mutating an existing shared blob.
+- Unreferenced icon assets may remain in the database; cleanup can be implemented later.
+
 ## Crypto Metadata
 
 Secret bookmark encryption will need KDF/encryption metadata.
@@ -127,6 +163,7 @@ CREATE TABLE items (
 
     title TEXT NULL,
     url TEXT NULL,
+    icon_asset_id TEXT NULL REFERENCES icon_assets(id),
 
     is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
     encrypted_payload BLOB NULL,

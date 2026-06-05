@@ -11,6 +11,16 @@ public static class UiStrings
     public static string BookmarkEditorAddFolderTitle => TextResources.Get("BookmarkEditor_AddFolderTitle");
     public static string BookmarkEditorEditBookmarkTitle => TextResources.Get("BookmarkEditor_EditBookmarkTitle");
     public static string BookmarkEditorEditFolderTitle => TextResources.Get("BookmarkEditor_EditFolderTitle");
+    public static string BookmarkEditorIconCurrent => TextResources.Get("BookmarkEditor_IconCurrent");
+    public static string BookmarkEditorIconDefault => TextResources.Get("BookmarkEditor_IconDefault");
+    public static string BookmarkEditorIconFavicon => TextResources.Get("BookmarkEditor_IconFavicon");
+    public static string BookmarkEditorIconFileInvalid => TextResources.Get("BookmarkEditor_IconFileInvalid");
+    public static string BookmarkEditorIconImageFiles => TextResources.Get("BookmarkEditor_IconImageFiles");
+    public static string BookmarkEditorIconLabel => TextResources.Get("BookmarkEditor_IconLabel");
+    public static string BookmarkEditorIconPickerTitle => TextResources.Get("BookmarkEditor_IconPickerTitle");
+    public static string BookmarkEditorIconPickerUnavailable => TextResources.Get("BookmarkEditor_IconPickerUnavailable");
+    public static string BookmarkEditorIconUpload => TextResources.Get("BookmarkEditor_IconUpload");
+    public static string BookmarkEditorIconUploaded => TextResources.Get("BookmarkEditor_IconUploaded");
     public static string BookmarkEditorTitleLabel => TextResources.Get("BookmarkEditor_TitleLabel");
     public static string BookmarkEditorUrlLabel => TextResources.Get("BookmarkEditor_UrlLabel");
     public static string BookmarkEditorUrlPlaceholder => TextResources.Get("BookmarkEditor_UrlPlaceholder");

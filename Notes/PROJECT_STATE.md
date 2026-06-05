@@ -64,10 +64,23 @@ Completed broad areas:
 - Bookmark title metadata fetching is implemented:
   - `BookmarkEditorDialog` fetches page metadata for bookmark URLs after a debounce;
   - the discovered page title is shown as a clickable suggestion and is not forced into the title field automatically;
+  - favicon candidates are discovered while fetching metadata;
+  - a bounded number of favicon candidates is downloaded and processed in memory;
+  - large HTML responses use a partial fallback that can still find a complete title tag and favicon link tags in the downloaded prefix;
   - network requests are cancellable and stale responses are ignored;
   - HTML parsing uses AngleSharp;
-  - large HTML responses use a title-only fallback from the downloaded prefix;
   - logs record fetch states and fallback outcomes without logging URLs or discovered titles.
+- Bookmark and folder icon support is implemented:
+  - main tree rows and search result rows show default or custom icons;
+  - SQLite stores immutable custom/favicon icon assets in `icon_assets`;
+  - items reference icon assets through nullable `items.icon_asset_id`;
+  - default icons remain app resources/vector UI and are not stored in SQLite;
+  - icon assets are deduplicated by SHA-256 of original source bytes;
+  - selected/uploaded/favicon images are processed to `64x64` PNG before storage;
+  - `BookmarkEditorDialog` lets the user choose current, default, discovered favicon, or uploaded icon;
+  - uploaded icon files are selected through Avalonia's cross-platform storage provider;
+  - downloaded/uploaded icon data is persisted only when the editor dialog is saved;
+  - icon-related logs do not include URLs, page titles, local file paths, or raw hashes.
 
 Not implemented yet:
 
@@ -91,7 +104,9 @@ Implemented in storage/view-model layer:
 Current dialogs:
 
 - `BookmarkEditorDialog` is used for adding/editing bookmarks and folders.
-  - For bookmark add/edit, it can suggest a fetched page title below the title field.
+- For bookmark add/edit, it can suggest a fetched page title below the title field.
+- For bookmark add/edit, it can also offer a discovered favicon as a pending icon choice.
+- For bookmark and folder add/edit, it can reset to the default icon or select a local image file.
 - `ConfirmDialog` is used for delete confirmations.
 - `LanguageDialog` is used for selecting the UI language.
 - `MessageDialog` is used for one-button error/information messages.
@@ -140,10 +155,12 @@ Folders:
 
 Bookmarks:
 
+- Show a default or custom icon.
 - Show title and URL.
 - URL is underlined with a dashed underline.
 - URL becomes blue on hover.
 - While adding/editing a bookmark, the app can fetch the page title from the URL and show it as an italic dashed-underlined suggestion.
+- While adding/editing a bookmark, the app can fetch and offer a favicon as an icon option.
 - Bookmark action buttons show on row hover:
   - open
   - edit
@@ -156,6 +173,7 @@ Search:
 - Search is better than substring matching because it uses the standalone in-memory search library.
 - Search results are separate from the tree; the tree is not filtered or mutated for search display.
 - Search result rows show bookmark title and URL.
+- Search result rows show the same custom/default icon as the corresponding bookmark.
 - Search result rows have an open action.
 - URL hover styling in search results matches normal bookmark URL hover styling.
 - The clear button empties the query and returns to the tree.

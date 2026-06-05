@@ -196,6 +196,91 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void GetOrCreateIconAsset_inserts_and_loads_asset()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var iconAsset = CreateIconAsset("icon", "hash");
+
+        var created = database.Store.GetOrCreateIconAsset(iconAsset);
+        var loaded = database.Store.GetIconAsset("icon");
+
+        AssertIconAssetEqual(iconAsset, created);
+        AssertIconAssetEqual(iconAsset, Assert.IsType<BookmarkIconAssetRecord>(loaded));
+    }
+
+    [Fact]
+    public void GetOrCreateIconAsset_reuses_existing_asset_with_same_source_hash()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var first = CreateIconAsset("icon-1", "same-hash");
+        var second = CreateIconAsset("icon-2", "same-hash");
+
+        var created = database.Store.GetOrCreateIconAsset(first);
+        var reused = database.Store.GetOrCreateIconAsset(second);
+
+        AssertIconAssetEqual(first, created);
+        AssertIconAssetEqual(first, reused);
+        AssertIconAssetEqual(
+            first,
+            Assert.IsType<BookmarkIconAssetRecord>(database.Store.GetIconAsset("icon-1")));
+        AssertIconAssetEqual(
+            first,
+            Assert.IsType<BookmarkIconAssetRecord>(database.Store.GetIconAssetBySourceHash("sha256", "same-hash")));
+        Assert.Null(database.Store.GetIconAsset("icon-2"));
+    }
+
+    [Fact]
+    public void SetItemIconAsset_updates_and_clears_icon_reference()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+        database.Store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
+
+        var withIcon = database.Store.SetItemIconAsset("bookmark", "icon");
+        var withoutIcon = database.Store.SetItemIconAsset("bookmark", iconAssetId: null);
+
+        Assert.Equal("icon", withIcon.IconAssetId);
+        Assert.Null(withoutIcon.IconAssetId);
+        Assert.Equal(3, withoutIcon.Metadata.Revision);
+        Assert.Null(database.Store.Load().Items.Single().IconAssetId);
+    }
+
+    [Fact]
+    public void SetItemIconAsset_rejects_missing_icon_asset()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.SetItemIconAsset("bookmark", "missing"));
+    }
+
+    [Fact]
+    public void DeleteItem_does_not_delete_shared_icon_asset()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+        var iconAsset = CreateIconAsset("icon", "hash");
+        database.Store.GetOrCreateIconAsset(iconAsset);
+        database.Store.SetItemIconAsset("bookmark", "icon");
+
+        database.Store.DeleteItem("bookmark");
+
+        AssertIconAssetEqual(
+            iconAsset,
+            Assert.IsType<BookmarkIconAssetRecord>(database.Store.GetIconAsset("icon")));
+    }
+
+    [Fact]
     public void EditFolder_rejects_wrong_type_and_tombstoned_item()
     {
         using var database = TempSqliteDatabase.Create();
@@ -447,6 +532,37 @@ public sealed class SqliteBookmarkTreeStoreTests
             LastSyncedAtUtc: null,
             "seed-device");
     }
+
+    private static BookmarkIconAssetRecord CreateIconAsset(string id, string sourceHash)
+    {
+        return new(
+            id,
+            "sha256",
+            sourceHash,
+            SourceSizeBytes: 3,
+            "image/png",
+            ProcessedWidth: 64,
+            ProcessedHeight: 64,
+            ProcessedIconBytes,
+            CreatedAt);
+    }
+
+    private static void AssertIconAssetEqual(
+        BookmarkIconAssetRecord expected,
+        BookmarkIconAssetRecord actual)
+    {
+        Assert.Equal(expected.Id, actual.Id);
+        Assert.Equal(expected.SourceHashAlgorithm, actual.SourceHashAlgorithm);
+        Assert.Equal(expected.SourceHash, actual.SourceHash);
+        Assert.Equal(expected.SourceSizeBytes, actual.SourceSizeBytes);
+        Assert.Equal(expected.ProcessedMimeType, actual.ProcessedMimeType);
+        Assert.Equal(expected.ProcessedWidth, actual.ProcessedWidth);
+        Assert.Equal(expected.ProcessedHeight, actual.ProcessedHeight);
+        Assert.Equal(expected.ProcessedBytes.ToArray(), actual.ProcessedBytes.ToArray());
+        Assert.Equal(expected.CreatedAtUtc, actual.CreatedAtUtc);
+    }
+
+    private static readonly byte[] ProcessedIconBytes = [1, 2, 3];
 
     private sealed class TempSqliteDatabase : IDisposable
     {

@@ -329,6 +329,6 @@ public sealed class MainWindowViewModelStorageTests
         return new MainWindowViewModel(
             new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items),
             new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
-            SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
+            expandedFolderIds: SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
     }
 }

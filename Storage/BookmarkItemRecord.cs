@@ -9,4 +9,5 @@ public sealed record BookmarkItemRecord(
     string? Url,
     bool IsSecret,
     EncryptedBookmarkPayloadRecord? EncryptedPayload,
-    BookmarkItemMetadata Metadata);
+    BookmarkItemMetadata Metadata,
+    string? IconAssetId = null);

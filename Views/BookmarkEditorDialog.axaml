@@ -140,6 +140,61 @@
             <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
+        <Style Selector="Button.iconChoice">
+            <Setter Property="Width" Value="86"/>
+            <Setter Property="MinHeight" Value="76"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.iconChoice:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="Button.iconChoice.selected">
+            <Setter Property="Background" Value="{DynamicResource ActionAddBookmarkHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionAddBookmarkBrush}"/>
+        </Style>
+        <Style Selector="Border.iconPreview">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Background" Value="{DynamicResource DialogBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="TextBlock.iconPreviewGlyph">
+            <Setter Property="Foreground" Value="{DynamicResource ActionAddBookmarkBrush}"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.iconChoiceLabel">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="MaxWidth" Value="68"/>
+        </Style>
     </Window.Styles>
 
     <Border Padding="20"
@@ -150,6 +205,144 @@
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+            <StackPanel x:Name="IconFieldPanel"
+                        Spacing="6">
+                <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorIconLabel}"
+                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                <WrapPanel>
+                    <Button x:Name="CurrentIconButton"
+                            Classes="iconChoice"
+                            Margin="0,0,8,8"
+                            Click="OnCurrentIconClick">
+                        <StackPanel Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Border Classes="iconPreview">
+                                <Image x:Name="CurrentIconImage"
+                                       Width="22"
+                                       Height="22"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="CurrentIconTextBlock"
+                                       Classes="iconChoiceLabel"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="FaviconIconButton"
+                            Classes="iconChoice"
+                            Margin="0,0,8,8"
+                            IsVisible="False"
+                            Click="OnFaviconIconClick">
+                        <StackPanel Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Border Classes="iconPreview">
+                                <Image x:Name="FaviconIconImage"
+                                       Width="22"
+                                       Height="22"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="FaviconIconTextBlock"
+                                       Classes="iconChoiceLabel"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="DefaultIconButton"
+                            Classes="iconChoice"
+                            Margin="0,0,8,8"
+                            Click="OnDefaultIconClick">
+                        <StackPanel Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Border Classes="iconPreview">
+                                <Grid>
+                                    <Viewbox x:Name="DefaultBookmarkIconPreview"
+                                             Width="22"
+                                             Height="22"
+                                             IsHitTestVisible="False">
+                                        <Canvas Width="256"
+                                                Height="256">
+                                            <Path Data="M74 36C74 25.51 82.51 17 93 17H163C173.49 17 182 25.51 182 36V222C182 228.34 174.62 231.83 169.71 227.81L132.75 197.58C129.98 195.31 126.02 195.31 123.25 197.58L86.29 227.81C81.38 231.83 74 228.34 74 222V36Z"
+                                                  Fill="{DynamicResource ActionOpenBrush}"/>
+                                            <Path Data="M89 43C89 36.37 94.37 31 101 31H155C161.63 31 167 36.37 167 43V199.45L138.45 176.1C132.34 171.1 123.66 171.1 117.55 176.1L89 199.45V43Z"
+                                                  Fill="{DynamicResource FocusBorderBrush}"/>
+                                            <Path Data="M101 31H155C161.63 31 167 36.37 167 43V67H89V43C89 36.37 94.37 31 101 31Z"
+                                                  Fill="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+                                            <Path Data="M106 76H150"
+                                                  Stroke="{DynamicResource SelectedBackgroundBrush}"
+                                                  StrokeThickness="10"
+                                                  StrokeLineCap="Round"/>
+                                            <Path Data="M106 101H138"
+                                                  Stroke="{DynamicResource SelectedBackgroundBrush}"
+                                                  StrokeThickness="10"
+                                                  StrokeLineCap="Round"
+                                                  Opacity="0.82"/>
+                                            <Path Data="M139 176.56L167 199.45V43C167 36.37 161.63 31 155 31H142V170.22C142 172.69 140.9 174.99 139 176.56Z"
+                                                  Fill="{DynamicResource TextPrimaryBrush}"
+                                                  Opacity="0.28"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                    <Viewbox x:Name="DefaultFolderIconPreview"
+                                             Width="22"
+                                             Height="22"
+                                             IsHitTestVisible="False">
+                                        <Canvas Width="256"
+                                                Height="256">
+                                            <Path Data="M28 78C28 63.64 39.64 52 54 52H98.34C105.78 52 112.85 55.19 117.78 60.76L130.96 75.64C133.24 78.21 136.51 79.69 139.95 79.69H210C224.36 79.69 236 91.33 236 105.69V186C236 200.36 224.36 212 210 212H54C39.64 212 28 200.36 28 186V78Z"
+                                                  Fill="{DynamicResource ActionOpenBrush}"/>
+                                            <Path Data="M28 92C28 77.64 39.64 66 54 66H99.1C105.16 66 110.98 68.31 115.39 72.42L128.43 84.57C132.85 88.69 138.66 91 144.7 91H210C224.36 91 236 102.64 236 117V190C236 204.36 224.36 216 210 216H54C39.64 216 28 204.36 28 190V92Z"
+                                                  Fill="{DynamicResource FocusBorderBrush}"/>
+                                            <Path Data="M39 106C39 98.27 45.27 92 53 92H211C218.73 92 225 98.27 225 106V187C225 194.73 218.73 201 211 201H53C45.27 201 39 194.73 39 187V106Z"
+                                                  Fill="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+                                            <Path Data="M50 114C50 109.58 53.58 106 58 106H202C206.42 106 210 109.58 210 114V119H50V114Z"
+                                                  Fill="{DynamicResource SelectedBackgroundBrush}"
+                                                  Opacity="0.55"/>
+                                            <Path Data="M54 216H210C224.36 216 236 204.36 236 190V178C221.55 190.93 202.9 198 183.51 198H49.95C42.37 198 35.22 194.48 30.6 188.47C32.51 200.94 43.28 216 54 216Z"
+                                                  Fill="{DynamicResource TextPrimaryBrush}"
+                                                  Opacity="0.22"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="DefaultIconTextBlock"
+                                       Classes="iconChoiceLabel"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="UploadedIconButton"
+                            Classes="iconChoice"
+                            Margin="0,0,8,8"
+                            IsVisible="False"
+                            Click="OnUploadedIconClick">
+                        <StackPanel Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Border Classes="iconPreview">
+                                <Image x:Name="UploadedIconImage"
+                                       Width="22"
+                                       Height="22"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="UploadedIconTextBlock"
+                                       Classes="iconChoiceLabel"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="UploadIconButton"
+                            Classes="iconChoice"
+                            Margin="0,0,8,8"
+                            Click="OnUploadIconClick">
+                        <StackPanel Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Border Classes="iconPreview">
+                                <TextBlock Classes="iconPreviewGlyph"
+                                           Text="+"/>
+                            </Border>
+                            <TextBlock x:Name="UploadIconTextBlock"
+                                       Classes="iconChoiceLabel"/>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
+            </StackPanel>
 
             <StackPanel x:Name="UrlFieldPanel"
                         Spacing="6">

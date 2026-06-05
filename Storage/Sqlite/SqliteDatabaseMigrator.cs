@@ -5,7 +5,7 @@ namespace Stranichnik.Storage.Sqlite;
 
 public sealed class SqliteDatabaseMigrator
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     private readonly SqliteConnectionFactory _connectionFactory;
     private readonly Func<string> _idFactory;
@@ -29,7 +29,17 @@ public sealed class SqliteDatabaseMigrator
             ApplyVersion1(connection);
             migrationApplied = true;
         }
-        else if (previousVersion > CurrentVersion)
+
+        var currentVersion = GetUserVersion(connection);
+
+        if (currentVersion == 1)
+        {
+            ApplyVersion2(connection);
+            migrationApplied = true;
+            currentVersion = 2;
+        }
+
+        if (currentVersion > CurrentVersion)
         {
             throw new InvalidOperationException("SQLite database schema is newer than this application supports.");
         }
@@ -174,6 +184,45 @@ public sealed class SqliteDatabaseMigrator
             """);
 
         ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 1;");
+
+        transaction.Commit();
+    }
+
+    private static void ApplyVersion2(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction();
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE TABLE icon_assets (
+                id TEXT PRIMARY KEY,
+
+                source_hash_algorithm TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_size_bytes INTEGER NOT NULL,
+
+                processed_mime_type TEXT NOT NULL,
+                processed_width INTEGER NOT NULL,
+                processed_height INTEGER NOT NULL,
+                processed_bytes BLOB NOT NULL,
+
+                created_at_utc TEXT NOT NULL,
+
+                UNIQUE (source_hash_algorithm, source_hash)
+            );
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            ALTER TABLE items
+                ADD COLUMN icon_asset_id TEXT NULL REFERENCES icon_assets(id);
+            """);
+
+        ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 2;");
 
         transaction.Commit();
     }

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using Avalonia.Media;
+using Stranichnik.Icons;
 using Stranichnik.Localization;
 using Stranichnik.Search;
 using Stranichnik.Searching;
@@ -18,12 +20,15 @@ public partial class MainWindowViewModel : ViewModelBase
         Justification = "The view model intentionally depends on the storage abstraction so SQLite can replace the in-memory store without changing callers.")]
     private readonly IBookmarkTreeStore _treeStore;
     private readonly BookmarkSearchService _searchService;
+    private readonly BookmarkIconImageCache _iconImageCache;
+    private readonly IconAssetService _iconAssetService;
     private readonly Dictionary<string, BookmarkViewModel> _bookmarkViewModelsById = new(StringComparer.Ordinal);
     private string _searchQuery = string.Empty;
 
     public MainWindowViewModel(
         IBookmarkTreeStore treeStore,
         BookmarkSearchService searchService,
+        BookmarkIconImageCache? iconImageCache = null,
         IReadOnlySet<string>? expandedFolderIds = null)
     {
         ArgumentNullException.ThrowIfNull(treeStore);
@@ -31,13 +36,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _treeStore = treeStore;
         _searchService = searchService;
+        _iconImageCache = iconImageCache ?? new BookmarkIconImageCache(treeStore);
+        _iconAssetService = new IconAssetService(_treeStore, new IconImageProcessor());
 
         var snapshot = _treeStore.Load();
         _searchService.Rebuild(snapshot);
 
         var items = BookmarkTreeViewModelMapper.CreateViewModels(
             snapshot,
-            expandedFolderIds);
+            expandedFolderIds,
+            _iconImageCache);
 
         RootFolder = new BookmarkFolderViewModel(
             UiStrings.RootAllBookmarks,
@@ -136,8 +144,12 @@ public partial class MainWindowViewModel : ViewModelBase
     public BookmarkTreeAddBookmarkResult AddBookmarkToFolderStart(
         BookmarkFolderViewModel targetParent,
         string title,
-        string url)
+        string url,
+        BookmarkIconSelection? iconSelection = null)
     {
+        if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+
         BookmarkItemRecord record;
 
         try
@@ -156,10 +168,14 @@ public partial class MainWindowViewModel : ViewModelBase
             return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
         }
 
+        if (shouldSetIcon)
+            record = _treeStore.SetItemIconAsset(record.Id, iconAssetId);
+
         var bookmark = new BookmarkViewModel(
             record.Title ?? string.Empty,
             record.Url ?? string.Empty,
-            record.Id)
+            record.Id,
+            _iconImageCache.GetImage(record.IconAssetId))
         {
             Parent = targetParent
         };
@@ -177,8 +193,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public BookmarkTreeAddFolderResult AddFolderToFolderStart(
         BookmarkFolderViewModel targetParent,
-        string title)
+        string title,
+        BookmarkIconSelection? iconSelection = null)
     {
+        if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
+            return BookmarkTreeAddFolderResult.NotAdded(targetParent);
+
         BookmarkItemRecord record;
 
         try
@@ -196,11 +216,15 @@ public partial class MainWindowViewModel : ViewModelBase
             return BookmarkTreeAddFolderResult.NotAdded(targetParent);
         }
 
+        if (shouldSetIcon)
+            record = _treeStore.SetItemIconAsset(record.Id, iconAssetId);
+
         var folder = new BookmarkFolderViewModel(
             record.Title ?? string.Empty,
             isExpanded: false,
             isRoot: false,
-            id: record.Id)
+            id: record.Id,
+            iconImage: _iconImageCache.GetImage(record.IconAssetId))
         {
             Parent = targetParent
         };
@@ -216,8 +240,12 @@ public partial class MainWindowViewModel : ViewModelBase
     public BookmarkTreeEditBookmarkResult EditBookmark(
         BookmarkViewModel bookmark,
         string title,
-        string url)
+        string url,
+        BookmarkIconSelection? iconSelection = null)
     {
+        if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+
         BookmarkItemRecord record;
 
         try
@@ -233,11 +261,15 @@ public partial class MainWindowViewModel : ViewModelBase
             return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
         }
 
+        if (shouldSetIcon)
+            record = _treeStore.SetItemIconAsset(bookmark.Id, iconAssetId);
+
         var oldTitle = bookmark.Title;
         var oldUrl = bookmark.Url;
 
         bookmark.SetTitle(record.Title ?? string.Empty);
         bookmark.SetUrl(record.Url ?? string.Empty);
+        bookmark.SetIconImage(_iconImageCache.GetImage(record.IconAssetId));
         _searchService.AddOrUpdate(record);
         UpdateSearchResults();
 
@@ -249,9 +281,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public BookmarkTreeEditFolderResult EditFolder(
         BookmarkFolderViewModel folder,
-        string title)
+        string title,
+        BookmarkIconSelection? iconSelection = null)
     {
         if (folder.IsRoot)
+            return BookmarkTreeEditFolderResult.NotEdited(folder);
+
+        if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
             return BookmarkTreeEditFolderResult.NotEdited(folder);
 
         BookmarkItemRecord record;
@@ -269,8 +305,12 @@ public partial class MainWindowViewModel : ViewModelBase
             return BookmarkTreeEditFolderResult.NotEdited(folder);
         }
 
+        if (shouldSetIcon)
+            record = _treeStore.SetItemIconAsset(folder.Id, iconAssetId);
+
         var oldTitle = folder.Title;
         folder.SetTitle(record.Title ?? string.Empty);
+        folder.SetIconImage(_iconImageCache.GetImage(record.IconAssetId));
 
         return BookmarkTreeEditFolderResult.Edited(folder, oldTitle);
     }
@@ -426,7 +466,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 SearchResults.Add(new BookmarkSearchResultItem(
                     bookmark.Id,
                     bookmark.Title,
-                    bookmark.Url));
+                    bookmark.Url,
+                    bookmark.IconImage));
             }
         }
 
@@ -448,6 +489,40 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         return targetParent is null || targetParent.IsRoot ? null : targetParent.Id;
     }
+
+    private bool TryPrepareIconSelection(
+        BookmarkIconSelection? iconSelection,
+        out string? iconAssetId,
+        out bool shouldSetIcon)
+    {
+        iconAssetId = null;
+        shouldSetIcon = false;
+
+        if (iconSelection is null || iconSelection.Kind == BookmarkIconSelectionKind.KeepExisting)
+            return true;
+
+        if (iconSelection.Kind == BookmarkIconSelectionKind.UseDefault)
+        {
+            shouldSetIcon = true;
+            return true;
+        }
+
+        try
+        {
+            var iconAsset = _iconAssetService.GetOrCreateFromOriginalBytes(iconSelection.OriginalBytes);
+            iconAssetId = iconAsset.Id;
+            shouldSetIcon = true;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
 }
 
 public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
@@ -455,11 +530,13 @@ public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
     private string _title;
     private bool _isDragSource;
     private bool _isDragDimmed;
+    private IImage? _iconImage;
 
-    protected BookmarkTreeItemViewModel(string title, string? id = null)
+    protected BookmarkTreeItemViewModel(string title, string? id = null, IImage? iconImage = null)
     {
         Id = id ?? Guid.NewGuid().ToString("N");
         _title = title;
+        _iconImage = iconImage;
     }
 
     public string Id { get; }
@@ -472,9 +549,31 @@ public abstract partial class BookmarkTreeItemViewModel : ViewModelBase
 
     public BookmarkFolderViewModel? Parent { get; internal set; }
 
+    public IImage? IconImage
+    {
+        get => _iconImage;
+        private set
+        {
+            if (!SetProperty(ref _iconImage, value))
+                return;
+
+            OnPropertyChanged(nameof(HasCustomIcon));
+            OnPropertyChanged(nameof(HasDefaultIcon));
+        }
+    }
+
+    public bool HasCustomIcon => IconImage is not null;
+
+    public bool HasDefaultIcon => IconImage is null;
+
     internal void SetTitle(string title)
     {
         Title = title;
+    }
+
+    internal void SetIconImage(IImage? iconImage)
+    {
+        IconImage = iconImage;
     }
 
     public bool IsDragSource
@@ -502,8 +601,9 @@ public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
         IEnumerable<BookmarkTreeItemViewModel>? children = null,
         bool isExpanded = false,
         bool isRoot = false,
-        string? id = null)
-        : base(title, id)
+        string? id = null,
+        IImage? iconImage = null)
+        : base(title, id, iconImage)
     {
         Children = children is null ? new() : new(children);
         _isExpanded = isExpanded;
@@ -554,8 +654,8 @@ public sealed partial class BookmarkViewModel : BookmarkTreeItemViewModel
 {
     private string _url;
 
-    public BookmarkViewModel(string title, string url, string? id = null)
-        : base(title, id)
+    public BookmarkViewModel(string title, string url, string? id = null, IImage? iconImage = null)
+        : base(title, id, iconImage)
     {
         _url = url;
     }
