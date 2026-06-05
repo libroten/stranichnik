@@ -18,6 +18,9 @@
   <data name="Action_AddFolder" xml:space="preserve">
     <value>Add folder</value>
   </data>
+  <data name="Action_CopyUrl" xml:space="preserve">
+    <value>Copy to clipboard</value>
+  </data>
   <data name="Action_Delete" xml:space="preserve">
     <value>Delete</value>
   </data>
@@ -25,7 +28,7 @@
     <value>Edit</value>
   </data>
   <data name="Action_Open" xml:space="preserve">
-    <value>Open</value>
+    <value>Go</value>
   </data>
   <data name="BookmarkEditor_AddBookmarkTitle" xml:space="preserve">
     <value>Add bookmark</value>

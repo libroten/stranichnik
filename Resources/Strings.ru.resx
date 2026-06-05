@@ -18,6 +18,9 @@
   <data name="Action_AddFolder" xml:space="preserve">
     <value>Добавить папку</value>
   </data>
+  <data name="Action_CopyUrl" xml:space="preserve">
+    <value>Скопировать в буфер обмена</value>
+  </data>
   <data name="Action_Delete" xml:space="preserve">
     <value>Удалить</value>
   </data>
@@ -25,7 +28,7 @@
     <value>Редактировать</value>
   </data>
   <data name="Action_Open" xml:space="preserve">
-    <value>Открыть</value>
+    <value>Перейти</value>
   </data>
   <data name="BookmarkEditor_AddBookmarkTitle" xml:space="preserve">
     <value>Добавить закладку</value>

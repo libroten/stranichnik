@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -36,6 +38,7 @@ public partial class MainWindow : Window
     private bool _isMiddleButtonPanning;
     private Point _panStartPoint;
     private Vector _panStartOffset;
+    private BookmarkTreeItemViewModel? _contextMenuItem;
     private BookmarkTreeItemViewModel? _pressedTreeItem;
     private BookmarkTreeItemViewModel? _pressedFolderClickCandidate;
     private BookmarkTreeItemViewModel? _draggedTreeItem;
@@ -168,6 +171,7 @@ public partial class MainWindow : Window
     {
         var shouldOpen = !popup.IsOpen;
 
+        CloseTreeContextMenu();
         CloseMenuPopups();
 
         popup.IsOpen = shouldOpen;
@@ -176,6 +180,7 @@ public partial class MainWindow : Window
 
     private void OpenOnlyMenuPopup(Popup popup, Button button)
     {
+        CloseTreeContextMenu();
         CloseMenuPopups();
         popup.IsOpen = true;
         SetMenuButtonOpen(button, true);
@@ -187,6 +192,27 @@ public partial class MainWindow : Window
         ServiceMenuPopup.IsOpen = false;
         SetMenuButtonOpen(StranichnikMenuButton, false);
         SetMenuButtonOpen(ServiceMenuButton, false);
+    }
+
+    private void CloseAllPopups()
+    {
+        CloseMenuPopups();
+        CloseTreeContextMenu();
+    }
+
+    private void OnMenuPopupShadowHostPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (IsInsideMenuPopup(e.Source))
+            return;
+
+        CloseAllPopups();
+        e.Handled = true;
+    }
+
+    private void CloseTreeContextMenu()
+    {
+        TreeContextMenuPopup.IsOpen = false;
+        _contextMenuItem = null;
     }
 
     private static void SetMenuButtonOpen(Button button, bool isOpen)
@@ -202,23 +228,156 @@ public partial class MainWindow : Window
         button.Classes.Remove("open");
     }
 
+    private static bool IsInsideMenuPopup(object? source)
+    {
+        if (source is not Visual visual)
+            return false;
+
+        if (IsMenuPopupBorder(visual))
+            return true;
+
+        foreach (var ancestor in visual.GetVisualAncestors())
+        {
+            if (IsMenuPopupBorder(ancestor))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsMenuPopupBorder(Visual visual)
+    {
+        return visual is Border border && border.Classes.Contains("menuPopup");
+    }
+
+    private void ShowTreeContextMenu(BookmarkTreeItemViewModel item, Control placementTarget)
+    {
+        CloseMenuPopups();
+        ClearTreePressState();
+
+        _contextMenuItem = item;
+
+        var isBookmark = item is BookmarkViewModel;
+        var isFolder = item is BookmarkFolderViewModel;
+        var isRootFolder = item is BookmarkFolderViewModel { IsRoot: true };
+
+        ContextGoBookmarkMenuItem.IsVisible = isBookmark;
+        ContextCopyBookmarkUrlMenuItem.IsVisible = isBookmark;
+        ContextBookmarkSeparator.IsVisible = isBookmark;
+        ContextAddBookmarkMenuItem.IsVisible = isFolder;
+        ContextAddFolderMenuItem.IsVisible = isFolder;
+        ContextEditMenuItem.IsVisible = !isRootFolder;
+        ContextDeleteMenuItem.IsVisible = !isRootFolder;
+
+        TreeContextMenuPopup.IsOpen = false;
+        TreeContextMenuPopup.PlacementTarget = placementTarget;
+        TreeContextMenuPopup.IsOpen = true;
+    }
+
+    private async void OnContextGoBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        var item = _contextMenuItem;
+        CloseTreeContextMenu();
+
+        if (item is BookmarkViewModel bookmark)
+            await OpenBookmarkAsync(bookmark);
+
+        e.Handled = true;
+    }
+
+    private async void OnContextCopyBookmarkUrlClick(object? sender, RoutedEventArgs e)
+    {
+        var item = _contextMenuItem;
+        CloseTreeContextMenu();
+
+        if (item is BookmarkViewModel bookmark)
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard is not null)
+                await clipboard.SetTextAsync(bookmark.Url);
+        }
+
+        e.Handled = true;
+    }
+
+    private async void OnContextAddBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        var item = _contextMenuItem;
+        CloseTreeContextMenu();
+
+        if (item is BookmarkFolderViewModel folder)
+            await AddBookmarkToFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
+    private async void OnContextAddFolderClick(object? sender, RoutedEventArgs e)
+    {
+        var item = _contextMenuItem;
+        CloseTreeContextMenu();
+
+        if (item is BookmarkFolderViewModel folder)
+            await AddFolderToFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
+    private async void OnContextEditClick(object? sender, RoutedEventArgs e)
+    {
+        var item = _contextMenuItem;
+        CloseTreeContextMenu();
+
+        if (item is BookmarkViewModel bookmark)
+            await EditBookmarkAsync(bookmark);
+        else if (item is BookmarkFolderViewModel folder && !folder.IsRoot)
+            await EditFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
+    private async void OnContextDeleteClick(object? sender, RoutedEventArgs e)
+    {
+        var item = _contextMenuItem;
+        CloseTreeContextMenu();
+
+        if (item is BookmarkViewModel bookmark)
+            await DeleteBookmarkAsync(bookmark);
+        else if (item is BookmarkFolderViewModel folder && !folder.IsRoot)
+            await DeleteFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key != Key.Escape || !HasOpenMenuPopup())
             return;
 
-        CloseMenuPopups();
+        CloseAllPopups();
         e.Handled = true;
     }
 
     private bool HasOpenMenuPopup()
     {
-        return StranichnikMenuPopup.IsOpen || ServiceMenuPopup.IsOpen;
+        return StranichnikMenuPopup.IsOpen || ServiceMenuPopup.IsOpen || TreeContextMenuPopup.IsOpen;
     }
 
     private void OnTreeRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = e.GetCurrentPoint(this);
+        if (point.Properties.IsRightButtonPressed)
+        {
+            if (sender is Control control &&
+                control.DataContext is BookmarkTreeItemViewModel contextItem)
+            {
+                ShowTreeContextMenu(contextItem, control);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (!point.Properties.IsLeftButtonPressed)
             return;
 
         if (e.Source is Control source && HasButtonAncestor(source))
@@ -238,28 +397,8 @@ public partial class MainWindow : Window
 
     private async void OnAddBookmarkClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            sender is not Control { DataContext: BookmarkFolderViewModel folder })
-        {
-            return;
-        }
-
-        var dialog = BookmarkEditorDialog.AddBookmark();
-        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
-
-        if (result is null)
-            return;
-
-        var addResult = viewModel.AddBookmarkToFolderStart(
-            folder,
-            result.Title,
-            result.Url,
-            result.IconSelection);
-        if (addResult.WasAdded)
-        {
-            folder.IsExpanded = true;
-            UpdateBookmarksHorizontalOverflow();
-        }
+        if (sender is Control { DataContext: BookmarkFolderViewModel folder })
+            await AddBookmarkToFolderAsync(folder);
 
         e.Handled = true;
     }
@@ -268,11 +407,8 @@ public partial class MainWindow : Window
     {
         e.Handled = true;
 
-        if (sender is not Control { DataContext: BookmarkViewModel bookmark })
-            return;
-
-        if (!TryOpenBookmarkUrl(bookmark.Url, out var errorMessage))
-            await MessageDialog.ShowError(this, UiStrings.ErrorOpenPageTitle, errorMessage);
+        if (sender is Control { DataContext: BookmarkViewModel bookmark })
+            await OpenBookmarkAsync(bookmark);
     }
 
     private async void OnOpenSearchResultClick(object? sender, RoutedEventArgs e)
@@ -296,11 +432,96 @@ public partial class MainWindow : Window
 
     private async void OnEditBookmarkClick(object? sender, RoutedEventArgs e)
     {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            sender is not Control { DataContext: BookmarkViewModel bookmark })
-        {
+        if (sender is Control { DataContext: BookmarkViewModel bookmark })
+            await EditBookmarkAsync(bookmark);
+
+        e.Handled = true;
+    }
+
+    private async void OnAddFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: BookmarkFolderViewModel folder })
+            await AddFolderToFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
+    private async void OnEditFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: BookmarkFolderViewModel folder })
+            await EditFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
+    private async void OnDeleteBookmarkClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: BookmarkViewModel bookmark })
+            await DeleteBookmarkAsync(bookmark);
+
+        e.Handled = true;
+    }
+
+    private async void OnDeleteFolderClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { DataContext: BookmarkFolderViewModel folder })
+            await DeleteFolderAsync(folder);
+
+        e.Handled = true;
+    }
+
+    private async Task AddBookmarkToFolderAsync(BookmarkFolderViewModel folder)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
             return;
+
+        var dialog = BookmarkEditorDialog.AddBookmark();
+        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+
+        if (result is null)
+            return;
+
+        var addResult = viewModel.AddBookmarkToFolderStart(
+            folder,
+            result.Title,
+            result.Url,
+            result.IconSelection);
+        if (addResult.WasAdded)
+        {
+            folder.IsExpanded = true;
+            UpdateBookmarksHorizontalOverflow();
         }
+    }
+
+    private async Task AddFolderToFolderAsync(BookmarkFolderViewModel folder)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        var dialog = BookmarkEditorDialog.AddFolder();
+        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+
+        if (result is null)
+            return;
+
+        var addResult = viewModel.AddFolderToFolderStart(folder, result.Title, result.IconSelection);
+        if (addResult.WasAdded)
+        {
+            folder.IsExpanded = true;
+            UpdateBookmarksHorizontalOverflow();
+        }
+    }
+
+    private async Task OpenBookmarkAsync(BookmarkViewModel bookmark)
+    {
+        if (!TryOpenBookmarkUrl(bookmark.Url, out var errorMessage))
+            await MessageDialog.ShowError(this, UiStrings.ErrorOpenPageTitle, errorMessage);
+    }
+
+    private async Task EditBookmarkAsync(BookmarkViewModel bookmark)
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
 
         var dialog = BookmarkEditorDialog.EditBookmark(bookmark.Title, bookmark.Url, bookmark.IconImage);
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
@@ -310,41 +531,12 @@ public partial class MainWindow : Window
             viewModel.EditBookmark(bookmark, result.Title, result.Url, result.IconSelection);
             UpdateBookmarksHorizontalOverflow();
         }
-
-        e.Handled = true;
     }
 
-    private async void OnAddFolderClick(object? sender, RoutedEventArgs e)
+    private async Task EditFolderAsync(BookmarkFolderViewModel folder)
     {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            sender is not Control { DataContext: BookmarkFolderViewModel folder })
-        {
+        if (DataContext is not MainWindowViewModel viewModel)
             return;
-        }
-
-        var dialog = BookmarkEditorDialog.AddFolder();
-        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
-
-        if (result is not null)
-        {
-            var addResult = viewModel.AddFolderToFolderStart(folder, result.Title, result.IconSelection);
-            if (addResult.WasAdded)
-            {
-                folder.IsExpanded = true;
-                UpdateBookmarksHorizontalOverflow();
-            }
-        }
-
-        e.Handled = true;
-    }
-
-    private async void OnEditFolderClick(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            sender is not Control { DataContext: BookmarkFolderViewModel folder })
-        {
-            return;
-        }
 
         var dialog = BookmarkEditorDialog.EditFolder(folder.Title, folder.IconImage);
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
@@ -354,17 +546,12 @@ public partial class MainWindow : Window
             viewModel.EditFolder(folder, result.Title, result.IconSelection);
             UpdateBookmarksHorizontalOverflow();
         }
-
-        e.Handled = true;
     }
 
-    private async void OnDeleteBookmarkClick(object? sender, RoutedEventArgs e)
+    private async Task DeleteBookmarkAsync(BookmarkViewModel bookmark)
     {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            sender is not Control { DataContext: BookmarkViewModel bookmark })
-        {
+        if (DataContext is not MainWindowViewModel viewModel)
             return;
-        }
 
         var confirmed = await ConfirmDialog.ShowDeleteBookmark(this, bookmark.Title);
         if (confirmed)
@@ -372,17 +559,12 @@ public partial class MainWindow : Window
             viewModel.DeleteItem(bookmark);
             UpdateBookmarksHorizontalOverflow();
         }
-
-        e.Handled = true;
     }
 
-    private async void OnDeleteFolderClick(object? sender, RoutedEventArgs e)
+    private async Task DeleteFolderAsync(BookmarkFolderViewModel folder)
     {
-        if (DataContext is not MainWindowViewModel viewModel ||
-            sender is not Control { DataContext: BookmarkFolderViewModel folder })
-        {
+        if (DataContext is not MainWindowViewModel viewModel)
             return;
-        }
 
         var confirmed = await ConfirmDialog.ShowDeleteFolder(this, folder.Title);
         if (confirmed)
@@ -390,8 +572,6 @@ public partial class MainWindow : Window
             viewModel.DeleteItem(folder);
             UpdateBookmarksHorizontalOverflow();
         }
-
-        e.Handled = true;
     }
 
     private static bool TryOpenBookmarkUrl(string url, out string errorMessage)
@@ -695,9 +875,14 @@ public partial class MainWindow : Window
 
     private void ClearTreePressState(PointerEventArgs e)
     {
+        ClearTreePressState();
+        e.Pointer.Capture(null);
+    }
+
+    private void ClearTreePressState()
+    {
         _pressedTreeItem = null;
         _pressedFolderClickCandidate = null;
-        e.Pointer.Capture(null);
     }
 
     private void ClearTreeDrag()

@@ -507,6 +507,11 @@
                         <Setter Property="BorderBrush" Value="{DynamicResource WorkAreaBorderBrush}"/>
                         <Setter Property="BorderThickness" Value="1"/>
                         <Setter Property="CornerRadius" Value="6"/>
+                        <Setter Property="BoxShadow" Value="0 12 28 -4 #4A000000, 0 2 8 0 #26000000"/>
+                    </Style>
+                    <Style Selector="Border.menuPopupShadowHost">
+                        <Setter Property="Padding" Value="24"/>
+                        <Setter Property="Background" Value="Transparent"/>
                     </Style>
                     <Style Selector="Button.menuPopupItem">
                         <Setter Property="MinWidth" Value="0"/>
@@ -565,49 +570,105 @@
                 <primitives:Popup x:Name="StranichnikMenuPopup"
                                   PlacementTarget="{Binding ElementName=StranichnikMenuButton}"
                                   Placement="BottomEdgeAlignedLeft"
-                                  VerticalOffset="8"
+                                  HorizontalOffset="-24"
+                                  VerticalOffset="-16"
                                   IsLightDismissEnabled="True"
                                   OverlayDismissEventPassThrough="True"
                                   OverlayInputPassThroughElement="{Binding ElementName=MenuBarRoot}"
                                   Closed="OnMenuPopupClosed">
-                    <Border Classes="menuPopup">
-                        <StackPanel>
-                            <Button Classes="menuPopupItem"
-                                    Click="OnMenuPopupItemClick">
-                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppAbout}"/>
-                            </Button>
-                            <Border Classes="menuPopupSeparator"/>
-                            <Button Classes="menuPopupItem"
-                                    Click="OnMenuPopupItemClick">
-                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppSettings}"/>
-                            </Button>
-                            <Button Classes="menuPopupItem"
-                                    Click="OnMenuPopupItemClick">
-                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppExit}"/>
-                            </Button>
-                        </StackPanel>
+                    <Border Classes="menuPopupShadowHost"
+                            PointerPressed="OnMenuPopupShadowHostPointerPressed">
+                        <Border Classes="menuPopup">
+                            <StackPanel>
+                                <Button Classes="menuPopupItem"
+                                        Click="OnMenuPopupItemClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppAbout}"/>
+                                </Button>
+                                <Border Classes="menuPopupSeparator"/>
+                                <Button Classes="menuPopupItem"
+                                        Click="OnMenuPopupItemClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppSettings}"/>
+                                </Button>
+                                <Button Classes="menuPopupItem"
+                                        Click="OnMenuPopupItemClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppExit}"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
                     </Border>
                 </primitives:Popup>
 
                 <primitives:Popup x:Name="ServiceMenuPopup"
                                   PlacementTarget="{Binding ElementName=ServiceMenuButton}"
                                   Placement="BottomEdgeAlignedLeft"
-                                  VerticalOffset="8"
+                                  HorizontalOffset="-24"
+                                  VerticalOffset="-16"
                                   IsLightDismissEnabled="True"
                                   OverlayDismissEventPassThrough="True"
                                   OverlayInputPassThroughElement="{Binding ElementName=MenuBarRoot}"
                                   Closed="OnMenuPopupClosed">
-                    <Border Classes="menuPopup">
-                        <StackPanel>
-                            <Button Classes="menuPopupItem"
-                                    Click="OnAppearanceMenuClick">
-                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceAppearance}"/>
-                            </Button>
-                            <Button Classes="menuPopupItem"
-                                    Click="OnLanguageMenuClick">
-                                <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceLanguage}"/>
-                            </Button>
-                        </StackPanel>
+                    <Border Classes="menuPopupShadowHost"
+                            PointerPressed="OnMenuPopupShadowHostPointerPressed">
+                        <Border Classes="menuPopup">
+                            <StackPanel>
+                                <Button Classes="menuPopupItem"
+                                        Click="OnAppearanceMenuClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceAppearance}"/>
+                                </Button>
+                                <Button Classes="menuPopupItem"
+                                        Click="OnLanguageMenuClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceLanguage}"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+                </primitives:Popup>
+
+                <primitives:Popup x:Name="TreeContextMenuPopup"
+                                  Placement="Pointer"
+                                  HorizontalOffset="-24"
+                                  VerticalOffset="-24"
+                                  IsLightDismissEnabled="True"
+                                  OverlayDismissEventPassThrough="True">
+                    <Border Classes="menuPopupShadowHost"
+                            PointerPressed="OnMenuPopupShadowHostPointerPressed">
+                        <Border Classes="menuPopup"
+                                MinWidth="210">
+                            <StackPanel>
+                                <Button x:Name="ContextGoBookmarkMenuItem"
+                                        Classes="menuPopupItem"
+                                        Click="OnContextGoBookmarkClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.ActionOpen}"/>
+                                </Button>
+                                <Button x:Name="ContextCopyBookmarkUrlMenuItem"
+                                        Classes="menuPopupItem"
+                                        Click="OnContextCopyBookmarkUrlClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.ActionCopyUrl}"/>
+                                </Button>
+                                <Border x:Name="ContextBookmarkSeparator"
+                                        Classes="menuPopupSeparator"/>
+                                <Button x:Name="ContextAddBookmarkMenuItem"
+                                        Classes="menuPopupItem"
+                                        Click="OnContextAddBookmarkClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.ActionAddBookmark}"/>
+                                </Button>
+                                <Button x:Name="ContextAddFolderMenuItem"
+                                        Classes="menuPopupItem"
+                                        Click="OnContextAddFolderClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.ActionAddFolder}"/>
+                                </Button>
+                                <Button x:Name="ContextEditMenuItem"
+                                        Classes="menuPopupItem"
+                                        Click="OnContextEditClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.ActionEdit}"/>
+                                </Button>
+                                <Button x:Name="ContextDeleteMenuItem"
+                                        Classes="menuPopupItem"
+                                        Click="OnContextDeleteClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.ActionDelete}"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
                     </Border>
                 </primitives:Popup>
             </Grid>

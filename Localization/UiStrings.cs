@@ -4,6 +4,7 @@ public static class UiStrings
 {
     public static string ActionAddBookmark => TextResources.Get("Action_AddBookmark");
     public static string ActionAddFolder => TextResources.Get("Action_AddFolder");
+    public static string ActionCopyUrl => TextResources.Get("Action_CopyUrl");
     public static string ActionDelete => TextResources.Get("Action_Delete");
     public static string ActionEdit => TextResources.Get("Action_Edit");
     public static string ActionOpen => TextResources.Get("Action_Open");
