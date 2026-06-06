@@ -1,6 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Stranichnik.Search;
 using Stranichnik.Searching;
+using Stranichnik.Security;
 using Stranichnik.Storage;
 using Stranichnik.ViewModels;
 using Xunit;
@@ -234,6 +237,40 @@ public sealed class MainWindowViewModelStorageTests
     }
 
     [Fact]
+    public void AddSecretBookmarkToFolderStart_encrypts_storage_and_indexes_visible_projection()
+    {
+        var store = new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(
+            store,
+            profileStore,
+            session);
+        var targetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+        viewModel.CreateMasterPassword("password", showSecrets: true);
+
+        var result = viewModel.AddSecretBookmarkToFolderStart(
+            targetFolder,
+            "Secret Search Target",
+            "https://secret.example.com");
+
+        var bookmark = Assert.IsType<BookmarkViewModel>(result.Bookmark);
+        var storageRecord = Assert.Single(store.Load().Items, item => item.Id == bookmark.Id);
+
+        Assert.True(result.WasAdded);
+        Assert.True(bookmark.IsSecret);
+        Assert.Null(bookmark.IconImage);
+        Assert.Equal("Secret Search Target", bookmark.Title);
+        Assert.Equal("https://secret.example.com", bookmark.Url);
+        Assert.True(storageRecord.IsSecret);
+        Assert.Null(storageRecord.Title);
+        Assert.Null(storageRecord.Url);
+        Assert.NotNull(storageRecord.EncryptedPayload);
+        Assert.Equal(bookmark.Id, Assert.Single(viewModel.SearchBookmarks("secret target")).Id);
+    }
+
+    [Fact]
     public void EditBookmark_updates_search_index()
     {
         var viewModel = CreateViewModel();
@@ -276,6 +313,28 @@ public sealed class MainWindowViewModelStorageTests
 
         Assert.Empty(viewModel.SearchBookmarks("avaloniaui"));
         Assert.Empty(viewModel.SearchBookmarks("nuget"));
+    }
+
+    [Fact]
+    public void DeleteItem_rebuilds_search_from_visible_secret_projection_after_folder_delete()
+    {
+        using var session = CreateSecretSession(showSecrets: true, out var crypto, out var secretRecord);
+        var viewModel = CreateViewModel(
+            new BookmarkTreeSnapshot(
+            [
+                CreateFolder("normal-folder", parentId: null),
+                CreateBookmark("normal", "normal-folder", "Normal Bookmark", "https://normal.example.com"),
+                secretRecord
+            ]),
+            session,
+            crypto);
+        var folder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "normal-folder"));
+
+        viewModel.DeleteItem(folder);
+
+        Assert.Empty(viewModel.SearchBookmarks("normal bookmark"));
+        Assert.Equal("secret", Assert.Single(viewModel.SearchBookmarks("secret title")).Id);
     }
 
     [Fact]
@@ -324,11 +383,317 @@ public sealed class MainWindowViewModelStorageTests
         Assert.False(viewModel.HasNoSearchResults);
     }
 
+    [Fact]
+    public void Constructor_hides_secret_bookmarks_from_tree_and_search_when_secrets_are_hidden()
+    {
+        using var session = CreateSecretSession(showSecrets: false, out var crypto, out var secretRecord);
+        var viewModel = CreateViewModel(
+            new BookmarkTreeSnapshot(
+            [
+                CreateFolder("secret-folder", parentId: null),
+                secretRecord with
+                {
+                    ParentId = "secret-folder"
+                },
+                CreateBookmark("normal", parentId: null, "Normal Bookmark", "https://normal.example.com")
+            ]),
+            session,
+            crypto);
+
+        Assert.DoesNotContain(viewModel.Items, item => item.Id == "secret-folder");
+        Assert.DoesNotContain(viewModel.Items, item => item.Id == "secret");
+        Assert.Contains(viewModel.Items, item => item.Id == "normal");
+        Assert.Empty(viewModel.SearchBookmarks("secret title"));
+        Assert.Equal("normal", Assert.Single(viewModel.SearchBookmarks("normal bookmark")).Id);
+    }
+
+    [Fact]
+    public void Constructor_shows_and_indexes_secret_bookmarks_when_secrets_are_visible()
+    {
+        using var session = CreateSecretSession(showSecrets: true, out var crypto, out var secretRecord);
+        var viewModel = CreateViewModel(
+            new BookmarkTreeSnapshot([secretRecord]),
+            session,
+            crypto);
+
+        var bookmark = Assert.IsType<BookmarkViewModel>(Assert.Single(viewModel.Items));
+
+        Assert.Equal("secret", bookmark.Id);
+        Assert.Equal("Secret Title", bookmark.Title);
+        Assert.Equal("https://secret.example.com", bookmark.Url);
+        Assert.Equal("secret", Assert.Single(viewModel.SearchBookmarks("secret title")).Id);
+    }
+
+    [Fact]
+    public void Secret_session_state_change_rebuilds_tree_and_current_search_results()
+    {
+        using var session = CreateSecretSession(showSecrets: true, out var crypto, out var secretRecord);
+        var viewModel = CreateViewModel(
+            new BookmarkTreeSnapshot([secretRecord]),
+            session,
+            crypto);
+        viewModel.SearchQuery = "secret title";
+
+        session.HideSecrets();
+
+        Assert.Empty(viewModel.Items);
+        Assert.Empty(viewModel.SearchResults);
+        Assert.Empty(viewModel.SearchBookmarks("secret title"));
+        Assert.True(viewModel.IsSearchActive);
+        Assert.True(viewModel.HasNoSearchResults);
+    }
+
+    [Fact]
+    public void UnlockSecrets_with_correct_password_shows_secret_bookmarks()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var crypto = new SecretCryptoService(TestPbkdf2Iterations);
+        var viewModel = new MainWindowViewModel(
+            store,
+            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+            secretProfileStore: profileStore,
+            secretCryptoService: crypto,
+            secretSession: session,
+            secretProjectionService: new SecretBookmarkProjectionService(crypto));
+        var setupResult = viewModel.CreateMasterPassword("password", showSecrets: false);
+        var profile = Assert.IsType<CryptoProfileRecord>(setupResult.Profile);
+        var encrypted = crypto.EncryptBookmarkPayload(
+            new SecretBookmarkPayloadV1("Secret Title", "https://secret.example.com"),
+            Assert.IsType<RuntimeSecretKey>(session.BorrowDataKey()),
+            profile.Id,
+            "secret");
+        store.AddSecretBookmarkToFolderStart(
+            parentId: null,
+            bookmarkId: "secret",
+            encryptedPayload: new EncryptedBookmarkPayloadRecord(
+                encrypted.Payload,
+                encrypted.Nonce,
+                encrypted.CryptoProfileId,
+                encrypted.PayloadFormatVersion));
+        session.LockAndForgetKey();
+
+        var result = viewModel.UnlockSecrets("password", showSecrets: true);
+
+        Assert.True(result.WasUnlocked);
+        Assert.True(viewModel.IsSecretSessionUnlocked);
+        Assert.True(viewModel.AreSecretsVisible);
+        Assert.Contains(viewModel.Items, item => item.Id == "secret");
+    }
+
+    [Fact]
+    public void HideSecretsByUserAction_hides_visible_secrets_without_locking_session()
+    {
+        using var session = CreateSecretSession(showSecrets: true, out var crypto, out var secretRecord);
+        var viewModel = CreateViewModel(
+            new BookmarkTreeSnapshot([secretRecord]),
+            session,
+            crypto);
+
+        viewModel.HideSecretsByUserAction();
+
+        Assert.True(viewModel.IsSecretSessionUnlocked);
+        Assert.False(viewModel.AreSecretsVisible);
+        Assert.Empty(viewModel.Items);
+    }
+
+    [Fact]
+    public void HideSecretsByInactivityTimeout_hides_visible_secrets_without_locking_session()
+    {
+        using var session = CreateSecretSession(showSecrets: true, out var crypto, out var secretRecord);
+        var viewModel = CreateViewModel(
+            new BookmarkTreeSnapshot([secretRecord]),
+            session,
+            crypto);
+
+        viewModel.HideSecretsByInactivityTimeout();
+
+        Assert.True(viewModel.IsSecretSessionUnlocked);
+        Assert.False(viewModel.AreSecretsVisible);
+        Assert.Empty(viewModel.Items);
+    }
+
+    [Fact]
+    public void SaveSecretMasterPassword_creates_profile_when_missing()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+
+        var result = viewModel.SaveSecretMasterPassword("password");
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.WasCreated);
+        Assert.True(viewModel.IsSecretProfileConfigured);
+        Assert.True(viewModel.IsSecretSessionUnlocked);
+        Assert.False(viewModel.AreSecretsVisible);
+    }
+
+    [Fact]
+    public void SaveSecretMasterPassword_changes_profile_when_unlocked()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var crypto = new SecretCryptoService(TestPbkdf2Iterations);
+        var viewModel = new MainWindowViewModel(
+            store,
+            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+            secretProfileStore: profileStore,
+            secretCryptoService: crypto,
+            secretSession: session,
+            secretProjectionService: new SecretBookmarkProjectionService(crypto));
+        viewModel.CreateMasterPassword("old password", showSecrets: false);
+
+        var result = viewModel.SaveSecretMasterPassword("new password");
+
+        var profile = Assert.IsType<CryptoProfileRecord>(profileStore.LoadActiveProfile());
+        using var newUnlockKey = Assert.IsType<RuntimeSecretKey>(crypto.Unlock(profile, "new password").DataKey);
+        Assert.True(result.Succeeded);
+        Assert.False(result.WasCreated);
+        Assert.False(crypto.Unlock(profile, "old password").IsSuccess);
+        Assert.False(newUnlockKey.IsDisposed);
+    }
+
+    [Fact]
+    public void SaveSecretMasterPassword_requires_unlock_for_existing_profile()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+        viewModel.CreateMasterPassword("old password", showSecrets: false);
+        session.LockAndForgetKey();
+
+        var result = viewModel.SaveSecretMasterPassword("new password");
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(SecretPasswordSaveFailureReason.UnlockRequired, result.FailureReason);
+    }
+
     private static MainWindowViewModel CreateViewModel()
     {
-        return new MainWindowViewModel(
-            new InMemoryBookmarkTreeStore(SampleBookmarkRecordsFactory.Create().Items),
-            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+        return CreateViewModel(
+            SampleBookmarkRecordsFactory.Create(),
+            secretSession: null,
+            secretCryptoService: null,
             expandedFolderIds: SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
     }
+
+    private static MainWindowViewModel CreateViewModel(
+        BookmarkTreeSnapshot snapshot,
+        ISecretSessionService? secretSession,
+        ISecretCryptoService? secretCryptoService,
+        IReadOnlySet<string>? expandedFolderIds = null)
+    {
+        var store = new InMemoryBookmarkTreeStore(snapshot.Items);
+        var cryptoService = secretCryptoService ?? new SecretCryptoService(TestPbkdf2Iterations);
+
+        return new MainWindowViewModel(
+            store,
+            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+            expandedFolderIds: expandedFolderIds,
+            secretCryptoService: cryptoService,
+            secretSession: secretSession,
+            secretProjectionService: new SecretBookmarkProjectionService(cryptoService));
+    }
+
+    private static MainWindowViewModel CreateViewModel(
+        InMemoryBookmarkTreeStore store,
+        ISecretProfileStore secretProfileStore,
+        ISecretSessionService secretSession)
+    {
+        var cryptoService = new SecretCryptoService(TestPbkdf2Iterations);
+
+        return new MainWindowViewModel(
+            store,
+            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+            expandedFolderIds: SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds(),
+            secretProfileStore: secretProfileStore,
+            secretCryptoService: cryptoService,
+            secretSession: secretSession,
+            secretProjectionService: new SecretBookmarkProjectionService(cryptoService));
+    }
+
+    private static SecretSessionService CreateSecretSession(
+        bool showSecrets,
+        out SecretCryptoService crypto,
+        out BookmarkItemRecord secretRecord)
+    {
+        crypto = new SecretCryptoService(TestPbkdf2Iterations);
+        var created = crypto.CreateProfile("password", Now);
+        var session = new SecretSessionService();
+        session.ConfigureAndUnlock(created.DataKey, showSecrets);
+        var encrypted = crypto.EncryptBookmarkPayload(
+            new SecretBookmarkPayloadV1("Secret Title", "https://secret.example.com"),
+            Assert.IsType<RuntimeSecretKey>(session.BorrowDataKey()),
+            created.Profile.Id,
+            "secret");
+        secretRecord = new BookmarkItemRecord(
+            "secret",
+            ParentId: null,
+            BookmarkItemKind.Bookmark,
+            SortOrder: 1000,
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            new EncryptedBookmarkPayloadRecord(
+                encrypted.Payload,
+                encrypted.Nonce,
+                encrypted.CryptoProfileId,
+                encrypted.PayloadFormatVersion),
+            CreateMetadata());
+
+        return session;
+    }
+
+    private static BookmarkItemRecord CreateFolder(string id, string? parentId)
+    {
+        return new BookmarkItemRecord(
+            id,
+            parentId,
+            BookmarkItemKind.Folder,
+            SortOrder: 1000,
+            $"Folder {id}",
+            Url: null,
+            IsSecret: false,
+            EncryptedPayload: null,
+            CreateMetadata());
+    }
+
+    private static BookmarkItemRecord CreateBookmark(
+        string id,
+        string? parentId,
+        string title,
+        string url)
+    {
+        return new BookmarkItemRecord(
+            id,
+            parentId,
+            BookmarkItemKind.Bookmark,
+            SortOrder: 1000,
+            title,
+            url,
+            IsSecret: false,
+            EncryptedPayload: null,
+            CreateMetadata());
+    }
+
+    private static BookmarkItemMetadata CreateMetadata()
+    {
+        return new BookmarkItemMetadata(
+            Now,
+            Now,
+            DeletedAtUtc: null,
+            Revision: 1,
+            BookmarkSyncState.Clean,
+            RemoteEtag: null,
+            LastSyncedAtUtc: null,
+            ModifiedDeviceId: "test");
+    }
+
+    private const int TestPbkdf2Iterations = 1000;
+    private static readonly DateTimeOffset Now = new(2026, 6, 6, 12, 0, 0, TimeSpan.Zero);
 }

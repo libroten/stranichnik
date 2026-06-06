@@ -195,6 +195,44 @@
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
             <Setter Property="MaxWidth" Value="68"/>
         </Style>
+        <Style Selector="CheckBox.secretToggle">
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border x:Name="Box"
+                                Width="18"
+                                Height="18"
+                                Background="{DynamicResource DialogInputBackgroundBrush}"
+                                BorderBrush="{DynamicResource DialogInputBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Path x:Name="CheckMark"
+                                  Data="M4 9L8 13L14 5"
+                                  Stroke="{DynamicResource TextOnAccentBrush}"
+                                  StrokeThickness="2"
+                                  StrokeLineCap="Round"
+                                  IsVisible="False"/>
+                        </Border>
+                        <ContentPresenter Grid.Column="1"
+                                          Content="{TemplateBinding Content}"
+                                          Margin="8,0,0,0"
+                                          VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="CheckBox.secretToggle:pointerover /template/ Border#Box">
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="CheckBox.secretToggle:checked /template/ Border#Box">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+        </Style>
+        <Style Selector="CheckBox.secretToggle:checked /template/ Path#CheckMark">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
     </Window.Styles>
 
     <Border Padding="20"
@@ -205,6 +243,13 @@
                        FontSize="18"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+            <CheckBox x:Name="SecretCheckBox"
+                      Classes="secretToggle"
+                      IsVisible="False"
+                      Click="OnSecretCheckClick">
+                <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorSecretBookmarkLabel}"/>
+            </CheckBox>
 
             <StackPanel x:Name="IconFieldPanel"
                         Spacing="6">

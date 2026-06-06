@@ -103,6 +103,32 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         return bookmark;
     }
 
+    public BookmarkItemRecord AddSecretBookmarkToFolderStart(
+        string? parentId,
+        string bookmarkId,
+        EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        var normalizedBookmarkId = NormalizeRequired(bookmarkId, nameof(bookmarkId));
+        ValidateEncryptedPayload(encryptedPayload);
+        EnsureParentFolderExists(parentId);
+
+        var now = _clock();
+        var bookmark = new BookmarkItemRecord(
+            normalizedBookmarkId,
+            parentId,
+            BookmarkItemKind.Bookmark,
+            AllocateStartSortOrder(parentId),
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            encryptedPayload,
+            CreateMetadata(now));
+
+        _items.Add(bookmark);
+
+        return bookmark;
+    }
+
     public BookmarkItemRecord AddFolderToFolderStart(
         string? parentId,
         string title)
@@ -150,6 +176,53 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         });
     }
 
+    public BookmarkItemRecord EditBookmarkAsSecret(
+        string bookmarkId,
+        EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        ValidateEncryptedPayload(encryptedPayload);
+        var bookmark = GetVisibleItem(bookmarkId);
+
+        if (bookmark.Kind != BookmarkItemKind.Bookmark)
+            throw new InvalidOperationException("Only bookmarks can be edited as secret bookmarks.");
+
+        return Replace(bookmark with
+        {
+            Title = null,
+            Url = null,
+            IsSecret = true,
+            EncryptedPayload = encryptedPayload,
+            IconAssetId = null,
+            Metadata = Touch(bookmark.Metadata)
+        });
+    }
+
+    public BookmarkItemRecord EditSecretBookmarkAsPlaintext(
+        string bookmarkId,
+        string title,
+        string url)
+    {
+        var normalizedTitle = NormalizeRequired(title, nameof(title));
+        var normalizedUrl = NormalizeRequired(url, nameof(url));
+        var bookmark = GetVisibleItem(bookmarkId);
+
+        if (bookmark.Kind != BookmarkItemKind.Bookmark)
+            throw new InvalidOperationException("Only bookmarks can be edited as bookmarks.");
+
+        if (!bookmark.IsSecret)
+            throw new InvalidOperationException("Only secret bookmarks can be converted to plaintext bookmarks.");
+
+        return Replace(bookmark with
+        {
+            Title = normalizedTitle,
+            Url = normalizedUrl,
+            IsSecret = false,
+            EncryptedPayload = null,
+            IconAssetId = null,
+            Metadata = Touch(bookmark.Metadata)
+        });
+    }
+
     public BookmarkItemRecord EditFolder(
         string folderId,
         string title)
@@ -172,6 +245,9 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         string? iconAssetId)
     {
         var item = GetVisibleItem(itemId);
+
+        if (item.IsSecret && iconAssetId is not null)
+            throw new InvalidOperationException("Secret bookmarks cannot use custom icons.");
 
         if (iconAssetId is not null && GetIconAsset(iconAssetId) is null)
             throw new InvalidOperationException("Icon asset was not found.");
@@ -376,5 +452,18 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             throw new ArgumentException("Value cannot be empty.", parameterName);
 
         return normalized;
+    }
+
+    private static void ValidateEncryptedPayload(EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        ArgumentNullException.ThrowIfNull(encryptedPayload);
+
+        if (encryptedPayload.Payload.IsEmpty ||
+            encryptedPayload.Nonce.IsEmpty ||
+            encryptedPayload.CryptoProfileId <= 0 ||
+            encryptedPayload.PayloadFormatVersion <= 0)
+        {
+            throw new ArgumentException("Encrypted bookmark payload is invalid.", nameof(encryptedPayload));
+        }
     }
 }

@@ -24,7 +24,8 @@ internal static class BookmarkSearchDocumentMapper
 
         return record.Kind == BookmarkItemKind.Bookmark
             && record.Metadata.DeletedAtUtc is null
-            && !record.IsSecret;
+            && !string.IsNullOrWhiteSpace(record.Title)
+            && !string.IsNullOrWhiteSpace(record.Url);
     }
 
     public static BookmarkSearchDocument CreateDocument(BookmarkItemRecord record)

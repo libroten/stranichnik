@@ -44,6 +44,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encrypted_payload,
                 encryption_nonce,
                 crypto_profile_id,
+                secret_payload_format_version,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -153,6 +154,37 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         return record;
     }
 
+    public BookmarkItemRecord AddSecretBookmarkToFolderStart(
+        string? parentId,
+        string bookmarkId,
+        EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        var normalizedBookmarkId = NormalizeRequired(bookmarkId, nameof(bookmarkId));
+        ValidateEncryptedPayload(encryptedPayload);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        EnsureParentFolderExists(connection, transaction, parentId);
+
+        var now = _clock();
+        var record = new BookmarkItemRecord(
+            normalizedBookmarkId,
+            parentId,
+            BookmarkItemKind.Bookmark,
+            AllocateStartSortOrder(connection, transaction, parentId),
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            encryptedPayload,
+            CreateMetadata(now));
+
+        InsertRecord(connection, transaction, record);
+        transaction.Commit();
+
+        return record;
+    }
+
     public BookmarkItemRecord AddFolderToFolderStart(
         string? parentId,
         string title)
@@ -214,6 +246,71 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         return updated;
     }
 
+    public BookmarkItemRecord EditBookmarkAsSecret(
+        string bookmarkId,
+        EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        ValidateEncryptedPayload(encryptedPayload);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var bookmark = GetVisibleItem(connection, transaction, bookmarkId);
+
+        if (bookmark.Kind != BookmarkItemKind.Bookmark)
+            throw new InvalidOperationException("Only bookmarks can be edited as secret bookmarks.");
+
+        var updated = bookmark with
+        {
+            Title = null,
+            Url = null,
+            IsSecret = true,
+            EncryptedPayload = encryptedPayload,
+            IconAssetId = null,
+            Metadata = Touch(bookmark.Metadata)
+        };
+
+        UpdateRecord(connection, transaction, updated);
+        transaction.Commit();
+
+        return updated;
+    }
+
+    public BookmarkItemRecord EditSecretBookmarkAsPlaintext(
+        string bookmarkId,
+        string title,
+        string url)
+    {
+        var normalizedTitle = NormalizeRequired(title, nameof(title));
+        var normalizedUrl = NormalizeRequired(url, nameof(url));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var bookmark = GetVisibleItem(connection, transaction, bookmarkId);
+
+        if (bookmark.Kind != BookmarkItemKind.Bookmark)
+            throw new InvalidOperationException("Only bookmarks can be edited as bookmarks.");
+
+        if (!bookmark.IsSecret)
+            throw new InvalidOperationException("Only secret bookmarks can be converted to plaintext bookmarks.");
+
+        var updated = bookmark with
+        {
+            Title = normalizedTitle,
+            Url = normalizedUrl,
+            IsSecret = false,
+            EncryptedPayload = null,
+            IconAssetId = null,
+            Metadata = Touch(bookmark.Metadata)
+        };
+
+        UpdateRecord(connection, transaction, updated);
+        transaction.Commit();
+
+        return updated;
+    }
+
     public BookmarkItemRecord SetItemIconAsset(
         string itemId,
         string? iconAssetId)
@@ -222,6 +319,9 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         using var transaction = connection.BeginTransaction();
 
         var item = GetVisibleItem(connection, transaction, itemId);
+
+        if (item.IsSecret && iconAssetId is not null)
+            throw new InvalidOperationException("Secret bookmarks cannot use custom icons.");
 
         if (iconAssetId is not null && !IconAssetExists(connection, transaction, iconAssetId))
             throw new InvalidOperationException("Icon asset was not found.");
@@ -399,11 +499,21 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         var encryptedPayload = SqliteBookmarkItemMapper.ReadNullableBytes(reader, "encrypted_payload");
         var encryptionNonce = SqliteBookmarkItemMapper.ReadNullableBytes(reader, "encryption_nonce");
         var cryptoProfileId = ReadNullableInt64(reader, "crypto_profile_id");
+        var payloadFormatVersion = ReadNullableInt32(reader, "secret_payload_format_version");
 
         EncryptedBookmarkPayloadRecord? payload = null;
 
-        if (encryptedPayload is not null && encryptionNonce is not null && cryptoProfileId is not null)
-            payload = new EncryptedBookmarkPayloadRecord(encryptedPayload, encryptionNonce, cryptoProfileId.Value);
+        if (encryptedPayload is not null &&
+            encryptionNonce is not null &&
+            cryptoProfileId is not null &&
+            payloadFormatVersion is not null)
+        {
+            payload = new EncryptedBookmarkPayloadRecord(
+                encryptedPayload,
+                encryptionNonce,
+                cryptoProfileId.Value,
+                payloadFormatVersion.Value);
+        }
 
         return new BookmarkItemRecord(
             reader.GetString(reader.GetOrdinal("id")),
@@ -461,6 +571,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encrypted_payload,
                 encryption_nonce,
                 crypto_profile_id,
+                secret_payload_format_version,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -481,6 +592,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 $encryptedPayload,
                 $encryptionNonce,
                 $cryptoProfileId,
+                $secretPayloadFormatVersion,
                 $createdAtUtc,
                 $updatedAtUtc,
                 $deletedAtUtc,
@@ -514,6 +626,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encrypted_payload = $encryptedPayload,
                 encryption_nonce = $encryptionNonce,
                 crypto_profile_id = $cryptoProfileId,
+                secret_payload_format_version = $secretPayloadFormatVersion,
                 created_at_utc = $createdAtUtc,
                 updated_at_utc = $updatedAtUtc,
                 deleted_at_utc = $deletedAtUtc,
@@ -543,6 +656,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.Parameters.AddWithValue("$encryptedPayload", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.Payload.ToArray()));
         command.Parameters.AddWithValue("$encryptionNonce", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.Nonce.ToArray()));
         command.Parameters.AddWithValue("$cryptoProfileId", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.CryptoProfileId));
+        command.Parameters.AddWithValue("$secretPayloadFormatVersion", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.PayloadFormatVersion));
         command.Parameters.AddWithValue("$createdAtUtc", SqliteBookmarkItemMapper.FormatDateTime(record.Metadata.CreatedAtUtc));
         command.Parameters.AddWithValue("$updatedAtUtc", SqliteBookmarkItemMapper.FormatDateTime(record.Metadata.UpdatedAtUtc));
         command.Parameters.AddWithValue("$deletedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.DeletedAtUtc));
@@ -637,6 +751,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encrypted_payload,
                 encryption_nonce,
                 crypto_profile_id,
+                secret_payload_format_version,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -865,6 +980,12 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         return reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
     }
 
+    private static int? ReadNullableInt32(SqliteDataReader reader, string name)
+    {
+        var ordinal = reader.GetOrdinal(name);
+        return reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
+    }
+
     private static string NormalizeRequired(string value, string parameterName)
     {
         var normalized = value.Trim();
@@ -873,5 +994,18 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             throw new ArgumentException("Value cannot be empty.", parameterName);
 
         return normalized;
+    }
+
+    private static void ValidateEncryptedPayload(EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        ArgumentNullException.ThrowIfNull(encryptedPayload);
+
+        if (encryptedPayload.Payload.IsEmpty ||
+            encryptedPayload.Nonce.IsEmpty ||
+            encryptedPayload.CryptoProfileId <= 0 ||
+            encryptedPayload.PayloadFormatVersion <= 0)
+        {
+            throw new ArgumentException("Encrypted bookmark payload is invalid.", nameof(encryptedPayload));
+        }
     }
 }

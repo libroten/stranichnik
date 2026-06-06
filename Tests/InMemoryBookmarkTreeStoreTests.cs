@@ -52,6 +52,26 @@ public sealed class InMemoryBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void AddSecretBookmarkToFolderStart_adds_secret_bookmark_without_plaintext()
+    {
+        var folder = CreateFolder("folder", parentId: null, sortOrder: 1000);
+        var store = CreateStore(folder);
+        var payload = CreateEncryptedPayload();
+
+        var bookmark = store.AddSecretBookmarkToFolderStart("folder", "created-1", payload);
+
+        Assert.Equal(BookmarkItemKind.Bookmark, bookmark.Kind);
+        Assert.Equal("folder", bookmark.ParentId);
+        Assert.Equal("created-1", bookmark.Id);
+        Assert.True(bookmark.IsSecret);
+        Assert.Null(bookmark.Title);
+        Assert.Null(bookmark.Url);
+        Assert.Null(bookmark.IconAssetId);
+        Assert.Same(payload, bookmark.EncryptedPayload);
+        Assert.Same(bookmark, store.Load().Items.First(item => item.Id == "created-1"));
+    }
+
+    [Fact]
     public void EditBookmark_updates_title_url_and_metadata()
     {
         var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
@@ -64,6 +84,63 @@ public sealed class InMemoryBookmarkTreeStoreTests
         Assert.Equal(2, edited.Metadata.Revision);
         Assert.Equal(UpdatedAt, edited.Metadata.UpdatedAtUtc);
         Assert.Equal(BookmarkSyncState.Dirty, edited.Metadata.SyncState);
+    }
+
+    [Fact]
+    public void EditBookmarkAsSecret_clears_plaintext_and_icon()
+    {
+        var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000) with
+        {
+            IconAssetId = "icon"
+        };
+        var store = CreateStore(bookmark);
+        store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
+        var payload = CreateEncryptedPayload();
+
+        var edited = store.EditBookmarkAsSecret("bookmark", payload);
+
+        Assert.True(edited.IsSecret);
+        Assert.Null(edited.Title);
+        Assert.Null(edited.Url);
+        Assert.Null(edited.IconAssetId);
+        Assert.Same(payload, edited.EncryptedPayload);
+        Assert.Equal(2, edited.Metadata.Revision);
+    }
+
+    [Fact]
+    public void EditSecretBookmarkAsPlaintext_restores_plaintext_and_clears_secret_payload()
+    {
+        var bookmark = CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+
+        var edited = store.EditSecretBookmarkAsPlaintext("bookmark", " Title ", " https://example.com ");
+
+        Assert.False(edited.IsSecret);
+        Assert.Equal("Title", edited.Title);
+        Assert.Equal("https://example.com", edited.Url);
+        Assert.Null(edited.EncryptedPayload);
+        Assert.Null(edited.IconAssetId);
+        Assert.Equal(2, edited.Metadata.Revision);
+    }
+
+    [Fact]
+    public void EditSecretBookmarkAsPlaintext_rejects_normal_bookmark()
+    {
+        var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+
+        Assert.Throws<InvalidOperationException>(
+            () => store.EditSecretBookmarkAsPlaintext("bookmark", "Title", "https://example.com"));
+    }
+
+    [Fact]
+    public void EditBookmarkAsSecret_rejects_folder()
+    {
+        var folder = CreateFolder("folder", parentId: null, sortOrder: 1000);
+        var store = CreateStore(folder);
+
+        Assert.Throws<InvalidOperationException>(
+            () => store.EditBookmarkAsSecret("folder", CreateEncryptedPayload()));
     }
 
     [Fact]
@@ -110,6 +187,17 @@ public sealed class InMemoryBookmarkTreeStoreTests
         Assert.Equal("icon", withIcon.IconAssetId);
         Assert.Null(withoutIcon.IconAssetId);
         Assert.Equal(3, withoutIcon.Metadata.Revision);
+    }
+
+    [Fact]
+    public void SetItemIconAsset_rejects_secret_bookmark_custom_icon()
+    {
+        var bookmark = CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+        store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => store.SetItemIconAsset("bookmark", "icon"));
     }
 
     [Fact]
@@ -173,6 +261,33 @@ public sealed class InMemoryBookmarkTreeStoreTests
         Assert.Equal(2, moved.Metadata.Revision);
         Assert.Same(moved, targetItems[0]);
         Assert.Same(targetExistingBookmark, targetItems[1]);
+    }
+
+    [Fact]
+    public void MoveToFolderStart_moves_secret_bookmark_without_decrypting()
+    {
+        var bookmark = CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var targetFolder = CreateFolder("target", parentId: null, sortOrder: 500);
+        var store = CreateStore(bookmark, targetFolder);
+
+        var moved = store.MoveToFolderStart("bookmark", "target");
+
+        Assert.True(moved.IsSecret);
+        Assert.Equal("target", moved.ParentId);
+        Assert.Same(bookmark.EncryptedPayload, moved.EncryptedPayload);
+        Assert.Null(moved.Title);
+        Assert.Null(moved.Url);
+    }
+
+    [Fact]
+    public void DeleteItem_tombstones_secret_bookmark_without_plaintext()
+    {
+        var bookmark = CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+
+        store.DeleteItem("bookmark");
+
+        Assert.Empty(store.Load().Items);
     }
 
     [Fact]
@@ -262,6 +377,23 @@ public sealed class InMemoryBookmarkTreeStoreTests
             CreateMetadata());
     }
 
+    private static BookmarkItemRecord CreateSecretBookmark(
+        string id,
+        string? parentId,
+        long sortOrder)
+    {
+        return new(
+            id,
+            parentId,
+            BookmarkItemKind.Bookmark,
+            sortOrder,
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            CreateEncryptedPayload(),
+            CreateMetadata());
+    }
+
     private static BookmarkItemMetadata CreateMetadata()
     {
         return new(
@@ -289,6 +421,17 @@ public sealed class InMemoryBookmarkTreeStoreTests
             CreatedAt);
     }
 
+    private static EncryptedBookmarkPayloadRecord CreateEncryptedPayload()
+    {
+        return new(
+            Payload: EncryptedPayloadBytes,
+            Nonce: EncryptedNonceBytes,
+            CryptoProfileId: 1,
+            PayloadFormatVersion: 1);
+    }
+
+    private static readonly byte[] EncryptedPayloadBytes = [10, 20, 30];
+    private static readonly byte[] EncryptedNonceBytes = [40, 50, 60];
     private static readonly byte[] ProcessedIconBytes = [1, 2, 3];
     private static readonly DateTimeOffset CreatedAt = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset UpdatedAt = new(2026, 1, 2, 0, 0, 0, TimeSpan.Zero);

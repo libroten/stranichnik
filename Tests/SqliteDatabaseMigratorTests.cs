@@ -23,6 +23,9 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.True(TableExists(connection, "icon_assets"));
         Assert.True(TableExists(connection, "items"));
         Assert.True(ColumnExists(connection, "items", "icon_asset_id"));
+        Assert.True(ColumnExists(connection, "items", "secret_payload_format_version"));
+        Assert.True(ColumnExists(connection, "crypto_profiles", "wrapped_data_key"));
+        Assert.True(ColumnExists(connection, "crypto_profiles", "kdf_hash_algorithm"));
     }
 
     [Fact]
@@ -90,6 +93,32 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
         Assert.True(TableExists(upgradedConnection, "icon_assets"));
         Assert.True(ColumnExists(upgradedConnection, "items", "icon_asset_id"));
+        Assert.True(ColumnExists(upgradedConnection, "items", "secret_payload_format_version"));
+        Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "wrapped_data_key"));
+        Assert.Equal("Title", GetItemTitle(upgradedConnection, "bookmark"));
+    }
+
+    [Fact]
+    public void Migrate_upgrades_version_2_schema_to_current_version()
+    {
+        using var database = TempSqliteDatabase.Create();
+        using (var connection = database.OpenConnection())
+        {
+            CreateLegacyVersion2Schema(connection);
+        }
+
+        var migrator = database.CreateMigrator();
+
+        var result = migrator.Migrate();
+
+        using var upgradedConnection = database.OpenConnection();
+
+        Assert.True(result.MigrationApplied);
+        Assert.Equal(2, result.PreviousVersion);
+        Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
+        Assert.True(ColumnExists(upgradedConnection, "items", "secret_payload_format_version"));
+        Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "wrapped_data_key"));
+        Assert.Equal("Title", GetItemTitle(upgradedConnection, "bookmark"));
     }
 
     [Fact]
@@ -147,11 +176,205 @@ public sealed class SqliteDatabaseMigratorTests
                 value TEXT NOT NULL
             );
 
-            CREATE TABLE items (
-                id TEXT PRIMARY KEY
+            CREATE TABLE crypto_profiles (
+                id INTEGER PRIMARY KEY,
+                kdf_name TEXT NOT NULL,
+                kdf_iterations INTEGER NOT NULL,
+                salt BLOB NOT NULL,
+                encryption_algorithm TEXT NOT NULL,
+                password_check_payload BLOB NULL,
+                password_check_nonce BLOB NULL,
+                created_at_utc TEXT NOT NULL
             );
 
+            CREATE TABLE items (
+                id TEXT PRIMARY KEY,
+                parent_id TEXT NULL REFERENCES items(id) ON DELETE RESTRICT,
+                item_type TEXT NOT NULL CHECK (item_type IN ('folder', 'bookmark')),
+                sort_order INTEGER NOT NULL,
+                title TEXT NULL,
+                url TEXT NULL,
+                is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
+                encrypted_payload BLOB NULL,
+                encryption_nonce BLOB NULL,
+                crypto_profile_id INTEGER NULL REFERENCES crypto_profiles(id),
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                deleted_at_utc TEXT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                content_hash TEXT NULL,
+                sync_state TEXT NOT NULL DEFAULT 'dirty'
+                    CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
+                remote_etag TEXT NULL,
+                last_synced_at_utc TEXT NULL,
+                modified_device_id TEXT NOT NULL
+            );
+
+            CREATE INDEX idx_items_parent_order
+                ON items(parent_id, deleted_at_utc, sort_order DESC, id);
+
+            CREATE INDEX idx_items_sync_state
+                ON items(sync_state);
+
+            CREATE INDEX idx_items_updated_at
+                ON items(updated_at_utc);
+
+            INSERT INTO items (
+                id,
+                parent_id,
+                item_type,
+                sort_order,
+                title,
+                url,
+                is_secret,
+                encrypted_payload,
+                encryption_nonce,
+                crypto_profile_id,
+                created_at_utc,
+                updated_at_utc,
+                deleted_at_utc,
+                revision,
+                content_hash,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                modified_device_id)
+            VALUES (
+                'bookmark',
+                NULL,
+                'bookmark',
+                1000,
+                'Title',
+                'https://example.com',
+                0,
+                NULL,
+                NULL,
+                NULL,
+                '2026-01-01T00:00:00.0000000Z',
+                '2026-01-01T00:00:00.0000000Z',
+                NULL,
+                1,
+                NULL,
+                'dirty',
+                NULL,
+                NULL,
+                'test-device');
+
             PRAGMA user_version = 1;
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void CreateLegacyVersion2Schema(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE app_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            CREATE TABLE crypto_profiles (
+                id INTEGER PRIMARY KEY,
+                kdf_name TEXT NOT NULL,
+                kdf_iterations INTEGER NOT NULL,
+                salt BLOB NOT NULL,
+                encryption_algorithm TEXT NOT NULL,
+                password_check_payload BLOB NULL,
+                password_check_nonce BLOB NULL,
+                created_at_utc TEXT NOT NULL
+            );
+
+            CREATE TABLE icon_assets (
+                id TEXT PRIMARY KEY,
+                source_hash_algorithm TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_size_bytes INTEGER NOT NULL,
+                processed_mime_type TEXT NOT NULL,
+                processed_width INTEGER NOT NULL,
+                processed_height INTEGER NOT NULL,
+                processed_bytes BLOB NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                UNIQUE (source_hash_algorithm, source_hash)
+            );
+
+            CREATE TABLE items (
+                id TEXT PRIMARY KEY,
+                parent_id TEXT NULL REFERENCES items(id) ON DELETE RESTRICT,
+                item_type TEXT NOT NULL CHECK (item_type IN ('folder', 'bookmark')),
+                sort_order INTEGER NOT NULL,
+                title TEXT NULL,
+                url TEXT NULL,
+                icon_asset_id TEXT NULL REFERENCES icon_assets(id),
+                is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
+                encrypted_payload BLOB NULL,
+                encryption_nonce BLOB NULL,
+                crypto_profile_id INTEGER NULL REFERENCES crypto_profiles(id),
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                deleted_at_utc TEXT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                content_hash TEXT NULL,
+                sync_state TEXT NOT NULL DEFAULT 'dirty'
+                    CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
+                remote_etag TEXT NULL,
+                last_synced_at_utc TEXT NULL,
+                modified_device_id TEXT NOT NULL
+            );
+
+            CREATE INDEX idx_items_parent_order
+                ON items(parent_id, deleted_at_utc, sort_order DESC, id);
+
+            CREATE INDEX idx_items_sync_state
+                ON items(sync_state);
+
+            CREATE INDEX idx_items_updated_at
+                ON items(updated_at_utc);
+
+            INSERT INTO items (
+                id,
+                parent_id,
+                item_type,
+                sort_order,
+                title,
+                url,
+                icon_asset_id,
+                is_secret,
+                encrypted_payload,
+                encryption_nonce,
+                crypto_profile_id,
+                created_at_utc,
+                updated_at_utc,
+                deleted_at_utc,
+                revision,
+                content_hash,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                modified_device_id)
+            VALUES (
+                'bookmark',
+                NULL,
+                'bookmark',
+                1000,
+                'Title',
+                'https://example.com',
+                NULL,
+                0,
+                NULL,
+                NULL,
+                NULL,
+                '2026-01-01T00:00:00.0000000Z',
+                '2026-01-01T00:00:00.0000000Z',
+                NULL,
+                1,
+                NULL,
+                'dirty',
+                NULL,
+                NULL,
+                'test-device');
+
+            PRAGMA user_version = 2;
             """;
         command.ExecuteNonQuery();
     }
@@ -198,6 +421,15 @@ public sealed class SqliteDatabaseMigratorTests
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT value FROM app_meta WHERE key = $key;";
         command.Parameters.AddWithValue("$key", key);
+
+        return Assert.IsType<string>(command.ExecuteScalar());
+    }
+
+    private static string GetItemTitle(SqliteConnection connection, string itemId)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT title FROM items WHERE id = $itemId;";
+        command.Parameters.AddWithValue("$itemId", itemId);
 
         return Assert.IsType<string>(command.ExecuteScalar());
     }

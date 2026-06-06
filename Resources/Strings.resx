@@ -72,6 +72,9 @@
   <data name="BookmarkEditor_IconUploaded" xml:space="preserve">
     <value>Uploaded</value>
   </data>
+  <data name="BookmarkEditor_SecretBookmarkLabel" xml:space="preserve">
+    <value>Secret bookmark</value>
+  </data>
   <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
     <value>Title</value>
   </data>
@@ -173,6 +176,93 @@
   </data>
   <data name="Search_Placeholder" xml:space="preserve">
     <value>Search bookmarks</value>
+  </data>
+  <data name="Secret_SetupFailedMessage" xml:space="preserve">
+    <value>Could not set up secret bookmarks. Please try again.</value>
+  </data>
+  <data name="Secret_SetupFailedTitle" xml:space="preserve">
+    <value>Secret setup failed</value>
+  </data>
+  <data name="Secret_UnlockRequiredMessage" xml:space="preserve">
+    <value>Unlock secret bookmarks first.</value>
+  </data>
+  <data name="Secret_UnlockRequiredTitle" xml:space="preserve">
+    <value>Unlock required</value>
+  </data>
+  <data name="Settings_SecretBookmarksDescription" xml:space="preserve">
+    <value>Set or change the master password used to unlock secret bookmarks.</value>
+  </data>
+  <data name="Settings_SecretBookmarksSectionTitle" xml:space="preserve">
+    <value>Secret bookmarks</value>
+  </data>
+  <data name="Settings_SecretNewPasswordLabel" xml:space="preserve">
+    <value>New master password</value>
+  </data>
+  <data name="Settings_SecretPasswordChanged" xml:space="preserve">
+    <value>Master password changed.</value>
+  </data>
+  <data name="Settings_SecretPasswordCreated" xml:space="preserve">
+    <value>Master password set.</value>
+  </data>
+  <data name="Settings_SecretPasswordRequired" xml:space="preserve">
+    <value>Enter a master password.</value>
+  </data>
+  <data name="Settings_SecretPasswordSaveFailed" xml:space="preserve">
+    <value>Could not save the master password.</value>
+  </data>
+  <data name="Settings_SecretPasswordsDoNotMatch" xml:space="preserve">
+    <value>Passwords do not match.</value>
+  </data>
+  <data name="Settings_SecretRepeatPasswordLabel" xml:space="preserve">
+    <value>Repeat master password</value>
+  </data>
+  <data name="Settings_SecretSavePasswordAction" xml:space="preserve">
+    <value>Save password</value>
+  </data>
+  <data name="Settings_SecretUnlockRequired" xml:space="preserve">
+    <value>Unlock secret bookmarks first, then try again.</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SetMasterPassword_PasswordLabel" xml:space="preserve">
+    <value>Master password</value>
+  </data>
+  <data name="SetMasterPassword_PasswordRequired" xml:space="preserve">
+    <value>Enter a master password.</value>
+  </data>
+  <data name="SetMasterPassword_PasswordsDoNotMatch" xml:space="preserve">
+    <value>Passwords do not match.</value>
+  </data>
+  <data name="SetMasterPassword_RepeatPasswordLabel" xml:space="preserve">
+    <value>Repeat password</value>
+  </data>
+  <data name="SetMasterPassword_Title" xml:space="preserve">
+    <value>Set master password</value>
+  </data>
+  <data name="SetMasterPassword_Warning" xml:space="preserve">
+    <value>This password protects secret bookmarks. There is no password recovery, so keep it somewhere safe.</value>
+  </data>
+  <data name="UnlockSecrets_Action" xml:space="preserve">
+    <value>Unlock</value>
+  </data>
+  <data name="UnlockSecrets_FailedMessage" xml:space="preserve">
+    <value>Could not unlock secret bookmarks. Check the password and try again.</value>
+  </data>
+  <data name="UnlockSecrets_NotConfiguredMessage" xml:space="preserve">
+    <value>Secret bookmarks are not configured yet.</value>
+  </data>
+  <data name="UnlockSecrets_NotConfiguredTitle" xml:space="preserve">
+    <value>Secrets are not configured</value>
+  </data>
+  <data name="UnlockSecrets_PasswordLabel" xml:space="preserve">
+    <value>Master password</value>
+  </data>
+  <data name="UnlockSecrets_PasswordRequired" xml:space="preserve">
+    <value>Enter the master password.</value>
+  </data>
+  <data name="UnlockSecrets_Title" xml:space="preserve">
+    <value>Unlock secret bookmarks</value>
   </data>
   <data name="AppearanceDialog_DarkTheme" xml:space="preserve">
     <value>Dark</value>

@@ -51,6 +51,8 @@ public sealed class BookmarkSearchServiceTests
         service.AddOrUpdate(CreateBookmark("bookmark", "Visible", "https://visible.example.com") with
         {
             IsSecret = true,
+            Title = null,
+            Url = null,
         });
 
         Assert.Empty(service.Search("visible"));

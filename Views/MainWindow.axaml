@@ -586,7 +586,7 @@
                                 </Button>
                                 <Border Classes="menuPopupSeparator"/>
                                 <Button Classes="menuPopupItem"
-                                        Click="OnMenuPopupItemClick">
+                                        Click="OnSettingsMenuClick">
                                     <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppSettings}"/>
                                 </Button>
                                 <Button Classes="menuPopupItem"

@@ -12,10 +12,11 @@ The storage design should support:
 
 - Current in-memory bookmark/folder CRUD behavior.
 - SQLite persistence.
-- Future selective encryption.
+- Selective secret bookmark encryption.
 - Future in-memory search indexing.
 - Future WebDAV item-level sync.
 - Tombstone-based deletes.
+- Secret crypto profile storage for selective encryption.
 
 The storage design should avoid:
 
@@ -36,6 +37,16 @@ Avalonia UI
 ```
 
 This is the storage boundary. SQLite is the runtime implementation behind the interface rather than being called directly from UI code. `InMemoryBookmarkTreeStore` remains as a test/reference implementation.
+
+Secret crypto profile storage is a separate boundary:
+
+```text
+Security/application code
+  -> ISecretProfileStore
+    -> SqliteSecretProfileStore
+```
+
+`ISecretProfileStore` stores the active crypto profile used for DEK/KEK-based secret bookmark encryption. It is intentionally separate from `IBookmarkTreeStore` so tree CRUD and crypto-profile lifecycle can evolve independently.
 
 ## Target Shape
 
@@ -169,6 +180,17 @@ public interface IBookmarkTreeStore
 }
 ```
 
+Secret profile store:
+
+```csharp
+public interface ISecretProfileStore
+{
+    CryptoProfileRecord? LoadActiveProfile();
+    CryptoProfileRecord SaveNewProfile(CryptoProfileRecord profile);
+    CryptoProfileRecord UpdateProfile(CryptoProfileRecord profile);
+}
+```
+
 Notes:
 
 - `parentId = null` means top-level item under the synthetic root.
@@ -256,8 +278,9 @@ Search should consume bookmark records or domain projections from the applicatio
 
 First implementation direction:
 
-- Build an in-memory search index from loaded non-secret bookmark records.
-- After secret unlock, decrypt secret bookmarks and add them to the in-memory index.
+- Build an in-memory search index from the current visible bookmark projection.
+- While secrets are hidden, that projection excludes secret bookmark records.
+- After secret unlock, decrypt secret bookmarks into an in-memory projection and rebuild the index from that projected snapshot.
 - Update the index after add/edit/delete/move through centralized operation results.
 
 No persistent plaintext search index should be written for secret bookmarks.

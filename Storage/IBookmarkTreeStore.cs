@@ -17,11 +17,25 @@ public interface IBookmarkTreeStore
         string title,
         string url);
 
+    BookmarkItemRecord AddSecretBookmarkToFolderStart(
+        string? parentId,
+        string bookmarkId,
+        EncryptedBookmarkPayloadRecord encryptedPayload);
+
     BookmarkItemRecord AddFolderToFolderStart(
         string? parentId,
         string title);
 
     BookmarkItemRecord EditBookmark(
+        string bookmarkId,
+        string title,
+        string url);
+
+    BookmarkItemRecord EditBookmarkAsSecret(
+        string bookmarkId,
+        EncryptedBookmarkPayloadRecord encryptedPayload);
+
+    BookmarkItemRecord EditSecretBookmarkAsPlaintext(
         string bookmarkId,
         string title,
         string url);

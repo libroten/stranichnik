@@ -9,7 +9,7 @@ namespace Stranichnik.Tests;
 public sealed class BookmarkSearchDocumentMapperTests
 {
     [Fact]
-    public void CreateDocumentsIndexesVisibleNonSecretBookmarksOnly()
+    public void CreateDocumentsIndexesBookmarksWithVisibleTitleAndUrlOnly()
     {
         var snapshot = new BookmarkTreeSnapshot(
         [
@@ -19,7 +19,11 @@ public sealed class BookmarkSearchDocumentMapperTests
             {
                 Metadata = CreateMetadata(deletedAtUtc: UpdatedAt),
             },
-            CreateBookmark("secret", "Secret", "https://secret.example.com") with
+            CreateBookmark("hidden-secret", title: null, url: null) with
+            {
+                IsSecret = true,
+            },
+            CreateBookmark("visible-secret", "Visible Secret", "https://secret.example.com") with
             {
                 IsSecret = true,
             },
@@ -27,10 +31,20 @@ public sealed class BookmarkSearchDocumentMapperTests
 
         var documents = BookmarkSearchDocumentMapper.CreateDocuments(snapshot).ToList();
 
-        var document = Assert.Single(documents);
-        Assert.Equal("visible", document.Id);
-        Assert.Equal("Visible", document.Title);
-        Assert.Equal("https://visible.example.com", document.Url);
+        Assert.Collection(
+            documents,
+            document =>
+            {
+                Assert.Equal("visible", document.Id);
+                Assert.Equal("Visible", document.Title);
+                Assert.Equal("https://visible.example.com", document.Url);
+            },
+            document =>
+            {
+                Assert.Equal("visible-secret", document.Id);
+                Assert.Equal("Visible Secret", document.Title);
+                Assert.Equal("https://secret.example.com", document.Url);
+            });
     }
 
     [Fact]

@@ -1,0 +1,141 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Stranichnik.Localization"
+        x:Class="Stranichnik.Views.SettingsDialog"
+        Title="{x:Static localization:UiStrings.SettingsDialogTitle}"
+        Width="520"
+        Height="560"
+        MinWidth="420"
+        MinHeight="360"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnKeyDown">
+    <Window.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="PlaceholderForeground" Value="{DynamicResource PlaceholderTextBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource CaretBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Padding" Value="10,7"/>
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="PlaceholderForeground" Value="{DynamicResource PlaceholderTextBrush}"/>
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="PlaceholderForeground" Value="{DynamicResource PlaceholderTextBrush}"/>
+        </Style>
+        <Style Selector="TextBox /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton">
+            <Setter Property="Width" Value="140"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.dialogButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton:focus">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.status.error">
+            <Setter Property="Foreground" Value="{DynamicResource TextErrorBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.status.success">
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextSecondaryBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="{DynamicResource DialogBackgroundBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="22"
+                        Spacing="22">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretBookmarksSectionTitle}"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+                    <Border Height="1"
+                            Background="{DynamicResource DialogInputBorderBrush}"/>
+
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretBookmarksDescription}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretNewPasswordLabel}"
+                                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                            <TextBox x:Name="NewMasterPasswordTextBox"
+                                     PasswordChar="*"/>
+                        </StackPanel>
+
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretRepeatPasswordLabel}"
+                                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                            <TextBox x:Name="RepeatMasterPasswordTextBox"
+                                     PasswordChar="*"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="SecretPasswordStatusTextBlock"
+                                   Classes="status"
+                                   IsVisible="False"
+                                   TextWrapping="Wrap"/>
+
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Right">
+                            <Button Classes="dialogButton"
+                                    Click="OnSaveSecretPasswordClick">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretSavePasswordAction}"/>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Border>
+</Window>

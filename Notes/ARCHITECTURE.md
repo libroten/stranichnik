@@ -45,6 +45,12 @@ Current dialog windows:
 - `Views/MessageDialog.axaml.cs`
 - `Views/AppearanceDialog.axaml`
 - `Views/AppearanceDialog.axaml.cs`
+- `Views/SetMasterPasswordDialog.axaml`
+- `Views/SetMasterPasswordDialog.axaml.cs`
+- `Views/UnlockSecretsDialog.axaml`
+- `Views/UnlockSecretsDialog.axaml.cs`
+- `Views/SettingsDialog.axaml`
+- `Views/SettingsDialog.axaml.cs`
 
 The UI is a tree-like bookmark catalog:
 
@@ -73,11 +79,15 @@ The synthetic root folder is special:
 Dialogs:
 
 - `BookmarkEditorDialog` handles add/edit for both bookmarks and folders.
+- `BookmarkEditorDialog` can mark bookmarks as secret. Secret bookmark editing hides custom icon choices in v1.
 - For bookmark add/edit, `BookmarkEditorDialog` can fetch page metadata from the entered URL and show the discovered page title as a clickable suggestion.
 - `ConfirmDialog` handles delete confirmation for bookmarks and folders.
 - `LanguageDialog` handles choosing the application UI language.
 - `MessageDialog` handles one-button messages, currently used when opening a page fails.
 - `AppearanceDialog` handles choosing the application theme.
+- `SetMasterPasswordDialog` handles first-time secret master password setup.
+- `UnlockSecretsDialog` handles secret bookmark unlock.
+- `SettingsDialog` is scrollable and currently contains the first secret-bookmark settings section for changing the master password.
 - Dialogs use `Esc` as cancel/close behavior.
 
 Menus:
@@ -211,7 +221,7 @@ Theme implementation files:
 Theme switching UI:
 
 - `Service -> Appearance` opens `Views/AppearanceDialog.axaml`.
-- `Stranichnik -> Settings` is currently a placeholder and only closes the menu.
+- `Stranichnik -> Settings` opens `Views/SettingsDialog.axaml`.
 - The appearance dialog currently supports `Light` and `Dark`.
 - The selected theme is saved in `settings.json` and applied immediately.
 
@@ -271,6 +281,7 @@ Important types:
 - `Items`: alias for `RootFolder.Children`.
 - `IBookmarkTreeStore`: storage boundary for tree data. The default runtime implementation is SQLite.
 - `BookmarkSearchService`: application-side search boundary backed by `Stranichnik.Search`.
+- Secret bookmark services for crypto profile setup, unlock, visibility projection, and master password changes.
 - `SearchQuery` and `SearchResults`: current search UI state.
 
 `BookmarkTreeItemViewModel` is the common base for folders and bookmarks. It currently stores:
@@ -292,6 +303,69 @@ Important types:
 `BookmarkViewModel` stores:
 
 - `Url`
+- `IsSecret`
+
+## Secret Bookmarks
+
+Selective bookmark encryption is implemented for bookmark title and URL payloads.
+
+Important files:
+
+- `Security/SecretCryptoService.cs`
+- `Security/SecretSessionService.cs`
+- `Security/SecretBookmarkProjectionService.cs`
+- `Security/SecretProfileSetupService.cs`
+- `Security/SecretUnlockService.cs`
+- `Security/SecretMasterPasswordChangeService.cs`
+- `Storage/ISecretProfileStore.cs`
+- `Storage/InMemorySecretProfileStore.cs`
+- `Storage/Sqlite/SqliteSecretProfileStore.cs`
+
+Current crypto shape:
+
+- The app uses application-level encryption for secret bookmark payloads, not whole-database encryption.
+- A secret crypto profile is stored in SQLite table `crypto_profiles`.
+- The current profile uses PBKDF2-SHA256 with a per-profile salt and AES-256-GCM.
+- The implementation uses a DEK/KEK model:
+  - a random Data Encryption Key encrypts bookmark payloads;
+  - a Key Encryption Key is derived from the master password;
+  - the KEK wraps the DEK in the crypto profile;
+  - changing the master password rewraps the DEK and does not re-encrypt every bookmark payload.
+- `items.encrypted_payload`, `items.encryption_nonce`, `items.crypto_profile_id`, and `items.secret_payload_format_version` store encrypted bookmark payload metadata.
+- Secret bookmark plaintext `title` and `url` columns are `NULL`.
+- Secret bookmarks have `items.icon_asset_id = NULL` in v1. Encrypted custom icons are deferred and documented in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
+
+Current session behavior:
+
+- Secret bookmarks are hidden after app startup.
+- `Cmd+P` on macOS and `Ctrl+P` on Windows/Linux toggles secret visibility.
+- If a crypto profile exists but the session is locked, showing secrets opens `UnlockSecretsDialog`.
+- After a successful unlock, the runtime data key stays in memory for the current app session.
+- Hiding secrets after unlock does not forget the runtime key.
+- After one minute without tracked UI activity, visible secret bookmarks are hidden automatically.
+- Passive pointer hover does not count as activity; pointer presses/releases, wheel, key input, menu actions, and context actions do.
+
+Projection behavior:
+
+- `MainWindowViewModel` loads the raw storage snapshot.
+- `SecretBookmarkProjectionService` filters or decrypts secret bookmarks depending on `SecretSessionService` state.
+- Hidden secret bookmarks are not passed to the tree mapper or search index.
+- Folders that contain only hidden secret bookmarks are also hidden from the visible tree.
+- When secrets are visible, decrypted bookmark payloads are projected into normal visible bookmark records in memory only.
+- The search index remains in memory and is rebuilt from the visible projection, so locked secret bookmarks are not searchable.
+
+UI behavior:
+
+- The bookmark editor can create and edit secret bookmarks.
+- If the user tries to create a secret bookmark before a master password exists, the app asks to create the master password first.
+- The settings window allows changing the master password.
+- If a crypto profile exists and the session is locked, changing the master password first asks for the current master password without forcing secrets to become visible.
+- Secret bookmarks currently use the default bookmark icon only.
+
+Logging/privacy constraints:
+
+- It is acceptable to log secret subsystem state transitions and failure reasons.
+- Do not log master passwords, derived keys, salts, nonces, ciphertext, encrypted payloads, URLs, titles, folder names, search queries, or local icon file paths.
 
 ## Search
 
@@ -309,8 +383,8 @@ Current search behavior:
 
 - The main app references `Stranichnik.Search`.
 - `BookmarkSearchService` owns an `InMemoryBookmarkSearchIndex`.
-- `MainWindowViewModel` loads storage once at startup, rebuilds the search index from that snapshot, and builds the visible tree from the same snapshot.
-- Only visible non-secret bookmark records are indexed.
+- `MainWindowViewModel` loads storage, applies the secret-bookmark projection, rebuilds the search index from that visible projection, and builds the visible tree from the same projection.
+- Only visible bookmark records are indexed.
 - Folders are not indexed.
 - Search index updates happen after successful add/edit/delete bookmark operations.
 - Folder deletion currently rebuilds the index from storage so descendant bookmarks do not remain searchable.
@@ -322,7 +396,8 @@ Privacy constraints:
 - The index is in memory only.
 - Do not persist search index files.
 - Do not log search queries, search diagnostics, bookmark titles, URLs, or indexed tokens.
-- Secret bookmarks must stay unindexed until future unlock/decryption support exists.
+- Locked/hidden secret bookmarks must stay unindexed.
+- Visible unlocked secret bookmarks may be indexed in memory only.
 
 ## Sample Data
 

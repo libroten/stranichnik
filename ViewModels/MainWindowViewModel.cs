@@ -4,10 +4,12 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Avalonia.Media;
+using Stranichnik.Diagnostics;
 using Stranichnik.Icons;
 using Stranichnik.Localization;
 using Stranichnik.Search;
 using Stranichnik.Searching;
+using Stranichnik.Security;
 using Stranichnik.Storage;
 
 namespace Stranichnik.ViewModels;
@@ -22,6 +24,25 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly BookmarkSearchService _searchService;
     private readonly BookmarkIconImageCache _iconImageCache;
     private readonly IconAssetService _iconAssetService;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The view model intentionally depends on the crypto abstraction so secret behavior can be tested independently.")]
+    private readonly ISecretCryptoService _secretCryptoService;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The view model intentionally depends on the profile store abstraction so SQLite and tests can use different implementations.")]
+    private readonly ISecretProfileStore _secretProfileStore;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The view model intentionally depends on the secret session abstraction so session behavior can be tested independently.")]
+    private readonly ISecretSessionService _secretSession;
+    private readonly SecretBookmarkProjectionService _secretProjectionService;
+    private readonly SecretProfileSetupService _secretProfileSetupService;
+    private readonly SecretUnlockService _secretUnlockService;
+    private readonly SecretMasterPasswordChangeService _secretMasterPasswordChangeService;
     private readonly Dictionary<string, BookmarkViewModel> _bookmarkViewModelsById = new(StringComparer.Ordinal);
     private string _searchQuery = string.Empty;
 
@@ -29,7 +50,11 @@ public partial class MainWindowViewModel : ViewModelBase
         IBookmarkTreeStore treeStore,
         BookmarkSearchService searchService,
         BookmarkIconImageCache? iconImageCache = null,
-        IReadOnlySet<string>? expandedFolderIds = null)
+        IReadOnlySet<string>? expandedFolderIds = null,
+        ISecretProfileStore? secretProfileStore = null,
+        ISecretCryptoService? secretCryptoService = null,
+        ISecretSessionService? secretSession = null,
+        SecretBookmarkProjectionService? secretProjectionService = null)
     {
         ArgumentNullException.ThrowIfNull(treeStore);
         ArgumentNullException.ThrowIfNull(searchService);
@@ -38,22 +63,31 @@ public partial class MainWindowViewModel : ViewModelBase
         _searchService = searchService;
         _iconImageCache = iconImageCache ?? new BookmarkIconImageCache(treeStore);
         _iconAssetService = new IconAssetService(_treeStore, new IconImageProcessor());
-
-        var snapshot = _treeStore.Load();
-        _searchService.Rebuild(snapshot);
-
-        var items = BookmarkTreeViewModelMapper.CreateViewModels(
-            snapshot,
-            expandedFolderIds,
-            _iconImageCache);
+        _secretProfileStore = secretProfileStore ?? new InMemorySecretProfileStore();
+        _secretCryptoService = secretCryptoService ?? new SecretCryptoService();
+        _secretSession = secretSession ?? new SecretSessionService();
+        _secretProjectionService = secretProjectionService ?? new SecretBookmarkProjectionService(_secretCryptoService);
+        _secretProfileSetupService = new SecretProfileSetupService(
+            _secretProfileStore,
+            _secretCryptoService,
+            _secretSession);
+        _secretUnlockService = new SecretUnlockService(
+            _secretProfileStore,
+            _secretCryptoService,
+            _secretSession);
+        _secretMasterPasswordChangeService = new SecretMasterPasswordChangeService(
+            _secretProfileStore,
+            _secretCryptoService,
+            _secretSession);
+        _secretSession.StateChanged += OnSecretSessionStateChanged;
 
         RootFolder = new BookmarkFolderViewModel(
             UiStrings.RootAllBookmarks,
-            items,
+            children: null,
             isExpanded: true,
             isRoot: true);
 
-        RebuildBookmarkLookup();
+        ReloadVisibleTreeAndSearch(expandedFolderIds);
     }
 
     public BookmarkFolderViewModel RootFolder { get; }
@@ -82,6 +116,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasNoSearchResults => IsSearchActive && SearchResults.Count == 0;
 
+    public bool IsSecretProfileConfigured => _secretProfileStore.LoadActiveProfile() is not null;
+
+    public bool IsSecretSessionUnlocked => _secretSession.IsUnlocked;
+
+    public bool AreSecretsVisible => _secretSession.AreSecretsVisible;
+
     public IReadOnlyList<BookmarkSearchResult> SearchBookmarks(
         string query,
         BookmarkSearchOptions? options = null)
@@ -89,9 +129,114 @@ public partial class MainWindowViewModel : ViewModelBase
         return _searchService.Search(query, options);
     }
 
+    public BookmarkFolderViewModel? FindFolder(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        if (RootFolder.Id == id)
+            return RootFolder;
+
+        return EnumerateFolders(RootFolder.Children)
+            .FirstOrDefault(folder => folder.Id == id);
+    }
+
+    public BookmarkViewModel? FindBookmark(string id)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        return EnumerateItems(Items)
+            .OfType<BookmarkViewModel>()
+            .FirstOrDefault(bookmark => bookmark.Id == id);
+    }
+
+    public void ReloadVisibleTreeAndSearch()
+    {
+        ReloadVisibleTreeAndSearch(captureExpandedFolderIds: true);
+    }
+
     public void ClearSearch()
     {
         SearchQuery = string.Empty;
+    }
+
+    public SecretProfileSetupResult CreateMasterPassword(
+        string masterPassword,
+        bool showSecrets)
+    {
+        var result = _secretProfileSetupService.CreateMasterPassword(masterPassword, showSecrets);
+        OnPropertyChanged(nameof(IsSecretProfileConfigured));
+        OnPropertyChanged(nameof(IsSecretSessionUnlocked));
+        OnPropertyChanged(nameof(AreSecretsVisible));
+        return result;
+    }
+
+    public SecretSessionUnlockResult UnlockSecrets(
+        string masterPassword,
+        bool showSecrets)
+    {
+        var result = _secretUnlockService.Unlock(masterPassword, showSecrets);
+        OnPropertyChanged(nameof(IsSecretSessionUnlocked));
+        OnPropertyChanged(nameof(AreSecretsVisible));
+        return result;
+    }
+
+    public bool ShowSecrets()
+    {
+        if (!_secretSession.IsUnlocked)
+            return false;
+
+        try
+        {
+            _secretSession.ShowSecrets();
+            Logs.Print("Secrets shown.");
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    public void HideSecretsByUserAction()
+    {
+        var wereVisible = _secretSession.AreSecretsVisible;
+        _secretSession.HideSecrets();
+
+        if (wereVisible)
+            Logs.Print("Secrets hidden by user action.");
+    }
+
+    public void HideSecretsByInactivityTimeout()
+    {
+        var wereVisible = _secretSession.AreSecretsVisible;
+        _secretSession.HideSecrets();
+
+        if (wereVisible)
+            Logs.Print("Secrets hidden by inactivity timeout.");
+    }
+
+    public SecretMasterPasswordChangeResult ChangeMasterPassword(string newMasterPassword)
+    {
+        return _secretMasterPasswordChangeService.ChangeMasterPassword(newMasterPassword);
+    }
+
+    public SecretPasswordSaveResult SaveSecretMasterPassword(string newMasterPassword)
+    {
+        if (!IsSecretProfileConfigured)
+        {
+            var setupResult = CreateMasterPassword(newMasterPassword, showSecrets: false);
+            return setupResult.WasCreated
+                ? SecretPasswordSaveResult.Created()
+                : SecretPasswordSaveResult.Failed(SecretPasswordSaveFailureReason.SetupFailed);
+        }
+
+        if (!IsSecretSessionUnlocked)
+            return SecretPasswordSaveResult.Failed(SecretPasswordSaveFailureReason.UnlockRequired);
+
+        var changeResult = ChangeMasterPassword(newMasterPassword);
+        return changeResult.WasChanged
+            ? SecretPasswordSaveResult.Changed()
+            : SecretPasswordSaveResult.Failed(SecretPasswordSaveFailureReason.ChangeFailed);
     }
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
@@ -191,6 +336,60 @@ public partial class MainWindowViewModel : ViewModelBase
             targetIndex: 0);
     }
 
+    public BookmarkTreeAddBookmarkResult AddSecretBookmarkToFolderStart(
+        BookmarkFolderViewModel targetParent,
+        string title,
+        string url)
+    {
+        var bookmarkId = Guid.NewGuid().ToString("N");
+
+        if (!TryCreateEncryptedBookmarkPayload(bookmarkId, title, url, out var encryptedPayload))
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.AddSecretBookmarkToFolderStart(
+                GetStorageParentId(targetParent),
+                bookmarkId,
+                encryptedPayload);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+        }
+
+        var projectedRecord = record with
+        {
+            Title = title,
+            Url = url
+        };
+        var bookmark = new BookmarkViewModel(
+            title,
+            url,
+            record.Id,
+            iconImage: null,
+            isSecret: true)
+        {
+            Parent = targetParent
+        };
+
+        targetParent.Children.Insert(0, bookmark);
+        _bookmarkViewModelsById[bookmark.Id] = bookmark;
+        _searchService.AddOrUpdate(projectedRecord);
+        UpdateSearchResults();
+
+        return BookmarkTreeAddBookmarkResult.Added(
+            bookmark,
+            targetParent,
+            targetIndex: 0);
+    }
+
     public BookmarkTreeAddFolderResult AddFolderToFolderStart(
         BookmarkFolderViewModel targetParent,
         string title,
@@ -279,6 +478,92 @@ public partial class MainWindowViewModel : ViewModelBase
             oldUrl);
     }
 
+    public BookmarkTreeEditBookmarkResult EditBookmarkAsSecret(
+        BookmarkViewModel bookmark,
+        string title,
+        string url)
+    {
+        if (!TryCreateEncryptedBookmarkPayload(bookmark.Id, title, url, out var encryptedPayload))
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.EditBookmarkAsSecret(bookmark.Id, encryptedPayload);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+        }
+
+        var oldTitle = bookmark.Title;
+        var oldUrl = bookmark.Url;
+
+        bookmark.SetTitle(title);
+        bookmark.SetUrl(url);
+        bookmark.SetIsSecret(true);
+        bookmark.SetIconImage(null);
+        _searchService.AddOrUpdate(record with
+        {
+            Title = title,
+            Url = url
+        });
+        UpdateSearchResults();
+
+        return BookmarkTreeEditBookmarkResult.Edited(
+            bookmark,
+            oldTitle,
+            oldUrl);
+    }
+
+    public BookmarkTreeEditBookmarkResult EditSecretBookmarkAsPlaintext(
+        BookmarkViewModel bookmark,
+        string title,
+        string url,
+        BookmarkIconSelection? iconSelection = null)
+    {
+        if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+
+        BookmarkItemRecord record;
+
+        try
+        {
+            record = _treeStore.EditSecretBookmarkAsPlaintext(bookmark.Id, title, url);
+        }
+        catch (ArgumentException)
+        {
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+        }
+        catch (InvalidOperationException)
+        {
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+        }
+
+        if (shouldSetIcon)
+            record = _treeStore.SetItemIconAsset(bookmark.Id, iconAssetId);
+
+        var oldTitle = bookmark.Title;
+        var oldUrl = bookmark.Url;
+
+        bookmark.SetTitle(record.Title ?? string.Empty);
+        bookmark.SetUrl(record.Url ?? string.Empty);
+        bookmark.SetIsSecret(false);
+        bookmark.SetIconImage(_iconImageCache.GetImage(record.IconAssetId));
+        _searchService.AddOrUpdate(record);
+        UpdateSearchResults();
+
+        return BookmarkTreeEditBookmarkResult.Edited(
+            bookmark,
+            oldTitle,
+            oldUrl);
+    }
+
     public BookmarkTreeEditFolderResult EditFolder(
         BookmarkFolderViewModel folder,
         string title,
@@ -346,7 +631,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         else
         {
-            _searchService.Rebuild(_treeStore.Load());
+            RebuildSearchFromVisibleSnapshot();
             RebuildBookmarkLookup();
         }
 
@@ -485,6 +770,73 @@ public partial class MainWindowViewModel : ViewModelBase
             _bookmarkViewModelsById[bookmark.Id] = bookmark;
     }
 
+    private void ReloadVisibleTreeAndSearch(IReadOnlySet<string>? expandedFolderIds)
+    {
+        var snapshot = _treeStore.Load();
+        var projected = _secretProjectionService.Project(snapshot, _secretSession);
+        LogProjectionWarnings(projected);
+        var items = BookmarkTreeViewModelMapper.CreateViewModels(
+            projected.Snapshot,
+            expandedFolderIds,
+            _iconImageCache);
+
+        ReplaceRootChildren(items);
+        _searchService.Rebuild(projected.Snapshot);
+        RebuildBookmarkLookup();
+        UpdateSearchResults();
+    }
+
+    private void ReloadVisibleTreeAndSearch(bool captureExpandedFolderIds)
+    {
+        var expandedFolderIds = captureExpandedFolderIds
+            ? CaptureExpandedFolderIds()
+            : null;
+
+        ReloadVisibleTreeAndSearch(expandedFolderIds);
+    }
+
+    private void RebuildSearchFromVisibleSnapshot()
+    {
+        var projected = _secretProjectionService.Project(_treeStore.Load(), _secretSession);
+        LogProjectionWarnings(projected);
+        _searchService.Rebuild(projected.Snapshot);
+    }
+
+    private static void LogProjectionWarnings(SecretProjectionResult projected)
+    {
+        foreach (var group in projected.Warnings.GroupBy(warning => warning.Reason))
+            Logs.Print($"Secret bookmark projection warning: Reason={group.Key}, Count={group.Count()}.");
+    }
+
+    private HashSet<string> CaptureExpandedFolderIds()
+    {
+        return EnumerateFoldersIncludingRoot()
+            .Where(folder => folder is { IsRoot: false, IsExpanded: true })
+            .Select(folder => folder.Id)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private void ReplaceRootChildren(IEnumerable<BookmarkTreeItemViewModel> items)
+    {
+        RootFolder.Children.Clear();
+
+        foreach (var item in items)
+        {
+            item.Parent = RootFolder;
+            RootFolder.Children.Add(item);
+        }
+    }
+
+    private void OnSecretSessionStateChanged(object? sender, SecretSessionChangedEventArgs args)
+    {
+        _ = sender;
+        _ = args;
+
+        ReloadVisibleTreeAndSearch();
+        OnPropertyChanged(nameof(IsSecretSessionUnlocked));
+        OnPropertyChanged(nameof(AreSecretsVisible));
+    }
+
     private static string? GetStorageParentId(BookmarkFolderViewModel? targetParent)
     {
         return targetParent is null || targetParent.IsRoot ? null : targetParent.Id;
@@ -519,6 +871,47 @@ public partial class MainWindowViewModel : ViewModelBase
             return false;
         }
         catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private bool TryCreateEncryptedBookmarkPayload(
+        string bookmarkId,
+        string title,
+        string url,
+        out EncryptedBookmarkPayloadRecord encryptedPayload)
+    {
+        encryptedPayload = null!;
+        var profile = _secretProfileStore.LoadActiveProfile();
+        var dataKey = _secretSession.BorrowDataKey();
+
+        if (profile is null || dataKey is null)
+            return false;
+
+        try
+        {
+            var encrypted = _secretCryptoService.EncryptBookmarkPayload(
+                new SecretBookmarkPayloadV1(title, url),
+                dataKey,
+                profile.Id,
+                bookmarkId);
+            encryptedPayload = new EncryptedBookmarkPayloadRecord(
+                encrypted.Payload,
+                encrypted.Nonce,
+                encrypted.CryptoProfileId,
+                encrypted.PayloadFormatVersion);
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (SecretPayloadException)
         {
             return false;
         }
@@ -653,11 +1046,18 @@ public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
 public sealed partial class BookmarkViewModel : BookmarkTreeItemViewModel
 {
     private string _url;
+    private bool _isSecret;
 
-    public BookmarkViewModel(string title, string url, string? id = null, IImage? iconImage = null)
+    public BookmarkViewModel(
+        string title,
+        string url,
+        string? id = null,
+        IImage? iconImage = null,
+        bool isSecret = false)
         : base(title, id, iconImage)
     {
         _url = url;
+        _isSecret = isSecret;
     }
 
     public string Url
@@ -666,8 +1066,19 @@ public sealed partial class BookmarkViewModel : BookmarkTreeItemViewModel
         private set => SetProperty(ref _url, value);
     }
 
+    public bool IsSecret
+    {
+        get => _isSecret;
+        private set => SetProperty(ref _isSecret, value);
+    }
+
     internal void SetUrl(string url)
     {
         Url = url;
+    }
+
+    internal void SetIsSecret(bool isSecret)
+    {
+        IsSecret = isSecret;
     }
 }

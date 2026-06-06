@@ -11,7 +11,7 @@ The schema should support:
 - The current tree UI with folders and bookmarks.
 - A synthetic root folder in the UI.
 - New and moved items being placed at the start of a folder.
-- Future selective encryption for secret bookmarks.
+- Selective encryption for secret bookmarks.
 - Future in-memory search indexing.
 - Future WebDAV item-level sync.
 - Conservative delete behavior through tombstones.
@@ -113,20 +113,36 @@ Field notes:
 
 ## Crypto Metadata
 
-Secret bookmark encryption will need KDF/encryption metadata.
+Secret bookmark encryption uses a DEK/KEK model.
 
-Initial table draft:
+The Data Encryption Key encrypts secret bookmark payloads. The Key Encryption Key is derived from the user's master password and wraps the Data Encryption Key.
+
+Current table draft:
 
 ```sql
 CREATE TABLE crypto_profiles (
     id INTEGER PRIMARY KEY,
+
+    profile_version INTEGER NOT NULL,
+
     kdf_name TEXT NOT NULL,
+    kdf_hash_algorithm TEXT NOT NULL,
     kdf_iterations INTEGER NOT NULL,
-    salt BLOB NOT NULL,
+    kdf_salt BLOB NOT NULL,
+
+    kek_length_bytes INTEGER NOT NULL,
+    data_key_algorithm TEXT NOT NULL,
+    wrapped_data_key BLOB NOT NULL,
+    wrapped_data_key_nonce BLOB NOT NULL,
+
     encryption_algorithm TEXT NOT NULL,
-    password_check_payload BLOB NULL,
-    password_check_nonce BLOB NULL,
-    created_at_utc TEXT NOT NULL
+    payload_format TEXT NOT NULL,
+
+    password_check_payload BLOB NOT NULL,
+    password_check_nonce BLOB NOT NULL,
+
+    created_at_utc TEXT NOT NULL,
+    updated_at_utc TEXT NOT NULL
 );
 ```
 
@@ -138,15 +154,16 @@ Current direction:
 - Maximum cryptographic sophistication is not the goal for the first version.
 - Do not invent custom cryptography.
 
-Likely first implementation:
+First implementation:
 
-- PBKDF2-derived key from the master password.
-- AES-GCM encrypted bookmark payloads.
+- PBKDF2-HMAC-SHA256 derives the KEK from the master password and `kdf_salt`.
+- A random DEK is stored only as `wrapped_data_key`.
+- AES-GCM encrypts wrapped DEK, password-check payload, and secret bookmark payloads.
+- `password_check_payload` is used to verify a master password without storing the password.
 
-Possible later implementation:
+Possible later improvement:
 
-- Random data encryption key.
-- Password-derived key wrapping the data encryption key.
+- Add an Argon2id crypto profile version if a dependency is justified.
 
 ## Items Table
 
@@ -169,6 +186,7 @@ CREATE TABLE items (
     encrypted_payload BLOB NULL,
     encryption_nonce BLOB NULL,
     crypto_profile_id INTEGER NULL REFERENCES crypto_profiles(id),
+    secret_payload_format_version INTEGER NULL,
 
     created_at_utc TEXT NOT NULL,
     updated_at_utc TEXT NOT NULL,
@@ -193,7 +211,8 @@ CREATE TABLE items (
             AND url IS NULL
             AND encrypted_payload IS NULL
             AND encryption_nonce IS NULL
-            AND crypto_profile_id IS NULL)
+            AND crypto_profile_id IS NULL
+            AND secret_payload_format_version IS NULL)
 
         OR
 
@@ -203,7 +222,8 @@ CREATE TABLE items (
             AND url IS NOT NULL
             AND encrypted_payload IS NULL
             AND encryption_nonce IS NULL
-            AND crypto_profile_id IS NULL)
+            AND crypto_profile_id IS NULL
+            AND secret_payload_format_version IS NULL)
 
         OR
 
@@ -211,9 +231,11 @@ CREATE TABLE items (
             AND is_secret = 1
             AND title IS NULL
             AND url IS NULL
+            AND icon_asset_id IS NULL
             AND encrypted_payload IS NOT NULL
             AND encryption_nonce IS NOT NULL
-            AND crypto_profile_id IS NOT NULL)
+            AND crypto_profile_id IS NOT NULL
+            AND secret_payload_format_version IS NOT NULL)
     )
 );
 ```

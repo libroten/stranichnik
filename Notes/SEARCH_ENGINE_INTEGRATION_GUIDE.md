@@ -149,18 +149,17 @@ BookmarkTreeSnapshot snapshot;
 IReadOnlyList<BookmarkItemRecord> snapshot.Items;
 ```
 
-Only index visible non-secret bookmarks:
+Only index visible bookmarks:
 
 - `Kind == BookmarkItemKind.Bookmark`;
 - `Metadata.DeletedAtUtc is null`;
-- `IsSecret == false`;
 - `Title` and `Url` may be normalized to empty strings if null.
 
 Do not index folders in the first version.
 
-Do not index secret bookmarks while secret unlock is not implemented. Later, when
-secret unlock exists, decrypted secret bookmark data can be passed into the
-in-memory index only while the app is unlocked.
+Do not index raw locked secret records. Secret bookmarks may enter the in-memory
+search index only after the secret-bookmark projection has decrypted them for the
+current visible UI state. Hidden secret bookmarks must be absent from search.
 
 Suggested mapper shape:
 

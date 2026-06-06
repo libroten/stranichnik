@@ -34,6 +34,7 @@ public partial class MainWindow : Window
     private static readonly TimeSpan FolderAutoExpandDelay = TimeSpan.FromMilliseconds(700);
     private static readonly TimeSpan DragAutoScrollInterval = TimeSpan.FromMilliseconds(16);
     private static readonly TimeSpan DragGhostAnimationDuration = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan SecretInactivityTimeout = TimeSpan.FromMinutes(1);
 
     private bool _isMiddleButtonPanning;
     private Point _panStartPoint;
@@ -53,12 +54,14 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _folderAutoExpandTimer;
     private readonly DispatcherTimer _dragAutoScrollTimer;
     private readonly DispatcherTimer _dragGhostAnimationTimer;
+    private readonly DispatcherTimer _secretInactivityTimer;
     private readonly ScaleTransform _dragGhostScaleTransform = new()
     {
         ScaleX = 1,
         ScaleY = 1
     };
     private DateTimeOffset _dragGhostAnimationStartedAt;
+    private MainWindowViewModel? _observedViewModel;
 
     public MainWindow()
     {
@@ -84,19 +87,31 @@ public partial class MainWindow : Window
         DragGhost.RenderTransform = _dragGhostScaleTransform;
         DragGhost.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
 
-        DataContextChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
+        _secretInactivityTimer = new DispatcherTimer
+        {
+            Interval = SecretInactivityTimeout
+        };
+        _secretInactivityTimer.Tick += OnSecretInactivityTimerTick;
+
+        AddHandler(PointerPressedEvent, OnWindowActivityPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnWindowActivityPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerWheelChangedEvent, OnWindowActivityPointerWheelChanged, RoutingStrategies.Tunnel, handledEventsToo: true);
+
+        DataContextChanged += OnDataContextChanged;
         BookmarksScrollViewer.SizeChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         UpdateBookmarksHorizontalOverflow();
     }
 
     private void OnStranichnikMenuClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         ToggleMenuPopup(StranichnikMenuPopup, StranichnikMenuButton);
         e.Handled = true;
     }
 
     private void OnServiceMenuClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         ToggleMenuPopup(ServiceMenuPopup, ServiceMenuButton);
         e.Handled = true;
     }
@@ -115,12 +130,14 @@ public partial class MainWindow : Window
 
     private void OnMenuPopupItemClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         CloseMenuPopups();
         e.Handled = true;
     }
 
     private void OnAppearanceMenuClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         CloseMenuPopups();
         e.Handled = true;
 
@@ -137,6 +154,7 @@ public partial class MainWindow : Window
 
     private void OnLanguageMenuClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         CloseMenuPopups();
         e.Handled = true;
 
@@ -155,6 +173,48 @@ public partial class MainWindow : Window
                 this,
                 UiStrings.LanguageDialogRestartTitle,
                 UiStrings.LanguageDialogRestartMessage);
+        });
+    }
+
+    private void OnSettingsMenuClick(object? sender, RoutedEventArgs e)
+    {
+        NotifySecretActivity();
+        CloseMenuPopups();
+        e.Handled = true;
+
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        SettingsDialog.Open(
+            this,
+            (owner, newMasterPassword) =>
+                SaveSecretMasterPasswordFromSettingsAsync(owner, viewModel, newMasterPassword));
+    }
+
+    private static async Task<SettingsDialogResult> SaveSecretMasterPasswordFromSettingsAsync(
+        Window owner,
+        MainWindowViewModel viewModel,
+        string newMasterPassword)
+    {
+        if (viewModel is { IsSecretProfileConfigured: true, IsSecretSessionUnlocked: false } &&
+            !await ShowUnlockSecretsDialogAsync(owner, viewModel, showSecrets: false))
+        {
+            return SettingsDialogResult.Failed(UiStrings.SettingsSecretUnlockRequired);
+        }
+
+        var result = viewModel.SaveSecretMasterPassword(newMasterPassword);
+        if (result.Succeeded)
+        {
+            return result.WasCreated
+                ? SettingsDialogResult.Created()
+                : SettingsDialogResult.Changed();
+        }
+
+        return SettingsDialogResult.Failed(result.FailureReason switch
+        {
+            SecretPasswordSaveFailureReason.UnlockRequired => UiStrings.SettingsSecretUnlockRequired,
+            SecretPasswordSaveFailureReason.SetupFailed => UiStrings.SecretSetupFailedMessage,
+            _ => UiStrings.SettingsSecretPasswordSaveFailed
         });
     }
 
@@ -202,6 +262,8 @@ public partial class MainWindow : Window
 
     private void OnMenuPopupShadowHostPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        NotifySecretActivity();
+
         if (IsInsideMenuPopup(e.Source))
             return;
 
@@ -276,6 +338,7 @@ public partial class MainWindow : Window
 
     private async void OnContextGoBookmarkClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         var item = _contextMenuItem;
         CloseTreeContextMenu();
 
@@ -287,6 +350,7 @@ public partial class MainWindow : Window
 
     private async void OnContextCopyBookmarkUrlClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         var item = _contextMenuItem;
         CloseTreeContextMenu();
 
@@ -302,6 +366,7 @@ public partial class MainWindow : Window
 
     private async void OnContextAddBookmarkClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         var item = _contextMenuItem;
         CloseTreeContextMenu();
 
@@ -313,6 +378,7 @@ public partial class MainWindow : Window
 
     private async void OnContextAddFolderClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         var item = _contextMenuItem;
         CloseTreeContextMenu();
 
@@ -324,6 +390,7 @@ public partial class MainWindow : Window
 
     private async void OnContextEditClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         var item = _contextMenuItem;
         CloseTreeContextMenu();
 
@@ -337,6 +404,7 @@ public partial class MainWindow : Window
 
     private async void OnContextDeleteClick(object? sender, RoutedEventArgs e)
     {
+        NotifySecretActivity();
         var item = _contextMenuItem;
         CloseTreeContextMenu();
 
@@ -348,18 +416,109 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
+    private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Escape || !HasOpenMenuPopup())
+        NotifySecretActivity();
+
+        if (e.Key == Key.Escape && HasOpenMenuPopup())
+        {
+            CloseAllPopups();
+            e.Handled = true;
+            return;
+        }
+
+        if (!IsSecretToggleShortcut(e))
             return;
 
-        CloseAllPopups();
         e.Handled = true;
+        await ToggleSecretBookmarksAsync();
+    }
+
+    private static bool IsSecretToggleShortcut(KeyEventArgs e)
+    {
+        if (e.Key != Key.P)
+            return false;
+
+        var requiredModifier = OperatingSystem.IsMacOS()
+            ? KeyModifiers.Meta
+            : KeyModifiers.Control;
+
+        if (!e.KeyModifiers.HasFlag(requiredModifier))
+            return false;
+
+        return !e.KeyModifiers.HasFlag(KeyModifiers.Alt) &&
+            !e.KeyModifiers.HasFlag(KeyModifiers.Shift);
     }
 
     private bool HasOpenMenuPopup()
     {
         return StranichnikMenuPopup.IsOpen || ServiceMenuPopup.IsOpen || TreeContextMenuPopup.IsOpen;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (_observedViewModel is not null)
+            _observedViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+
+        _observedViewModel = DataContext as MainWindowViewModel;
+
+        if (_observedViewModel is not null)
+            _observedViewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+        UpdateBookmarksHorizontalOverflow();
+        UpdateSecretInactivityTimer();
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainWindowViewModel.AreSecretsVisible))
+            UpdateSecretInactivityTimer();
+    }
+
+    private void OnWindowActivityPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        NotifySecretActivity();
+    }
+
+    private void OnWindowActivityPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        NotifySecretActivity();
+    }
+
+    private void OnWindowActivityPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        NotifySecretActivity();
+    }
+
+    private void NotifySecretActivity()
+    {
+        if (_observedViewModel?.AreSecretsVisible != true)
+            return;
+
+        _secretInactivityTimer.Stop();
+        _secretInactivityTimer.Start();
+    }
+
+    private void UpdateSecretInactivityTimer()
+    {
+        if (_observedViewModel?.AreSecretsVisible == true)
+        {
+            NotifySecretActivity();
+            return;
+        }
+
+        _secretInactivityTimer.Stop();
+    }
+
+    private void OnSecretInactivityTimerTick(object? sender, EventArgs e)
+    {
+        _secretInactivityTimer.Stop();
+
+        if (_observedViewModel?.AreSecretsVisible != true)
+            return;
+
+        _observedViewModel.HideSecretsByInactivityTimeout();
+        UpdateBookmarksHorizontalOverflow();
     }
 
     private void OnTreeRowPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -481,11 +640,24 @@ public partial class MainWindow : Window
         if (result is null)
             return;
 
-        var addResult = viewModel.AddBookmarkToFolderStart(
-            folder,
-            result.Title,
-            result.Url,
-            result.IconSelection);
+        if (result.IsSecret && !await EnsureSecretEditingAvailableAsync(viewModel))
+            return;
+
+        if (result.IsSecret)
+        {
+            folder = viewModel.FindFolder(folder.Id) ?? folder;
+        }
+
+        var addResult = result.IsSecret
+            ? viewModel.AddSecretBookmarkToFolderStart(
+                folder,
+                result.Title,
+                result.Url)
+            : viewModel.AddBookmarkToFolderStart(
+                folder,
+                result.Title,
+                result.Url,
+                result.IconSelection);
         if (addResult.WasAdded)
         {
             folder.IsExpanded = true;
@@ -523,14 +695,118 @@ public partial class MainWindow : Window
         if (DataContext is not MainWindowViewModel viewModel)
             return;
 
-        var dialog = BookmarkEditorDialog.EditBookmark(bookmark.Title, bookmark.Url, bookmark.IconImage);
+        var dialog = BookmarkEditorDialog.EditBookmark(
+            bookmark.Title,
+            bookmark.Url,
+            bookmark.IconImage,
+            bookmark.IsSecret);
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
 
         if (result is not null)
         {
-            viewModel.EditBookmark(bookmark, result.Title, result.Url, result.IconSelection);
+            if (result.IsSecret && !await EnsureSecretEditingAvailableAsync(viewModel))
+                return;
+
+            bookmark = viewModel.FindBookmark(bookmark.Id) ?? bookmark;
+
+            if (result.IsSecret)
+            {
+                viewModel.EditBookmarkAsSecret(bookmark, result.Title, result.Url);
+            }
+            else if (bookmark.IsSecret)
+            {
+                viewModel.EditSecretBookmarkAsPlaintext(
+                    bookmark,
+                    result.Title,
+                    result.Url,
+                    result.IconSelection);
+            }
+            else
+            {
+                viewModel.EditBookmark(bookmark, result.Title, result.Url, result.IconSelection);
+            }
+
             UpdateBookmarksHorizontalOverflow();
         }
+    }
+
+    private async Task<bool> EnsureSecretEditingAvailableAsync(MainWindowViewModel viewModel)
+    {
+        if (viewModel.IsSecretSessionUnlocked)
+            return true;
+
+        if (viewModel.IsSecretProfileConfigured)
+            return await ShowUnlockSecretsDialogAsync(viewModel, showSecrets: true);
+
+        var dialog = new SetMasterPasswordDialog();
+        var result = await dialog.ShowDialog<SetMasterPasswordDialogResult?>(this);
+
+        if (result is null)
+            return false;
+
+        var setupResult = viewModel.CreateMasterPassword(result.MasterPassword, showSecrets: true);
+
+        if (setupResult.WasCreated)
+            return true;
+
+        await MessageDialog.ShowMessage(
+            this,
+            UiStrings.SecretSetupFailedTitle,
+            UiStrings.SecretSetupFailedMessage);
+        return false;
+    }
+
+    private async Task ToggleSecretBookmarksAsync()
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        CloseAllPopups();
+
+        if (!viewModel.IsSecretProfileConfigured)
+        {
+            await MessageDialog.ShowMessage(
+                this,
+                UiStrings.UnlockSecretsNotConfiguredTitle,
+                UiStrings.UnlockSecretsNotConfiguredMessage);
+            return;
+        }
+
+        if (viewModel.AreSecretsVisible)
+        {
+            viewModel.HideSecretsByUserAction();
+            UpdateBookmarksHorizontalOverflow();
+            return;
+        }
+
+        if (viewModel.IsSecretSessionUnlocked)
+        {
+            viewModel.ShowSecrets();
+            UpdateBookmarksHorizontalOverflow();
+            return;
+        }
+
+        if (await ShowUnlockSecretsDialogAsync(viewModel, showSecrets: true))
+            UpdateBookmarksHorizontalOverflow();
+    }
+
+    private async Task<bool> ShowUnlockSecretsDialogAsync(
+        MainWindowViewModel viewModel,
+        bool showSecrets)
+    {
+        return await ShowUnlockSecretsDialogAsync(this, viewModel, showSecrets);
+    }
+
+    private static async Task<bool> ShowUnlockSecretsDialogAsync(
+        Window owner,
+        MainWindowViewModel viewModel,
+        bool showSecrets)
+    {
+        var dialog = new UnlockSecretsDialog(password =>
+            viewModel.UnlockSecrets(password, showSecrets).WasUnlocked);
+        var result = await dialog.ShowDialog<UnlockSecretsDialogResult?>(owner);
+
+        return result?.WasUnlocked == true;
     }
 
     private async Task EditFolderAsync(BookmarkFolderViewModel folder)

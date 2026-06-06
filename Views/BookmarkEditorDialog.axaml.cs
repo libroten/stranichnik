@@ -43,7 +43,12 @@ public sealed partial class BookmarkEditorDialog : Window
     private bool _isConfiguring;
 
     public BookmarkEditorDialog()
-        : this(BookmarkEditorDialogMode.AddBookmark, title: string.Empty, url: string.Empty, currentIconImage: null)
+        : this(
+            BookmarkEditorDialogMode.AddBookmark,
+            title: string.Empty,
+            url: string.Empty,
+            currentIconImage: null,
+            isSecret: false)
     {
     }
 
@@ -51,7 +56,8 @@ public sealed partial class BookmarkEditorDialog : Window
         BookmarkEditorDialogMode mode,
         string title,
         string url,
-        IImage? currentIconImage)
+        IImage? currentIconImage,
+        bool isSecret)
     {
         _mode = mode;
         _currentIconImage = currentIconImage;
@@ -63,10 +69,11 @@ public sealed partial class BookmarkEditorDialog : Window
 
         InitializeComponent();
         ConfigureIconChoices();
-        ConfigureMode(title, url);
+        ConfigureMode(title, url, isSecret);
         SelectIconChoice(currentIconImage is null
             ? BookmarkEditorIconChoice.Default
             : BookmarkEditorIconChoice.Current);
+        UpdateSecretUi();
         UpdateTitlePlaceholder();
         Opened += OnOpened;
         Closed += OnClosed;
@@ -80,12 +87,17 @@ public sealed partial class BookmarkEditorDialog : Window
             BookmarkEditorDialogMode.AddBookmark,
             title: string.Empty,
             url: string.Empty,
-            currentIconImage: null);
+            currentIconImage: null,
+            isSecret: false);
     }
 
-    public static BookmarkEditorDialog EditBookmark(string title, string url, IImage? currentIconImage)
+    public static BookmarkEditorDialog EditBookmark(
+        string title,
+        string url,
+        IImage? currentIconImage,
+        bool isSecret)
     {
-        return new(BookmarkEditorDialogMode.EditBookmark, title, url, currentIconImage);
+        return new(BookmarkEditorDialogMode.EditBookmark, title, url, currentIconImage, isSecret);
     }
 
     public static BookmarkEditorDialog AddFolder()
@@ -94,12 +106,13 @@ public sealed partial class BookmarkEditorDialog : Window
             BookmarkEditorDialogMode.AddFolder,
             title: string.Empty,
             url: string.Empty,
-            currentIconImage: null);
+            currentIconImage: null,
+            isSecret: false);
     }
 
     public static BookmarkEditorDialog EditFolder(string title, IImage? currentIconImage)
     {
-        return new(BookmarkEditorDialogMode.EditFolder, title, url: string.Empty, currentIconImage);
+        return new(BookmarkEditorDialogMode.EditFolder, title, url: string.Empty, currentIconImage, isSecret: false);
     }
 
     private void OnSaveClick(object? sender, RoutedEventArgs e)
@@ -116,7 +129,7 @@ public sealed partial class BookmarkEditorDialog : Window
                 return;
             }
 
-            Result = new(title, string.Empty, CreateIconSelection());
+            Result = new(title, string.Empty, CreateIconSelection(), IsSecret: false);
             Close(Result);
             return;
         }
@@ -128,7 +141,12 @@ public sealed partial class BookmarkEditorDialog : Window
             return;
         }
 
-        Result = new(title.Length == 0 ? url : title, url, CreateIconSelection());
+        var isSecret = SecretCheckBox.IsChecked == true;
+        Result = new(
+            title.Length == 0 ? url : title,
+            url,
+            isSecret ? BookmarkIconSelection.UseDefault : CreateIconSelection(),
+            isSecret);
         Close(Result);
     }
 
@@ -207,6 +225,12 @@ public sealed partial class BookmarkEditorDialog : Window
         e.Handled = true;
     }
 
+    private void OnSecretCheckClick(object? sender, RoutedEventArgs e)
+    {
+        UpdateSecretUi();
+        e.Handled = true;
+    }
+
     private async void OnUploadIconClick(object? sender, RoutedEventArgs e)
     {
         await PickIconFileAsync();
@@ -222,7 +246,7 @@ public sealed partial class BookmarkEditorDialog : Window
         e.Handled = true;
     }
 
-    private void ConfigureMode(string title, string url)
+    private void ConfigureMode(string title, string url, bool isSecret)
     {
         switch (_mode)
         {
@@ -241,19 +265,35 @@ public sealed partial class BookmarkEditorDialog : Window
                 DialogTitleTextBlock.Text = UiStrings.BookmarkEditorAddFolderTitle;
                 SaveButton.Content = UiStrings.CommonAdd;
                 UrlFieldPanel.IsVisible = false;
+                SecretCheckBox.IsVisible = false;
                 break;
             case BookmarkEditorDialogMode.EditFolder:
                 Title = UiStrings.BookmarkEditorEditFolderTitle;
                 DialogTitleTextBlock.Text = UiStrings.BookmarkEditorEditFolderTitle;
                 SaveButton.Content = UiStrings.CommonSave;
                 UrlFieldPanel.IsVisible = false;
+                SecretCheckBox.IsVisible = false;
                 break;
         }
 
+        SecretCheckBox.IsVisible = _mode is BookmarkEditorDialogMode.AddBookmark or BookmarkEditorDialogMode.EditBookmark;
+        SecretCheckBox.IsChecked = isSecret;
         _isConfiguring = true;
         TitleTextBox.Text = title;
         UrlTextBox.Text = url;
         _isConfiguring = false;
+    }
+
+    private void UpdateSecretUi()
+    {
+        if (_mode is BookmarkEditorDialogMode.AddFolder or BookmarkEditorDialogMode.EditFolder)
+            return;
+
+        var isSecret = SecretCheckBox.IsChecked == true;
+        IconFieldPanel.IsVisible = !isSecret;
+
+        if (isSecret)
+            SelectIconChoice(BookmarkEditorIconChoice.Default);
     }
 
     private void OnClosed(object? sender, EventArgs e)
@@ -549,7 +589,8 @@ public sealed partial class BookmarkEditorDialog : Window
 public sealed record BookmarkEditorDialogResult(
     string Title,
     string Url,
-    BookmarkIconSelection IconSelection);
+    BookmarkIconSelection IconSelection,
+    bool IsSecret);
 
 internal enum BookmarkEditorDialogMode
 {

@@ -4,9 +4,9 @@ This note records the current development state for future agents.
 
 ## Current Phase
 
-The project has moved from the in-memory UI phase into local SQLite persistence.
+The project has moved beyond the in-memory UI phase into local SQLite persistence, search integration, icon support, and selective encryption for secret bookmarks.
 
-SQLite-backed bookmark storage is implemented and manually verified. The standalone search library is implemented, and the first application integration is in place. The next large feature area is expected to be selective encryption, followed later by sync.
+SQLite-backed bookmark storage is implemented and manually verified. The standalone search library is implemented and integrated into the main app. Selective secret bookmark encryption is implemented as the current major feature area. The next large feature area after cleanup is expected to be WebDAV sync, unless the user chooses to tune search or continue encryption polish first.
 
 Completed broad areas:
 
@@ -87,10 +87,30 @@ Completed broad areas:
   - right-clicking the synthetic root folder opens a custom context menu with only add bookmark and add folder actions;
   - bookmark URL copying uses Avalonia's cross-platform clipboard abstraction;
   - popup menus use project-owned styling and custom shadows instead of relying on platform-specific popup shadows.
+- Selective secret bookmark encryption is implemented:
+  - secret bookmark title and URL are encrypted in SQLite;
+  - secret bookmark plaintext title and URL columns are kept `NULL`;
+  - a SQLite crypto profile stores KDF metadata, wrapped data key material, and password-check payload;
+  - the crypto model uses PBKDF2-SHA256 plus AES-256-GCM with a DEK/KEK split;
+  - changing the master password rewraps the data key instead of re-encrypting all bookmark payloads;
+  - secrets are hidden after startup;
+  - `Cmd+P` on macOS and `Ctrl+P` on Windows/Linux toggles secret visibility;
+  - the master password is required once per app session to unlock secrets;
+  - after unlock, hiding secrets keeps the runtime data key in memory for the session;
+  - visible secrets auto-hide after one minute without tracked UI activity;
+  - folders containing only hidden secret bookmarks are hidden too;
+  - hidden secret bookmarks are absent from the tree and in-memory search index;
+  - visible unlocked secret bookmarks are projected in memory and may be searched during that unlocked-visible state;
+  - secret bookmarks use default icons only in v1;
+  - encrypted custom icons are deferred and documented in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
+- Secret bookmark settings UI is implemented:
+  - `Stranichnik -> Settings` opens a scrollable settings dialog;
+  - the first section is `Secret bookmarks`;
+  - the section supports setting/changing the master password;
+  - changing the master password from a locked configured state asks for the current password first without forcing secrets to become visible.
 
 Not implemented yet:
 
-- Secret bookmark encryption.
 - WebDAV sync.
 
 Implemented in storage/view-model layer:
@@ -117,6 +137,9 @@ Current dialogs:
 - `LanguageDialog` is used for selecting the UI language.
 - `MessageDialog` is used for one-button error/information messages.
 - `AppearanceDialog` is used for selecting the application theme.
+- `SetMasterPasswordDialog` is used for first-time secret master password setup.
+- `UnlockSecretsDialog` is used for unlocking secret bookmarks.
+- `SettingsDialog` is used for app settings and currently contains the secret bookmark password section.
 - Dialogs can be closed with `Esc` where that makes sense.
 
 ## Current UI Behavior
@@ -165,6 +188,9 @@ Bookmarks:
 
 - Show a default or custom icon.
 - Show title and URL.
+- Can be marked as secret in the bookmark editor.
+- Secret bookmarks are hidden while secrets are locked/hidden.
+- Secret bookmarks use the default bookmark icon in v1.
 - URL is underlined with a dashed underline.
 - URL becomes blue on hover.
 - While adding/editing a bookmark, the app can fetch the page title from the URL and show it as an italic dashed-underlined suggestion.
@@ -210,9 +236,18 @@ Menus:
   - `Service`
 - `Service -> Appearance` opens the appearance selector.
 - `Service -> Language` opens the language selector.
-- `Stranichnik -> Settings` is currently a placeholder.
+- `Stranichnik -> Settings` opens the settings window.
 - Top popup menus and tree context menus share custom menu styling.
 - Menu shadows are drawn inside transparent padded popup hosts. Clicking the padded shadow area closes the popup.
+
+Secret bookmarks:
+
+- `Cmd+P` on macOS and `Ctrl+P` on Windows/Linux toggles secret visibility.
+- If secrets are configured but locked, the toggle opens the unlock dialog.
+- If secrets are visible and the user is inactive for one minute, the app hides secrets automatically.
+- Inactivity currently tracks pointer presses/releases, wheel, keyboard input, menu actions, and context actions.
+- Passive pointer hover does not reset the inactivity timer.
+- Secret bookmarks are not shown after app startup until explicitly unlocked/shown.
 
 Hover transitions:
 
@@ -277,15 +312,15 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad implementation area is selective encryption for secret bookmarks.
+The next broad implementation area is likely WebDAV sync, unless the user chooses to continue polishing encryption, icons, or search first.
 
 Likely order:
 
-1. Design selective encryption before writing code.
-2. Decide the first SQLite schema migration for secret bookmark metadata and encrypted payloads.
-3. Add the application-level unlock/lock model.
-4. Route secret bookmark visibility through storage/search boundaries instead of Avalonia-only state.
-5. Continue later with WebDAV sync after encryption data shapes are clear.
+1. Finish any remaining review/cleanup for selective encryption.
+2. Decide whether to implement encrypted custom icons for secret bookmarks now or keep the v1 default-icon restriction.
+3. Revisit search quality tuning if the user wants better ranking/tokenization.
+4. Design WebDAV sync using the current item-level SQLite schema, tombstones, and encrypted payload shape.
+5. Implement sync conservatively with stable IDs, conflict copies, and no custom backend.
 
 SQLite schema direction:
 
@@ -332,8 +367,8 @@ Important future requirements:
 
 Current future-feature direction:
 
-- Secret bookmarks should use simple application-level payload encryption first. Maximum cryptographic sophistication is not required; hiding plaintext from casual inspection without the password is the main goal.
-- Search should initially use an in-memory index, rebuilt from available bookmarks at startup and after unlock. This avoids storing plaintext search terms for secret bookmarks on disk.
+- Secret bookmarks use application-level payload encryption. Maximum cryptographic sophistication is not the goal, but the current implementation still uses a standard DEK/KEK split so password changes are cheap.
+- Search uses an in-memory index rebuilt from the currently visible bookmark projection. This avoids storing plaintext search terms for hidden secret bookmarks on disk.
 - WebDAV sync should be item-level rather than syncing the SQLite file. Some conflict/desync risk remains, but the design should preserve data conservatively with stable IDs, tombstones, and conflict copies.
 
 See `Notes/FUTURE_FEATURES_PLAN.md` before making architectural decisions that affect data model, storage, search, sync, or encryption.

@@ -2,7 +2,7 @@
 
 Stranichnik is a cross-platform desktop bookmark manager built with C# and Avalonia UI.
 
-The application stores bookmark data in a local SQLite database under the user's application data directory. New databases are empty by default.
+The application stores bookmark data in a local SQLite database under the user's application data directory. New databases are empty by default. Bookmarks marked as secret store their sensitive title/URL payload encrypted in SQLite and are hidden until unlocked in the app.
 
 ## AI-Generated Project
 

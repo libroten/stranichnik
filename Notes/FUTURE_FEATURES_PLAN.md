@@ -19,7 +19,7 @@ These features must be considered together. They affect data model, storage desi
 Preferred long-term direction:
 
 - Local SQLite database as the app's working storage.
-- Application-level selective encryption for secret bookmark payloads. The first implementation may favor simplicity over maximum cryptographic sophistication.
+- Application-level selective encryption for secret bookmark payloads. The first implementation favors practical privacy and understandable code over maximum cryptographic sophistication, while still using standard authenticated encryption and key derivation primitives.
 - Search index as a separate concern, not hardcoded into UI. The first application integration uses the standalone in-memory `Stranichnik.Search` library.
 - WebDAV sync as item-level sync, not whole SQLite file sync.
 - Application services as the central place for add/edit/delete/move operations.
@@ -53,7 +53,7 @@ Reason:
 - Secret bookmarks can be hidden entirely until unlock.
 - Full database encryption would force all data behind the same unlock boundary and does not match the desired UX as well.
 
-### Proposed Data Shape
+### Current Implementation Data Shape
 
 Normal bookmark:
 
@@ -71,6 +71,9 @@ Secret bookmark:
 - `is_secret = true`
 - technical metadata only
 - `encrypted_payload`
+- `encryption_nonce`
+- `crypto_profile_id`
+- `secret_payload_format_version`
 
 The encrypted payload should contain the sensitive bookmark fields, for example:
 
@@ -80,43 +83,41 @@ The encrypted payload should contain the sensitive bookmark fields, for example:
 - tags
 - future searchable text
 
+Current v1 encrypts title and URL. Future fields should be added to the encrypted payload rather than plaintext columns when they are sensitive.
+
+Folders are not encrypted in the current implementation. A folder that only contains hidden secret bookmarks is hidden from the visible UI, but the folder's own name remains plaintext if it exists in SQLite.
+
 ### Key Management Direction
 
 The user's goal is practical privacy from casual inspection, not maximum cryptographic hardness against a highly motivated attacker.
 
 Do not invent custom cryptography. Avoid weak "obfuscation" such as Base64-only storage, XOR, or homegrown ciphers.
 
-Preferred first implementation:
-
-1. Store a random salt in the database.
-2. Derive an encryption key from the master password using a password KDF.
-3. Encrypt each secret bookmark payload with that derived key.
-
-This is simpler than a full key-wrapping design. The tradeoff is acceptable for the current goals:
-
-- Changing the master password will require re-encrypting all secret bookmarks.
-- There is no separate data key to rotate independently.
-- The implementation is easier to understand and test.
-
-Possible later upgrade:
+Current implementation:
 
 1. Generate a random Data Encryption Key.
 2. Derive a Key Encryption Key from the master password using a password KDF.
 3. Encrypt/wrap the Data Encryption Key with the Key Encryption Key.
 4. Encrypt secret bookmark payloads with the Data Encryption Key.
 
-Benefits of the later upgrade:
+Benefits:
 
 - Changing the master password only requires re-wrapping the data key.
 - Bookmark payloads do not all need to be re-encrypted on password change.
 - The architecture follows common key-management practice.
+
+Tradeoffs:
+
+- The runtime session must hold the data key in memory after unlock.
+- If the user chooses a weak master password, PBKDF2 can only slow guessing; it cannot make the password strong.
+- The database still reveals that secret rows exist and where they live in the tree.
 
 ### Crypto Direction
 
 Likely choices:
 
 - AES-GCM via .NET `AesGcm` for authenticated encryption.
-- PBKDF2 is acceptable for the first implementation if it keeps dependencies and complexity low.
+- PBKDF2-SHA256 is used for the first implementation to keep dependencies and complexity low.
 - Argon2id remains a possible later improvement if stronger password-based key derivation becomes important.
 
 Do not invent custom cryptography.
@@ -155,12 +156,13 @@ Possible future interfaces:
 
 The search service should consume bookmark data from application/domain services or repository projections, not directly scrape UI controls.
 
-Current preferred first approach:
+Current approach:
 
 - Build the entire search index in memory.
-- Rebuild the index at app startup from non-secret bookmarks.
-- When secrets are unlocked, decrypt secret bookmarks and add them to the in-memory index.
-- When secrets are locked again or the app exits, discard secret search data.
+- Rebuild the index from the currently visible bookmark projection.
+- At app startup, secret bookmarks are hidden and therefore absent from the index.
+- When secrets are shown after unlock, decrypted secret bookmarks are projected in memory and can be indexed.
+- When secrets are hidden again or the app exits, discard secret search data from the in-memory index.
 
 This keeps the SQLite database and any files on disk free of plaintext search terms from secret bookmarks.
 
@@ -222,8 +224,8 @@ For secret bookmarks:
 
 - Do not store plaintext secret search index on disk.
 - While locked, secret bookmarks are absent from search results.
-- After unlock, decrypt secret bookmarks and index them in memory.
-- When locked again or app exits, discard the in-memory secret index.
+- After unlock/show, decrypt secret bookmarks and index them in memory only.
+- When hidden again or app exits, discard the in-memory secret index.
 
 This is a reasonable balance between privacy and useful search.
 
@@ -396,10 +398,10 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Design selective secret bookmark support before writing code.
-2. Implement the first selective encryption storage/model slice.
-3. Add unlock/lock UI and hide locked secret bookmarks from tree/search.
-4. Add WebDAV item-level sync after encryption data shapes are clear.
+1. Finish review/cleanup for the current selective encryption implementation.
+2. Decide whether encrypted custom icons for secret bookmarks should be implemented now or kept deferred.
+3. Tune search quality if the user wants better ranking/tokenization.
+4. Add WebDAV item-level sync after encryption data shapes are stable enough.
 
 ## References To Revisit
 
@@ -416,3 +418,5 @@ Useful areas to research again before implementation:
 - Joplin sync and encryption architecture notes.
 
 Do not assume this note is complete security design. Before implementing encryption, do a fresh careful review.
+
+Current note: selective bookmark encryption is already implemented. Do a fresh careful review before changing the crypto model, adding encrypted icons, or implementing sync over encrypted payloads.

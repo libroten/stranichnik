@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Stranichnik.Security;
 using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
 using Xunit;
@@ -123,6 +124,32 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void AddSecretBookmarkToFolderStart_adds_secret_bookmark_without_plaintext()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("folder", parentId: null, sortOrder: 1000),
+        ]));
+        var payload = CreateEncryptedPayload();
+
+        var bookmark = database.Store.AddSecretBookmarkToFolderStart("folder", "created-1", payload);
+
+        Assert.True(bookmark.IsSecret);
+        Assert.Null(bookmark.Title);
+        Assert.Null(bookmark.Url);
+        Assert.Null(bookmark.IconAssetId);
+        AssertEncryptedPayloadEqual(payload, Assert.IsType<EncryptedBookmarkPayloadRecord>(bookmark.EncryptedPayload));
+
+        var loaded = database.Store.Load().Items.Single(item => item.Id == "created-1");
+        Assert.True(loaded.IsSecret);
+        Assert.Null(loaded.Title);
+        Assert.Null(loaded.Url);
+        AssertEncryptedPayloadEqual(payload, Assert.IsType<EncryptedBookmarkPayloadRecord>(loaded.EncryptedPayload));
+    }
+
+    [Fact]
     public void AddBookmarkToFolderStart_rejects_empty_title_or_url()
     {
         using var database = TempSqliteDatabase.Create();
@@ -158,6 +185,93 @@ public sealed class SqliteBookmarkTreeStoreTests
         Assert.Equal(2, edited.Metadata.Revision);
         Assert.Equal(UpdatedAt, edited.Metadata.UpdatedAtUtc);
         Assert.Equal(BookmarkSyncState.Dirty, edited.Metadata.SyncState);
+    }
+
+    [Fact]
+    public void EditBookmarkAsSecret_clears_plaintext_and_icon()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+        database.Store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
+        database.Store.SetItemIconAsset("bookmark", "icon");
+        var payload = CreateEncryptedPayload();
+
+        var edited = database.Store.EditBookmarkAsSecret("bookmark", payload);
+
+        Assert.True(edited.IsSecret);
+        Assert.Null(edited.Title);
+        Assert.Null(edited.Url);
+        Assert.Null(edited.IconAssetId);
+        AssertEncryptedPayloadEqual(payload, Assert.IsType<EncryptedBookmarkPayloadRecord>(edited.EncryptedPayload));
+        Assert.Equal(3, edited.Metadata.Revision);
+
+        var loaded = database.Store.Load().Items.Single();
+        Assert.True(loaded.IsSecret);
+        Assert.Null(loaded.Title);
+        Assert.Null(loaded.Url);
+        Assert.Null(loaded.IconAssetId);
+    }
+
+    [Fact]
+    public void EditSecretBookmarkAsPlaintext_restores_plaintext_and_clears_secret_payload()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+
+        var edited = database.Store.EditSecretBookmarkAsPlaintext(
+            "bookmark",
+            " Title ",
+            " https://example.com ");
+
+        Assert.False(edited.IsSecret);
+        Assert.Equal("Title", edited.Title);
+        Assert.Equal("https://example.com", edited.Url);
+        Assert.Null(edited.EncryptedPayload);
+        Assert.Null(edited.IconAssetId);
+
+        var loaded = database.Store.Load().Items.Single();
+        Assert.False(loaded.IsSecret);
+        Assert.Equal("Title", loaded.Title);
+        Assert.Equal("https://example.com", loaded.Url);
+        Assert.Null(loaded.EncryptedPayload);
+        Assert.Null(loaded.IconAssetId);
+    }
+
+    [Fact]
+    public void EditSecretBookmarkAsPlaintext_rejects_normal_bookmark()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.EditSecretBookmarkAsPlaintext(
+                "bookmark",
+                "Title",
+                "https://example.com"));
+    }
+
+    [Fact]
+    public void EditBookmarkAsSecret_rejects_folder()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("folder", parentId: null, sortOrder: 1000),
+        ]));
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.EditBookmarkAsSecret("folder", CreateEncryptedPayload()));
     }
 
     [Fact]
@@ -262,6 +376,21 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void SetItemIconAsset_rejects_secret_bookmark_custom_icon()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+        database.Store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.SetItemIconAsset("bookmark", "icon"));
+    }
+
+    [Fact]
     public void DeleteItem_does_not_delete_shared_icon_asset()
     {
         using var database = TempSqliteDatabase.Create();
@@ -305,6 +434,22 @@ public sealed class SqliteBookmarkTreeStoreTests
         database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
         [
             CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+
+        database.Store.DeleteItem("bookmark");
+
+        Assert.Empty(database.Store.Load().Items);
+        Assert.Equal(1, database.Store.CountAllItems());
+    }
+
+    [Fact]
+    public void DeleteItem_tombstones_secret_bookmark_without_plaintext()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000),
         ]));
 
         database.Store.DeleteItem("bookmark");
@@ -401,6 +546,30 @@ public sealed class SqliteBookmarkTreeStoreTests
             item => Assert.Equal("bookmark", item.Id),
             item => Assert.Equal("source", item.Id),
             item => Assert.Equal("root-existing", item.Id));
+    }
+
+    [Fact]
+    public void MoveToFolderStart_moves_secret_bookmark_without_decrypting()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        var payload = CreateEncryptedPayload();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000) with
+            {
+                EncryptedPayload = payload
+            },
+            CreateFolder("target", parentId: null, sortOrder: 500),
+        ]));
+
+        var moved = database.Store.MoveToFolderStart("bookmark", "target");
+
+        Assert.True(moved.IsSecret);
+        Assert.Equal("target", moved.ParentId);
+        Assert.Null(moved.Title);
+        Assert.Null(moved.Url);
+        AssertEncryptedPayloadEqual(payload, Assert.IsType<EncryptedBookmarkPayloadRecord>(moved.EncryptedPayload));
     }
 
     [Fact]
@@ -520,6 +689,23 @@ public sealed class SqliteBookmarkTreeStoreTests
             CreateMetadata());
     }
 
+    private static BookmarkItemRecord CreateSecretBookmark(
+        string id,
+        string? parentId,
+        long sortOrder)
+    {
+        return new(
+            id,
+            parentId,
+            BookmarkItemKind.Bookmark,
+            sortOrder,
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            CreateEncryptedPayload(),
+            CreateMetadata());
+    }
+
     private static BookmarkItemMetadata CreateMetadata()
     {
         return new(
@@ -562,6 +748,53 @@ public sealed class SqliteBookmarkTreeStoreTests
         Assert.Equal(expected.CreatedAtUtc, actual.CreatedAtUtc);
     }
 
+    private static void AssertEncryptedPayloadEqual(
+        EncryptedBookmarkPayloadRecord expected,
+        EncryptedBookmarkPayloadRecord actual)
+    {
+        Assert.Equal(expected.Payload.ToArray(), actual.Payload.ToArray());
+        Assert.Equal(expected.Nonce.ToArray(), actual.Nonce.ToArray());
+        Assert.Equal(expected.CryptoProfileId, actual.CryptoProfileId);
+        Assert.Equal(expected.PayloadFormatVersion, actual.PayloadFormatVersion);
+    }
+
+    private static EncryptedBookmarkPayloadRecord CreateEncryptedPayload()
+    {
+        return new(
+            Payload: EncryptedPayloadBytes,
+            Nonce: EncryptedNonceBytes,
+            CryptoProfileId: 1,
+            PayloadFormatVersion: 1);
+    }
+
+    private static CryptoProfileRecord CreateCryptoProfile()
+    {
+        return new CryptoProfileRecord(
+            SecretCryptoProfileIds.ActiveProfileId,
+            SecretEncryptionConstants.CurrentProfileVersion,
+            SecretEncryptionConstants.KdfName,
+            SecretEncryptionConstants.KdfHashAlgorithm,
+            1000,
+            KdfSaltBytes,
+            SecretEncryptionConstants.KekLengthBytes,
+            SecretEncryptionConstants.DataKeyAlgorithm,
+            WrappedDataKeyBytes,
+            WrappedDataKeyNonceBytes,
+            SecretEncryptionConstants.EncryptionAlgorithm,
+            SecretEncryptionConstants.PayloadFormat,
+            PasswordCheckPayloadBytes,
+            PasswordCheckNonceBytes,
+            CreatedAt,
+            CreatedAt);
+    }
+
+    private static readonly byte[] EncryptedPayloadBytes = [10, 20, 30];
+    private static readonly byte[] EncryptedNonceBytes = [40, 50, 60];
+    private static readonly byte[] KdfSaltBytes = [1, 2, 3];
+    private static readonly byte[] WrappedDataKeyBytes = [4, 5, 6];
+    private static readonly byte[] WrappedDataKeyNonceBytes = [7, 8, 9];
+    private static readonly byte[] PasswordCheckPayloadBytes = [10, 11, 12];
+    private static readonly byte[] PasswordCheckNonceBytes = [13, 14, 15];
     private static readonly byte[] ProcessedIconBytes = [1, 2, 3];
 
     private sealed class TempSqliteDatabase : IDisposable
@@ -579,13 +812,22 @@ public sealed class SqliteBookmarkTreeStoreTests
                 idFactory: () => $"created-{_nextId++}",
                 clock: () => UpdatedAt,
                 modifiedDeviceId: "test-device");
+            SecretProfileStore = new SqliteSecretProfileStore(connectionFactory);
         }
 
         internal SqliteBookmarkTreeStore Store { get; }
 
+        private SqliteSecretProfileStore SecretProfileStore { get; }
+
         public static TempSqliteDatabase Create()
         {
             return new TempSqliteDatabase(Path.Combine(Path.GetTempPath(), $"stranichnik-tests-{Guid.NewGuid():N}"));
+        }
+
+        public void EnsureSecretProfile()
+        {
+            if (SecretProfileStore.LoadActiveProfile() is null)
+                SecretProfileStore.SaveNewProfile(CreateCryptoProfile());
         }
 
         public void Dispose()

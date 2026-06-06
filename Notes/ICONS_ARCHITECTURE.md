@@ -355,7 +355,8 @@ Examples:
 First implementation direction:
 
 - non-secret bookmarks/folders may use custom/favicon icon assets stored in plaintext SQLite blobs;
-- secret bookmark icon behavior should be decided during the selective encryption feature;
+- secret bookmarks currently use default icons only;
+- encrypted custom icons for secret bookmarks are deferred to `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`;
 - while secrets are locked, secret bookmarks are hidden anyway;
 - do not auto-store favicons for secret bookmarks later without an explicit privacy decision.
 

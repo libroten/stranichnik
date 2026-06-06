@@ -83,7 +83,8 @@ public static class BookmarkTreeViewModelMapper
                 RequireTitle(record),
                 RequireUrl(record),
                 record.Id,
-                iconImage),
+                iconImage,
+                record.IsSecret),
 
             _ => throw new InvalidOperationException("Unsupported bookmark item kind.")
         };

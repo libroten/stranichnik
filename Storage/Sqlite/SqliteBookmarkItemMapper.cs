@@ -110,4 +110,9 @@ internal static class SqliteBookmarkItemMapper
     {
         return value is null ? DBNull.Value : value.Value;
     }
+
+    public static object ToDatabaseValue(int? value)
+    {
+        return value is null ? DBNull.Value : value.Value;
+    }
 }

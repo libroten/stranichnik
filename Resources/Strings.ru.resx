@@ -72,6 +72,9 @@
   <data name="BookmarkEditor_IconUploaded" xml:space="preserve">
     <value>Загруженная</value>
   </data>
+  <data name="BookmarkEditor_SecretBookmarkLabel" xml:space="preserve">
+    <value>Секретная закладка</value>
+  </data>
   <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
     <value>Заголовок</value>
   </data>
@@ -173,6 +176,93 @@
   </data>
   <data name="Search_Placeholder" xml:space="preserve">
     <value>Поиск закладок</value>
+  </data>
+  <data name="Secret_SetupFailedMessage" xml:space="preserve">
+    <value>Не удалось настроить секретные закладки. Попробуйте еще раз.</value>
+  </data>
+  <data name="Secret_SetupFailedTitle" xml:space="preserve">
+    <value>Не удалось настроить секреты</value>
+  </data>
+  <data name="Secret_UnlockRequiredMessage" xml:space="preserve">
+    <value>Сначала разблокируйте секретные закладки.</value>
+  </data>
+  <data name="Secret_UnlockRequiredTitle" xml:space="preserve">
+    <value>Нужна разблокировка</value>
+  </data>
+  <data name="Settings_SecretBookmarksDescription" xml:space="preserve">
+    <value>Задайте или смените мастер-пароль, который используется для разблокировки секретных закладок.</value>
+  </data>
+  <data name="Settings_SecretBookmarksSectionTitle" xml:space="preserve">
+    <value>Секретные закладки</value>
+  </data>
+  <data name="Settings_SecretNewPasswordLabel" xml:space="preserve">
+    <value>Новый мастер-пароль</value>
+  </data>
+  <data name="Settings_SecretPasswordChanged" xml:space="preserve">
+    <value>Мастер-пароль изменен.</value>
+  </data>
+  <data name="Settings_SecretPasswordCreated" xml:space="preserve">
+    <value>Мастер-пароль задан.</value>
+  </data>
+  <data name="Settings_SecretPasswordRequired" xml:space="preserve">
+    <value>Введите мастер-пароль.</value>
+  </data>
+  <data name="Settings_SecretPasswordSaveFailed" xml:space="preserve">
+    <value>Не удалось сохранить мастер-пароль.</value>
+  </data>
+  <data name="Settings_SecretPasswordsDoNotMatch" xml:space="preserve">
+    <value>Пароли не совпадают.</value>
+  </data>
+  <data name="Settings_SecretRepeatPasswordLabel" xml:space="preserve">
+    <value>Повторите мастер-пароль</value>
+  </data>
+  <data name="Settings_SecretSavePasswordAction" xml:space="preserve">
+    <value>Сохранить пароль</value>
+  </data>
+  <data name="Settings_SecretUnlockRequired" xml:space="preserve">
+    <value>Сначала разблокируйте секретные закладки, затем попробуйте еще раз.</value>
+  </data>
+  <data name="Settings_Title" xml:space="preserve">
+    <value>Настройки</value>
+  </data>
+  <data name="SetMasterPassword_PasswordLabel" xml:space="preserve">
+    <value>Мастер-пароль</value>
+  </data>
+  <data name="SetMasterPassword_PasswordRequired" xml:space="preserve">
+    <value>Введите мастер-пароль.</value>
+  </data>
+  <data name="SetMasterPassword_PasswordsDoNotMatch" xml:space="preserve">
+    <value>Пароли не совпадают.</value>
+  </data>
+  <data name="SetMasterPassword_RepeatPasswordLabel" xml:space="preserve">
+    <value>Повторите пароль</value>
+  </data>
+  <data name="SetMasterPassword_Title" xml:space="preserve">
+    <value>Задать мастер-пароль</value>
+  </data>
+  <data name="SetMasterPassword_Warning" xml:space="preserve">
+    <value>Этот пароль защищает секретные закладки. Восстановить его будет нельзя, поэтому сохраните его в надежном месте.</value>
+  </data>
+  <data name="UnlockSecrets_Action" xml:space="preserve">
+    <value>Разблокировать</value>
+  </data>
+  <data name="UnlockSecrets_FailedMessage" xml:space="preserve">
+    <value>Не удалось разблокировать секретные закладки. Проверьте пароль и попробуйте еще раз.</value>
+  </data>
+  <data name="UnlockSecrets_NotConfiguredMessage" xml:space="preserve">
+    <value>Секретные закладки еще не настроены.</value>
+  </data>
+  <data name="UnlockSecrets_NotConfiguredTitle" xml:space="preserve">
+    <value>Секреты не настроены</value>
+  </data>
+  <data name="UnlockSecrets_PasswordLabel" xml:space="preserve">
+    <value>Мастер-пароль</value>
+  </data>
+  <data name="UnlockSecrets_PasswordRequired" xml:space="preserve">
+    <value>Введите мастер-пароль.</value>
+  </data>
+  <data name="UnlockSecrets_Title" xml:space="preserve">
+    <value>Разблокировать секретные закладки</value>
   </data>
   <data name="AppearanceDialog_DarkTheme" xml:space="preserve">
     <value>Темная</value>

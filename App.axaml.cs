@@ -8,6 +8,7 @@ using Stranichnik.Icons;
 using Stranichnik.Localization;
 using Stranichnik.Search;
 using Stranichnik.Searching;
+using Stranichnik.Security;
 using Stranichnik.Settings;
 using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
@@ -35,13 +36,26 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var treeStore = SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData);
+            var secretConnectionFactory = new SqliteConnectionFactory(AppDataPaths.DatabasePath);
+            var secretProfileStore = new SqliteSecretProfileStore(secretConnectionFactory);
+            var secretCryptoService = new SecretCryptoService();
+            var secretSession = new SecretSessionService();
+
+            if (secretProfileStore.LoadActiveProfile() is null)
+                secretSession.MarkNotConfigured();
+            else
+                secretSession.MarkConfiguredLocked();
+
             desktop.MainWindow = new MainWindow
             {
                 DataContext = new MainWindowViewModel(
                     treeStore,
                     new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
                     new BookmarkIconImageCache(treeStore),
-                    SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds()),
+                    SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds(),
+                    secretProfileStore,
+                    secretCryptoService,
+                    secretSession),
             };
         }
 
