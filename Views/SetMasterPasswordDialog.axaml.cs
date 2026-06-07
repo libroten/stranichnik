@@ -59,7 +59,6 @@ public sealed partial class SetMasterPasswordDialog : Window
 
     private void ShowError(string message)
     {
-        ErrorTextBlock.Text = message;
-        ErrorTextBlock.IsVisible = true;
+        ErrorBanner.ShowError(message);
     }
 }

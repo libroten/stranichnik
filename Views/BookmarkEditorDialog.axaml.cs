@@ -19,6 +19,9 @@ namespace Stranichnik.Views;
 
 public sealed partial class BookmarkEditorDialog : Window
 {
+    private const double BookmarkDialogHeight = 560;
+    private const double FolderDialogHeight = 420;
+
     private static readonly TimeSpan MetadataFetchDebounce = TimeSpan.FromMilliseconds(400);
     private static readonly BookmarkMetadataFetcher MetadataFetcher = new();
     private static readonly IconImageProcessor IconImageProcessor = new();
@@ -32,6 +35,7 @@ public sealed partial class BookmarkEditorDialog : Window
     private static readonly IReadOnlyList<FilePickerFileType> ImageFilePickerTypes = [ImageFilePickerType];
 
     private readonly BookmarkEditorDialogMode _mode;
+    private readonly Func<BookmarkEditorDialog, Task<bool>>? _ensureSecretEditingAvailable;
     private readonly DispatcherTimer _metadataFetchDebounceTimer;
     private readonly IImage? _currentIconImage;
     private CancellationTokenSource? _metadataFetchCancellation;
@@ -57,9 +61,11 @@ public sealed partial class BookmarkEditorDialog : Window
         string title,
         string url,
         IImage? currentIconImage,
-        bool isSecret)
+        bool isSecret,
+        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null)
     {
         _mode = mode;
+        _ensureSecretEditingAvailable = ensureSecretEditingAvailable;
         _currentIconImage = currentIconImage;
         _metadataFetchDebounceTimer = new DispatcherTimer
         {
@@ -81,23 +87,32 @@ public sealed partial class BookmarkEditorDialog : Window
 
     public BookmarkEditorDialogResult? Result { get; private set; }
 
-    public static BookmarkEditorDialog AddBookmark()
+    public static BookmarkEditorDialog AddBookmark(
+        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null)
     {
         return new(
             BookmarkEditorDialogMode.AddBookmark,
             title: string.Empty,
             url: string.Empty,
             currentIconImage: null,
-            isSecret: false);
+            isSecret: false,
+            ensureSecretEditingAvailable);
     }
 
     public static BookmarkEditorDialog EditBookmark(
         string title,
         string url,
         IImage? currentIconImage,
-        bool isSecret)
+        bool isSecret,
+        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null)
     {
-        return new(BookmarkEditorDialogMode.EditBookmark, title, url, currentIconImage, isSecret);
+        return new(
+            BookmarkEditorDialogMode.EditBookmark,
+            title,
+            url,
+            currentIconImage,
+            isSecret,
+            ensureSecretEditingAvailable);
     }
 
     public static BookmarkEditorDialog AddFolder()
@@ -124,8 +139,7 @@ public sealed partial class BookmarkEditorDialog : Window
         {
             if (title.Length == 0)
             {
-                ErrorTextBlock.Text = UiStrings.ValidationTitleRequired;
-                ErrorTextBlock.IsVisible = true;
+                ErrorBanner.ShowError(UiStrings.ValidationTitleRequired);
                 return;
             }
 
@@ -136,8 +150,7 @@ public sealed partial class BookmarkEditorDialog : Window
 
         if (url.Length == 0)
         {
-            ErrorTextBlock.Text = UiStrings.ValidationUrlRequired;
-            ErrorTextBlock.IsVisible = true;
+            ErrorBanner.ShowError(UiStrings.ValidationUrlRequired);
             return;
         }
 
@@ -225,10 +238,30 @@ public sealed partial class BookmarkEditorDialog : Window
         e.Handled = true;
     }
 
-    private void OnSecretCheckClick(object? sender, RoutedEventArgs e)
+    private async void OnSecretCheckClick(object? sender, RoutedEventArgs e)
     {
+        if (SecretCheckBox.IsChecked == true &&
+            _ensureSecretEditingAvailable is not null &&
+            !await _ensureSecretEditingAvailable(this))
+        {
+            SecretCheckBox.IsChecked = false;
+            ErrorBanner.ShowError(UiStrings.BookmarkEditorSecretModeNotEnabled);
+        }
+        else
+        {
+            HideSecretModeWarning();
+        }
+
         UpdateSecretUi();
         e.Handled = true;
+    }
+
+    private void HideSecretModeWarning()
+    {
+        if (!ErrorBanner.IsShowingMessage(UiStrings.BookmarkEditorSecretModeNotEnabled))
+            return;
+
+        ErrorBanner.Hide();
     }
 
     private async void OnUploadIconClick(object? sender, RoutedEventArgs e)
@@ -251,16 +284,19 @@ public sealed partial class BookmarkEditorDialog : Window
         switch (_mode)
         {
             case BookmarkEditorDialogMode.AddBookmark:
+                Height = BookmarkDialogHeight;
                 Title = UiStrings.BookmarkEditorAddBookmarkTitle;
                 DialogTitleTextBlock.Text = UiStrings.BookmarkEditorAddBookmarkTitle;
                 SaveButton.Content = UiStrings.CommonAdd;
                 break;
             case BookmarkEditorDialogMode.EditBookmark:
+                Height = BookmarkDialogHeight;
                 Title = UiStrings.BookmarkEditorEditBookmarkTitle;
                 DialogTitleTextBlock.Text = UiStrings.BookmarkEditorEditBookmarkTitle;
                 SaveButton.Content = UiStrings.CommonSave;
                 break;
             case BookmarkEditorDialogMode.AddFolder:
+                Height = FolderDialogHeight;
                 Title = UiStrings.BookmarkEditorAddFolderTitle;
                 DialogTitleTextBlock.Text = UiStrings.BookmarkEditorAddFolderTitle;
                 SaveButton.Content = UiStrings.CommonAdd;
@@ -268,6 +304,7 @@ public sealed partial class BookmarkEditorDialog : Window
                 SecretCheckBox.IsVisible = false;
                 break;
             case BookmarkEditorDialogMode.EditFolder:
+                Height = FolderDialogHeight;
                 Title = UiStrings.BookmarkEditorEditFolderTitle;
                 DialogTitleTextBlock.Text = UiStrings.BookmarkEditorEditFolderTitle;
                 SaveButton.Content = UiStrings.CommonSave;
@@ -479,8 +516,7 @@ public sealed partial class BookmarkEditorDialog : Window
         if (!StorageProvider.CanOpen)
         {
             Logs.Print("Bookmark icon file picker unavailable.");
-            ErrorTextBlock.Text = UiStrings.BookmarkEditorIconPickerUnavailable;
-            ErrorTextBlock.IsVisible = true;
+            ErrorBanner.ShowError(UiStrings.BookmarkEditorIconPickerUnavailable);
             return;
         }
 
@@ -511,32 +547,28 @@ public sealed partial class BookmarkEditorDialog : Window
             UploadedIconImage.Source = image;
             UploadedIconButton.IsVisible = true;
             SelectIconChoice(BookmarkEditorIconChoice.Uploaded);
-            ErrorTextBlock.IsVisible = false;
+            ErrorBanner.Hide();
             Logs.Print("Bookmark icon file selected and processed.");
         }
         catch (InvalidOperationException)
         {
             Logs.Print("Bookmark icon file rejected: image processing error.");
-            ErrorTextBlock.Text = UiStrings.BookmarkEditorIconFileInvalid;
-            ErrorTextBlock.IsVisible = true;
+            ErrorBanner.ShowError(UiStrings.BookmarkEditorIconFileInvalid);
         }
         catch (ArgumentException)
         {
             Logs.Print("Bookmark icon file rejected: invalid image data.");
-            ErrorTextBlock.Text = UiStrings.BookmarkEditorIconFileInvalid;
-            ErrorTextBlock.IsVisible = true;
+            ErrorBanner.ShowError(UiStrings.BookmarkEditorIconFileInvalid);
         }
         catch (IOException)
         {
             Logs.Print("Bookmark icon file rejected: file read error.");
-            ErrorTextBlock.Text = UiStrings.BookmarkEditorIconFileInvalid;
-            ErrorTextBlock.IsVisible = true;
+            ErrorBanner.ShowError(UiStrings.BookmarkEditorIconFileInvalid);
         }
         catch (NotSupportedException)
         {
             Logs.Print("Bookmark icon file rejected: image format is not supported.");
-            ErrorTextBlock.Text = UiStrings.BookmarkEditorIconFileInvalid;
-            ErrorTextBlock.IsVisible = true;
+            ErrorBanner.ShowError(UiStrings.BookmarkEditorIconFileInvalid);
         }
     }
 

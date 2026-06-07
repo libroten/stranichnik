@@ -75,6 +75,9 @@
   <data name="BookmarkEditor_SecretBookmarkLabel" xml:space="preserve">
     <value>Secret bookmark</value>
   </data>
+  <data name="BookmarkEditor_SecretModeNotEnabled" xml:space="preserve">
+    <value>Secret mode was not enabled. The bookmark will remain normal; your entered data is still in this window.</value>
+  </data>
   <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
     <value>Title</value>
   </data>

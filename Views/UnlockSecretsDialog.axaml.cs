@@ -76,7 +76,6 @@ public sealed partial class UnlockSecretsDialog : Window
 
     private void ShowError(string message)
     {
-        ErrorTextBlock.Text = message;
-        ErrorTextBlock.IsVisible = true;
+        ErrorBanner.ShowError(message);
     }
 }

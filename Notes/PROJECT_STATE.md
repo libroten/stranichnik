@@ -141,6 +141,8 @@ Current dialogs:
 - `UnlockSecretsDialog` is used for unlocking secret bookmarks.
 - `SettingsDialog` is used for app settings and currently contains the secret bookmark password section.
 - Dialogs can be closed with `Esc` where that makes sense.
+- Inline form errors and success states use `Views/StatusBanner.axaml`.
+- `StatusBanner` should be reused for future dialog-local validation/status messages instead of adding raw error `TextBlock`s.
 
 ## Current UI Behavior
 

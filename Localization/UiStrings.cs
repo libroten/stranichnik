@@ -23,6 +23,7 @@ public static class UiStrings
     public static string BookmarkEditorIconUpload => TextResources.Get("BookmarkEditor_IconUpload");
     public static string BookmarkEditorIconUploaded => TextResources.Get("BookmarkEditor_IconUploaded");
     public static string BookmarkEditorSecretBookmarkLabel => TextResources.Get("BookmarkEditor_SecretBookmarkLabel");
+    public static string BookmarkEditorSecretModeNotEnabled => TextResources.Get("BookmarkEditor_SecretModeNotEnabled");
     public static string BookmarkEditorTitleLabel => TextResources.Get("BookmarkEditor_TitleLabel");
     public static string BookmarkEditorUrlLabel => TextResources.Get("BookmarkEditor_UrlLabel");
     public static string BookmarkEditorUrlPlaceholder => TextResources.Get("BookmarkEditor_UrlPlaceholder");

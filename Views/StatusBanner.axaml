@@ -1,0 +1,30 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Stranichnik.Views.StatusBanner"
+             IsVisible="False">
+    <Grid>
+        <Border x:Name="ErrorBorder"
+                IsVisible="False"
+                Padding="10,8"
+                CornerRadius="6"
+                Background="{DynamicResource ActionDeleteHoverBackgroundBrush}"
+                BorderBrush="{DynamicResource ActionDeleteBrush}"
+                BorderThickness="1">
+            <TextBlock x:Name="ErrorTextBlock"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+        </Border>
+
+        <Border x:Name="SuccessBorder"
+                IsVisible="False"
+                Padding="10,8"
+                CornerRadius="6"
+                Background="{DynamicResource ActionAddBookmarkHoverBackgroundBrush}"
+                BorderBrush="{DynamicResource ActionAddBookmarkBrush}"
+                BorderThickness="1">
+            <TextBlock x:Name="SuccessTextBlock"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+        </Border>
+    </Grid>
+</UserControl>

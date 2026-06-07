@@ -90,6 +90,14 @@ Dialogs:
 - `SettingsDialog` is scrollable and currently contains the first secret-bookmark settings section for changing the master password.
 - Dialogs use `Esc` as cancel/close behavior.
 
+Inline dialog status messages:
+
+- `Views/StatusBanner.axaml` is the shared component for inline validation errors, operation errors, and success messages inside dialogs.
+- Use `StatusBanner.ShowError(...)`, `StatusBanner.ShowSuccess(...)`, and `StatusBanner.Hide()` from dialog code-behind.
+- Prefer `StatusBanner` over raw `TextBlock` error/status labels in form dialogs.
+- The banner wraps long localized text, uses project theme brushes, and keeps message styling consistent.
+- Keep `MessageDialog` for separate modal messages that are not part of an existing form.
+
 Menus:
 
 - The top menu row is custom-styled in `Views/MainWindow.axaml`.

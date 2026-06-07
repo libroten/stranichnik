@@ -34,9 +34,7 @@ public sealed partial class SettingsDialog : Window
 
     public void ShowSecretPasswordError(string message)
     {
-        SecretPasswordStatusTextBlock.Text = message;
-        SetSecretPasswordStatusKind(isError: true);
-        SecretPasswordStatusTextBlock.IsVisible = true;
+        SecretPasswordStatusBanner.ShowError(message);
     }
 
     private void OnOpened(object? sender, EventArgs e)
@@ -75,18 +73,9 @@ public sealed partial class SettingsDialog : Window
 
         NewMasterPasswordTextBox.Clear();
         RepeatMasterPasswordTextBox.Clear();
-        SecretPasswordStatusTextBlock.Text = result.WasCreated
+        SecretPasswordStatusBanner.ShowSuccess(result.WasCreated
             ? UiStrings.SettingsSecretPasswordCreated
-            : UiStrings.SettingsSecretPasswordChanged;
-        SetSecretPasswordStatusKind(isError: false);
-        SecretPasswordStatusTextBlock.IsVisible = true;
-    }
-
-    private void SetSecretPasswordStatusKind(bool isError)
-    {
-        SecretPasswordStatusTextBlock.Classes.Remove("error");
-        SecretPasswordStatusTextBlock.Classes.Remove("success");
-        SecretPasswordStatusTextBlock.Classes.Add(isError ? "error" : "success");
+            : UiStrings.SettingsSecretPasswordChanged);
     }
 
     private async void OnKeyDown(object? sender, KeyEventArgs e)

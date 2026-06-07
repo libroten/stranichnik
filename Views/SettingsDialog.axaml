@@ -1,11 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:localization="using:Stranichnik.Localization"
+        xmlns:views="using:Stranichnik.Views"
         x:Class="Stranichnik.Views.SettingsDialog"
         Title="{x:Static localization:UiStrings.SettingsDialogTitle}"
         Width="520"
         Height="560"
-        MinWidth="420"
+        MinWidth="520"
         MinHeight="360"
         CanResize="True"
         WindowStartupLocation="CenterOwner"
@@ -45,7 +46,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton">
-            <Setter Property="Width" Value="140"/>
+            <Setter Property="MinWidth" Value="140"/>
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -80,62 +81,57 @@
             <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
         </Style>
-        <Style Selector="TextBlock.status.error">
-            <Setter Property="Foreground" Value="{DynamicResource TextErrorBrush}"/>
-        </Style>
-        <Style Selector="TextBlock.status.success">
-            <Setter Property="Foreground" Value="{DynamicResource DialogTextSecondaryBrush}"/>
-        </Style>
     </Window.Styles>
 
     <Border Background="{DynamicResource DialogBackgroundBrush}">
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="22"
-                        Spacing="22">
-                <StackPanel Spacing="10">
-                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretBookmarksSectionTitle}"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Grid>
+                <StackPanel Margin="22"
+                            Spacing="22"
+                            Width="460"
+                            HorizontalAlignment="Center">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretBookmarksSectionTitle}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
 
-                    <Border Height="1"
-                            Background="{DynamicResource DialogInputBorderBrush}"/>
+                        <Border Height="1"
+                                Background="{DynamicResource DialogInputBorderBrush}"/>
 
-                    <StackPanel Spacing="14">
-                        <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretBookmarksDescription}"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
-
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretNewPasswordLabel}"
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretBookmarksDescription}"
+                                       TextWrapping="Wrap"
                                        Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
-                            <TextBox x:Name="NewMasterPasswordTextBox"
-                                     PasswordChar="*"/>
-                        </StackPanel>
 
-                        <StackPanel Spacing="6">
-                            <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretRepeatPasswordLabel}"
-                                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
-                            <TextBox x:Name="RepeatMasterPasswordTextBox"
-                                     PasswordChar="*"/>
-                        </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretNewPasswordLabel}"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                                <TextBox x:Name="NewMasterPasswordTextBox"
+                                         PasswordChar="*"/>
+                            </StackPanel>
 
-                        <TextBlock x:Name="SecretPasswordStatusTextBlock"
-                                   Classes="status"
-                                   IsVisible="False"
-                                   TextWrapping="Wrap"/>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretRepeatPasswordLabel}"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                                <TextBox x:Name="RepeatMasterPasswordTextBox"
+                                         PasswordChar="*"/>
+                            </StackPanel>
 
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Right">
-                            <Button Classes="dialogButton"
-                                    Click="OnSaveSecretPasswordClick">
-                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretSavePasswordAction}"/>
-                            </Button>
+                            <views:StatusBanner x:Name="SecretPasswordStatusBanner"/>
+
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Classes="dialogButton"
+                                        Click="OnSaveSecretPasswordClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretSavePasswordAction}"/>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
-            </StackPanel>
+            </Grid>
         </ScrollViewer>
     </Border>
 </Window>

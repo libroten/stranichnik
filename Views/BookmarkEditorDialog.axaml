@@ -1,12 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:localization="using:Stranichnik.Localization"
+        xmlns:views="using:Stranichnik.Views"
         x:Class="Stranichnik.Views.BookmarkEditorDialog"
         Title="{x:Static localization:UiStrings.BookmarkEditorAddBookmarkTitle}"
         Width="420"
-        SizeToContent="Height"
+        Height="560"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DialogBackgroundBrush}"
         KeyDown="OnKeyDown">
     <Window.Styles>
         <Style Selector="TextBox">
@@ -43,7 +45,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
         </Style>
         <Style Selector="Button.dialogButton">
-            <Setter Property="Width" Value="104"/>
+            <Setter Property="MinWidth" Value="104"/>
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -237,22 +239,24 @@
 
     <Border Padding="20"
             Background="{DynamicResource DialogBackgroundBrush}">
-        <StackPanel Spacing="14">
-            <TextBlock x:Name="DialogTitleTextBlock"
-                       Text="{x:Static localization:UiStrings.BookmarkEditorAddBookmarkTitle}"
-                       FontSize="18"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="14">
+                <TextBlock x:Name="DialogTitleTextBlock"
+                           Text="{x:Static localization:UiStrings.BookmarkEditorAddBookmarkTitle}"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
 
-            <CheckBox x:Name="SecretCheckBox"
-                      Classes="secretToggle"
-                      IsVisible="False"
-                      Click="OnSecretCheckClick">
-                <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorSecretBookmarkLabel}"/>
-            </CheckBox>
+                <CheckBox x:Name="SecretCheckBox"
+                          Classes="secretToggle"
+                          IsVisible="False"
+                          Click="OnSecretCheckClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorSecretBookmarkLabel}"/>
+                </CheckBox>
 
-            <StackPanel x:Name="IconFieldPanel"
-                        Spacing="6">
+                <StackPanel x:Name="IconFieldPanel"
+                            Spacing="6">
                 <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorIconLabel}"
                            Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
                 <WrapPanel>
@@ -387,18 +391,18 @@
                         </StackPanel>
                     </Button>
                 </WrapPanel>
-            </StackPanel>
+                </StackPanel>
 
-            <StackPanel x:Name="UrlFieldPanel"
-                        Spacing="6">
+                <StackPanel x:Name="UrlFieldPanel"
+                            Spacing="6">
                 <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorUrlLabel}"
                            Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
                 <TextBox x:Name="UrlTextBox"
                          PlaceholderText="{x:Static localization:UiStrings.BookmarkEditorUrlPlaceholder}"
                          TextChanged="OnUrlTextChanged"/>
-            </StackPanel>
+                </StackPanel>
 
-            <StackPanel Spacing="6">
+                <StackPanel Spacing="6">
                 <TextBlock Text="{x:Static localization:UiStrings.BookmarkEditorTitleLabel}"
                            Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
                 <TextBox x:Name="TitleTextBox"/>
@@ -415,25 +419,24 @@
                                Classes="metadataSuggestionText"
                                TextTrimming="CharacterEllipsis"/>
                 </Button>
-            </StackPanel>
+                </StackPanel>
 
-            <TextBlock x:Name="ErrorTextBlock"
-                       IsVisible="False"
-                       Foreground="{DynamicResource TextErrorBrush}"/>
+                <views:StatusBanner x:Name="ErrorBanner"/>
 
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Spacing="8">
-                <Button Classes="dialogButton"
-                        Click="OnCancelClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"/>
-                </Button>
-                <Button x:Name="SaveButton"
-                        Classes="dialogButton accent"
-                        Click="OnSaveClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonAdd}"/>
-                </Button>
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Spacing="8">
+                    <Button Classes="dialogButton"
+                            Click="OnCancelClick">
+                        <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"/>
+                    </Button>
+                    <Button x:Name="SaveButton"
+                            Classes="dialogButton accent"
+                            Click="OnSaveClick">
+                        <TextBlock Text="{x:Static localization:UiStrings.CommonAdd}"/>
+                    </Button>
+                </StackPanel>
             </StackPanel>
-        </StackPanel>
+        </ScrollViewer>
     </Border>
 </Window>

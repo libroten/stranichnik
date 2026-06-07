@@ -10,7 +10,7 @@
         KeyDown="OnKeyDown">
     <Window.Styles>
         <Style Selector="Button.dialogButton">
-            <Setter Property="Width" Value="104"/>
+            <Setter Property="MinWidth" Value="104"/>
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>

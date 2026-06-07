@@ -75,6 +75,9 @@
   <data name="BookmarkEditor_SecretBookmarkLabel" xml:space="preserve">
     <value>Секретная закладка</value>
   </data>
+  <data name="BookmarkEditor_SecretModeNotEnabled" xml:space="preserve">
+    <value>Секретный режим не включён. Закладка останется обычной; введённые данные сохранены в этом окне.</value>
+  </data>
   <data name="BookmarkEditor_TitleLabel" xml:space="preserve">
     <value>Заголовок</value>
   </data>

@@ -634,13 +634,11 @@ public partial class MainWindow : Window
         if (DataContext is not MainWindowViewModel viewModel)
             return;
 
-        var dialog = BookmarkEditorDialog.AddBookmark();
+        var dialog = BookmarkEditorDialog.AddBookmark(owner =>
+            EnsureSecretEditingAvailableAsync(viewModel, owner));
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
 
         if (result is null)
-            return;
-
-        if (result.IsSecret && !await EnsureSecretEditingAvailableAsync(viewModel))
             return;
 
         if (result.IsSecret)
@@ -699,14 +697,12 @@ public partial class MainWindow : Window
             bookmark.Title,
             bookmark.Url,
             bookmark.IconImage,
-            bookmark.IsSecret);
+            bookmark.IsSecret,
+            owner => EnsureSecretEditingAvailableAsync(viewModel, owner));
         var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
 
         if (result is not null)
         {
-            if (result.IsSecret && !await EnsureSecretEditingAvailableAsync(viewModel))
-                return;
-
             bookmark = viewModel.FindBookmark(bookmark.Id) ?? bookmark;
 
             if (result.IsSecret)
@@ -730,16 +726,18 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<bool> EnsureSecretEditingAvailableAsync(MainWindowViewModel viewModel)
+    private static async Task<bool> EnsureSecretEditingAvailableAsync(
+        MainWindowViewModel viewModel,
+        Window owner)
     {
         if (viewModel.IsSecretSessionUnlocked)
             return true;
 
         if (viewModel.IsSecretProfileConfigured)
-            return await ShowUnlockSecretsDialogAsync(viewModel, showSecrets: true);
+            return await ShowUnlockSecretsDialogAsync(owner, viewModel, showSecrets: true);
 
         var dialog = new SetMasterPasswordDialog();
-        var result = await dialog.ShowDialog<SetMasterPasswordDialogResult?>(this);
+        var result = await dialog.ShowDialog<SetMasterPasswordDialogResult?>(owner);
 
         if (result is null)
             return false;
@@ -750,7 +748,7 @@ public partial class MainWindow : Window
             return true;
 
         await MessageDialog.ShowMessage(
-            this,
+            owner,
             UiStrings.SecretSetupFailedTitle,
             UiStrings.SecretSetupFailedMessage);
         return false;
