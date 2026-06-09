@@ -1,26 +1,26 @@
-# Stranichnik Future Features Plan
+# Stranichnik Strategic Features Plan
 
-This note is local agent context. It records the current thinking about the key future features that define why the project exists.
+This note is local agent context. It records the current thinking about the key strategic features that define why the project exists.
 
 Important: this is not a fixed contract or irreversible architecture. These decisions are working hypotheses. They should guide future implementation, but they may change if development uncovers better approaches, technical constraints, security concerns, or simpler designs.
 
-## Core Future Features
+## Core Strategic Features
 
-The project is not just a basic bookmark manager. Three future features are central:
+The project is not just a basic bookmark manager. Three strategic features are central:
 
 1. Selective encryption for secret bookmarks.
 2. Good bookmark search.
 3. WebDAV-based synchronization without a custom backend.
 
-These features must be considered together. They affect data model, storage design, search indexing, sync format, and UI behavior.
+Selective encryption and the first integrated search version are already implemented. WebDAV sync is still future work. These features must still be considered together because they affect data model, storage design, search indexing, sync format, and UI behavior.
 
 ## High-Level Direction
 
 Preferred long-term direction:
 
 - Local SQLite database as the app's working storage.
-- Application-level selective encryption for secret bookmark payloads. The first implementation favors practical privacy and understandable code over maximum cryptographic sophistication, while still using standard authenticated encryption and key derivation primitives.
-- Search index as a separate concern, not hardcoded into UI. The first application integration uses the standalone in-memory `Stranichnik.Search` library.
+- Application-level selective encryption for secret bookmark payloads. The current implementation favors practical privacy and understandable code over maximum cryptographic sophistication, while still using standard authenticated encryption and key derivation primitives.
+- Search index as a separate concern, not hardcoded into UI. The current application integration uses the standalone in-memory `Stranichnik.Search` library.
 - WebDAV sync as item-level sync, not whole SQLite file sync.
 - Application services as the central place for add/edit/delete/move operations.
 
@@ -114,10 +114,10 @@ Tradeoffs:
 
 ### Crypto Direction
 
-Likely choices:
+Current choices:
 
 - AES-GCM via .NET `AesGcm` for authenticated encryption.
-- PBKDF2-SHA256 is used for the first implementation to keep dependencies and complexity low.
+- PBKDF2-SHA256 is used to keep dependencies and complexity low.
 - Argon2id remains a possible later improvement if stronger password-based key derivation becomes important.
 
 Do not invent custom cryptography.
@@ -136,7 +136,7 @@ Search should be better than simple substring matching.
 
 The user wants to type an approximate remembered phrase or rough wording and get relevant bookmarks, even when the query does not exactly match the bookmark text.
 
-Search is required only for bookmarks, not folders.
+Search is required only for bookmarks, not folders. The first integrated search version is implemented and can be tuned later.
 
 ### Important Constraint
 
@@ -148,11 +148,12 @@ A good search index wants to store searchable text. Secret bookmarks must not le
 
 Keep search behind a service interface. Do not couple search to Avalonia view models.
 
-Possible future interfaces:
+Current implementation interfaces:
 
-- `ISearchService`
-- `ISearchIndex`
-- `BookmarkSearchDocument`
+- `Searching/BookmarkSearchService`
+- `Searching/BookmarkSearchDocumentMapper`
+- `Stranichnik.Search.IBookmarkSearchIndex`
+- `Stranichnik.Search.BookmarkSearchDocument`
 
 The search service should consume bookmark data from application/domain services or repository projections, not directly scrape UI controls.
 
@@ -177,7 +178,7 @@ Expected tradeoffs:
 
 Option A: Custom in-memory index
 
-- Good first implementation.
+- Current first implementation.
 - No search index is written to disk.
 - Secret bookmark search is naturally handled after unlock.
 - Easy to rebuild after add/edit/delete.
@@ -201,7 +202,7 @@ Option C: Lucene.NET
 
 Current preference:
 
-- Use the standalone custom in-memory `Stranichnik.Search` index for the first integrated version.
+- Continue using the standalone custom in-memory `Stranichnik.Search` index for the first integrated version.
 - Keep the architecture open enough to replace or supplement it with SQLite FTS5 or Lucene.NET later.
 
 Detailed standalone search-library planning documents:
@@ -355,7 +356,7 @@ Application services
   MainWindowViewModel now, possible BookmarkTreeApplicationService later
                             add/edit/delete/move
   SecretVaultService        lock/unlock/encrypt/decrypt
-  SearchService             query/index/reindex
+  BookmarkSearchService     query/index/reindex
   SyncService               WebDAV orchestration
 
 Storage
@@ -363,8 +364,8 @@ Storage
   SqliteBookmarkTreeStore
 
 Search
-  ISearchIndex
-  InMemorySearchIndex first
+  IBookmarkSearchIndex
+  InMemoryBookmarkSearchIndex now
   SQLiteFtsSearchIndex or LuceneSearchIndex later if needed
 
 Sync transport
@@ -399,10 +400,10 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Finish review/cleanup for the current master-password reset behavior.
-2. Decide whether encrypted custom icons for secret bookmarks should be implemented now or kept deferred.
-3. Tune search quality if the user wants better ranking/tokenization.
-4. Add WebDAV item-level sync after encryption and reset data shapes are stable enough.
+1. Decide whether encrypted custom icons for secret bookmarks should be implemented now or kept deferred.
+2. Tune search quality if the user wants better ranking/tokenization.
+3. Design WebDAV item-level sync using the current SQLite, search, encryption, icon, and reset data shapes.
+4. Implement WebDAV sync conservatively with stable IDs, conflict copies, ordinary item tombstones, and compact secret reset events.
 
 ## References To Revisit
 
@@ -418,6 +419,4 @@ Useful areas to research again before implementation:
 - WebDAV RFC 4918, especially ETags and conditional writes.
 - Joplin sync and encryption architecture notes.
 
-Do not assume this note is complete security design. Before implementing encryption, do a fresh careful review.
-
-Current note: selective bookmark encryption is already implemented. Do a fresh careful review before changing the crypto model, adding encrypted icons, or implementing sync over encrypted payloads.
+Do not assume this note is a complete security design. Selective bookmark encryption is already implemented, but do a fresh careful review before changing the crypto model, adding encrypted icons, or implementing sync over encrypted payloads.
