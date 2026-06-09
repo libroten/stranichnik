@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Stranichnik.Icons;
 using Stranichnik.Search;
 using Stranichnik.Searching;
 using Stranichnik.Security;
@@ -268,6 +269,52 @@ public sealed class MainWindowViewModelStorageTests
         Assert.Null(storageRecord.Url);
         Assert.NotNull(storageRecord.EncryptedPayload);
         Assert.Equal(bookmark.Id, Assert.Single(viewModel.SearchBookmarks("secret target")).Id);
+    }
+
+    [Fact]
+    public void EditBookmark_secret_conversion_preserves_icon_through_view_model_path()
+    {
+        var originalBookmark = CreateBookmark(
+            "icon-bookmark",
+            parentId: null,
+            "Icon Bookmark",
+            "https://icon.example.com") with
+        {
+            IconAssetId = "plain-icon"
+        };
+        var store = new InMemoryBookmarkTreeStore([originalBookmark]);
+        store.GetOrCreateIconAsset(CreateIconAsset("plain-icon", "same-icon-source"));
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+        viewModel.CreateMasterPassword("password", showSecrets: true);
+        var bookmark = Assert.IsType<BookmarkViewModel>(
+            Assert.Single(viewModel.Items));
+
+        var secretResult = viewModel.EditBookmarkAsSecret(
+            bookmark,
+            "Secret Icon Bookmark",
+            "https://secret-icon.example.com",
+            BookmarkIconSelection.KeepExisting);
+        var secretRecord = Assert.Single(store.Load().Items, item => item.Id == "icon-bookmark");
+        var secretIconAssetId = Assert.IsType<string>(secretRecord.SecretIconAssetId);
+
+        var plaintextResult = viewModel.EditSecretBookmarkAsPlaintext(
+            bookmark,
+            "Plain Icon Bookmark",
+            "https://plain-icon.example.com",
+            BookmarkIconSelection.KeepExisting);
+        var plaintextRecord = Assert.Single(store.Load().Items, item => item.Id == "icon-bookmark");
+
+        Assert.True(secretResult.WasEdited);
+        Assert.True(secretRecord.IsSecret);
+        Assert.Null(secretRecord.IconAssetId);
+        Assert.NotNull(store.GetSecretIconAsset(secretIconAssetId));
+        Assert.True(plaintextResult.WasEdited);
+        Assert.False(plaintextRecord.IsSecret);
+        Assert.Equal("plain-icon", plaintextRecord.IconAssetId);
+        Assert.Null(plaintextRecord.SecretIconAssetId);
+        Assert.Equal("Plain Icon Bookmark", bookmark.Title);
     }
 
     [Fact]
@@ -681,6 +728,20 @@ public sealed class MainWindowViewModelStorageTests
             CreateMetadata());
     }
 
+    private static BookmarkIconAssetRecord CreateIconAsset(string id, string sourceHash)
+    {
+        return new(
+            id,
+            IconHash.Sha256Algorithm,
+            sourceHash,
+            SourceSizeBytes: 3,
+            "image/png",
+            ProcessedWidth: 64,
+            ProcessedHeight: 64,
+            ProcessedIconBytes,
+            Now);
+    }
+
     private static BookmarkItemMetadata CreateMetadata()
     {
         return new BookmarkItemMetadata(
@@ -696,4 +757,5 @@ public sealed class MainWindowViewModelStorageTests
 
     private const int TestPbkdf2Iterations = 1000;
     private static readonly DateTimeOffset Now = new(2026, 6, 6, 12, 0, 0, TimeSpan.Zero);
+    private static readonly byte[] ProcessedIconBytes = [1, 2, 3];
 }

@@ -21,9 +21,11 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.True(TableExists(connection, "app_meta"));
         Assert.True(TableExists(connection, "crypto_profiles"));
         Assert.True(TableExists(connection, "icon_assets"));
+        Assert.True(TableExists(connection, "secret_icon_assets"));
         Assert.True(TableExists(connection, "items"));
         Assert.True(TableExists(connection, "secret_reset_events"));
         Assert.True(ColumnExists(connection, "items", "icon_asset_id"));
+        Assert.True(ColumnExists(connection, "items", "secret_icon_asset_id"));
         Assert.True(ColumnExists(connection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "wrapped_data_key"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "kdf_hash_algorithm"));
@@ -94,7 +96,9 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.Equal(1, result.PreviousVersion);
         Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
         Assert.True(TableExists(upgradedConnection, "icon_assets"));
+        Assert.True(TableExists(upgradedConnection, "secret_icon_assets"));
         Assert.True(ColumnExists(upgradedConnection, "items", "icon_asset_id"));
+        Assert.True(ColumnExists(upgradedConnection, "items", "secret_icon_asset_id"));
         Assert.True(ColumnExists(upgradedConnection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "wrapped_data_key"));
         Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "secret_generation_id"));
@@ -120,6 +124,8 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.True(result.MigrationApplied);
         Assert.Equal(2, result.PreviousVersion);
         Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
+        Assert.True(TableExists(upgradedConnection, "secret_icon_assets"));
+        Assert.True(ColumnExists(upgradedConnection, "items", "secret_icon_asset_id"));
         Assert.True(ColumnExists(upgradedConnection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "wrapped_data_key"));
         Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "secret_generation_id"));
@@ -139,6 +145,20 @@ public sealed class SqliteDatabaseMigratorTests
         InsertIconAsset(connection, "icon-1", "same-hash");
 
         Assert.Throws<SqliteException>(() => InsertIconAsset(connection, "icon-2", "same-hash"));
+    }
+
+    [Fact]
+    public void Secret_icon_assets_source_hash_is_unique()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var migrator = database.CreateMigrator();
+        migrator.Migrate();
+
+        using var connection = database.OpenConnection();
+
+        InsertSecretIconAsset(connection, "secret-icon-1", "same-hash");
+
+        Assert.Throws<SqliteException>(() => InsertSecretIconAsset(connection, "secret-icon-2", "same-hash"));
     }
 
     private static bool TableExists(SqliteConnection connection, string tableName)
@@ -408,6 +428,42 @@ public sealed class SqliteDatabaseMigratorTests
                 64,
                 64,
                 X'010203',
+                '2026-01-01T00:00:00.0000000Z');
+            """;
+        command.Parameters.AddWithValue("$id", id);
+        command.Parameters.AddWithValue("$sourceHash", sourceHash);
+        command.ExecuteNonQuery();
+    }
+
+    private static void InsertSecretIconAsset(SqliteConnection connection, string id, string sourceHash)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO secret_icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                encrypted_processed_bytes,
+                encryption_nonce,
+                payload_format_version,
+                secret_generation_id,
+                created_at_utc)
+            VALUES (
+                $id,
+                'sha256',
+                $sourceHash,
+                12,
+                'image/png',
+                64,
+                64,
+                X'010203',
+                X'040506',
+                1,
+                'generation',
                 '2026-01-01T00:00:00.0000000Z');
             """;
         command.Parameters.AddWithValue("$id", id);

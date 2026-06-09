@@ -668,7 +668,8 @@ public partial class MainWindow : Window
             ? viewModel.AddSecretBookmarkToFolderStart(
                 folder,
                 result.Title,
-                result.Url)
+                result.Url,
+                result.IconSelection)
             : viewModel.AddBookmarkToFolderStart(
                 folder,
                 result.Title,
@@ -725,7 +726,7 @@ public partial class MainWindow : Window
 
             if (result.IsSecret)
             {
-                viewModel.EditBookmarkAsSecret(bookmark, result.Title, result.Url);
+                viewModel.EditBookmarkAsSecret(bookmark, result.Title, result.Url, result.IconSelection);
             }
             else if (bookmark.IsSecret)
             {

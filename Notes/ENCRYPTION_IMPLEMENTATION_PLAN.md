@@ -590,23 +590,22 @@ Recommendation:
 Rules:
 
 - Secret bookmarks must have no plaintext title/url in storage.
-- Secret bookmarks must have no custom/fetched icon in v1.
-- Converting to secret clears `icon_asset_id`.
+- Secret bookmarks have no plaintext `icon_asset_id`.
+- Secret bookmarks may use encrypted custom/fetched icons through `secret_icon_asset_id`.
+- The encrypted secret icon design is documented in `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md`.
+- Converting to secret moves/copies an existing regular icon to encrypted secret icon storage when possible.
+- Converting to normal moves/copies an existing secret icon back to regular icon storage when possible.
 - Converting to normal clears encrypted payload fields.
 - Only bookmarks can become secret.
 - Folders remain non-secret.
-
-Note:
-
-- This is a temporary v1 privacy restriction. Future encrypted secret icons are tracked in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
 
 Tests:
 
 - add secret bookmark stores title/url as null;
 - add secret bookmark stores encrypted payload fields;
-- add secret bookmark clears custom icon;
-- edit normal to secret clears title/url/icon;
-- edit secret to normal restores title/url and clears encrypted fields;
+- add secret bookmark can use encrypted custom/fetched icon;
+- edit normal to secret clears title/url/plaintext icon and can preserve the icon as encrypted secret icon;
+- edit secret to normal restores title/url, clears encrypted fields, and can preserve the icon as regular icon;
 - edit folder as secret is rejected;
 - move secret bookmark works without decrypting;
 - delete secret bookmark tombstones without plaintext leakage.

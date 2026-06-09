@@ -20,6 +20,8 @@ public sealed class SqliteSecretResetStoreTests
             CreateBookmark("normal", isSecret: false),
             CreateBookmark("secret", isSecret: true),
         ]));
+        database.TreeStore.GetOrCreateSecretIconAsset(CreateSecretIconAsset("secret-icon"));
+        database.TreeStore.SetItemSecretIconAsset("secret", "secret-icon");
 
         var result = database.ResetStore.ResetMasterPasswordAndPurgeSecrets("generation");
 
@@ -30,6 +32,7 @@ public sealed class SqliteSecretResetStoreTests
         Assert.Single(loadedItems);
         Assert.Equal("normal", loadedItems[0].Id);
         Assert.Equal(1, database.TreeStore.CountAllItems());
+        Assert.Null(database.TreeStore.GetSecretIconAsset("secret-icon"));
 
         var resetEvent = Assert.Single(database.ResetStore.LoadResetEvents());
         Assert.Equal("reset-event", resetEvent.Id);
@@ -162,6 +165,24 @@ public sealed class SqliteSecretResetStoreTests
             Now,
             Now,
             secretGenerationId);
+    }
+
+    private static SecretIconAssetRecord CreateSecretIconAsset(string id)
+    {
+        return new(
+            id,
+            "sha256",
+            "source-hash",
+            SourceSizeBytes: 3,
+            "image/png",
+            ProcessedWidth: 64,
+            ProcessedHeight: 64,
+            new EncryptedSecretIconPayloadRecord(
+                Payload: EncryptedPayload,
+                Nonce: EncryptedNonce,
+                PayloadFormatVersion: 1),
+            "generation",
+            Now);
     }
 
     private sealed class TempSqliteDatabase : IDisposable

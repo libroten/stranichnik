@@ -44,6 +44,7 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             var folderIdsToPurge = SelectSecretOnlyFolderIds(connection, transaction);
             DeleteSecretBookmarks(connection, transaction);
             DeleteFolders(connection, transaction, folderIdsToPurge);
+            DeleteSecretIconAssets(connection, transaction, secretGenerationId);
             DeleteActiveProfile(connection, transaction, secretGenerationId);
 
             transaction.Commit();
@@ -277,6 +278,21 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             command.Parameters.AddWithValue("$id", folderId);
             command.ExecuteNonQuery();
         }
+    }
+
+    private static void DeleteSecretIconAssets(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string secretGenerationId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM secret_icon_assets
+            WHERE secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+        command.ExecuteNonQuery();
     }
 
     private static void DeleteActiveProfile(

@@ -10,4 +10,5 @@ public sealed record BookmarkItemRecord(
     bool IsSecret,
     EncryptedBookmarkPayloadRecord? EncryptedPayload,
     BookmarkItemMetadata Metadata,
-    string? IconAssetId = null);
+    string? IconAssetId = null,
+    string? SecretIconAssetId = null);

@@ -81,6 +81,14 @@ Completed broad areas:
   - uploaded icon files are selected through Avalonia's cross-platform storage provider;
   - downloaded/uploaded icon data is persisted only when the editor dialog is saved;
   - icon-related logs do not include URLs, page titles, local file paths, or raw hashes.
+- Encrypted custom/favicons for secret bookmarks are implemented:
+  - secret icon assets are stored in SQLite table `secret_icon_assets`;
+  - secret bookmarks reference them through nullable `items.secret_icon_asset_id`;
+  - processed secret icon PNG bytes are encrypted with the runtime secret DEK;
+  - secret icon assets deduplicate by original source SHA-256 inside `secret_icon_assets`;
+  - normal-to-secret and secret-to-normal bookmark conversion preserve icons by copying between regular and secret icon tables;
+  - decrypted secret icon bitmaps are cached only in memory and the cache is cleared when the secret session changes;
+  - master-password reset physically purges secret icon assets for the reset generation.
 - Bookmark tree context menus are implemented:
   - right-clicking a bookmark opens a custom context menu with go, copy URL, edit, and delete actions;
   - right-clicking a normal folder opens a custom context menu with add bookmark, add folder, edit, and delete actions;
@@ -101,8 +109,8 @@ Completed broad areas:
   - folders containing only hidden secret bookmarks are hidden too;
   - hidden secret bookmarks are absent from the tree and in-memory search index;
   - visible unlocked secret bookmarks are projected in memory and may be searched during that unlocked-visible state;
-  - secret bookmarks use default icons only in v1;
-  - encrypted custom icons are deferred and documented in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
+  - secret bookmarks can use encrypted custom/favicon icons while visible;
+  - encrypted custom icon design is documented in `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md`.
 - Secret master-password reset is implemented:
   - reset uses `secret_generation_id` plus compact `secret_reset_events`;
   - reset physically purges secret bookmark rows and encrypted payloads from live storage;
@@ -200,7 +208,7 @@ Bookmarks:
 - Show title and URL.
 - Can be marked as secret in the bookmark editor.
 - Secret bookmarks are hidden while secrets are locked/hidden.
-- Secret bookmarks use the default bookmark icon in v1.
+- Secret bookmarks can use encrypted custom/favicon icons while secrets are unlocked and visible.
 - URL is underlined with a dashed underline.
 - URL becomes blue on hover.
 - While adding/editing a bookmark, the app can fetch the page title from the URL and show it as an italic dashed-underlined suggestion.
@@ -326,11 +334,9 @@ The next broad implementation area is likely WebDAV sync, unless the user choose
 
 Likely order:
 
-1. Finish any remaining review/cleanup for selective encryption.
-2. Decide whether to implement encrypted custom icons for secret bookmarks now or keep the v1 default-icon restriction.
-3. Revisit search quality tuning if the user wants better ranking/tokenization.
-4. Design WebDAV sync using the current item-level SQLite schema, tombstones, and encrypted payload shape.
-5. Implement sync conservatively with stable IDs, conflict copies, and no custom backend.
+1. Revisit search quality tuning if the user wants better ranking/tokenization.
+2. Design WebDAV sync using the current item-level SQLite schema, tombstones, encrypted payload shape, and encrypted secret icon shape.
+3. Implement sync conservatively with stable IDs, conflict copies, and no custom backend.
 
 SQLite schema direction:
 

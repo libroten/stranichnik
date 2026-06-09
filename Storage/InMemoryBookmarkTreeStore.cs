@@ -10,6 +10,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
 
     private readonly List<BookmarkItemRecord> _items;
     private readonly List<BookmarkIconAssetRecord> _iconAssets = [];
+    private readonly List<SecretIconAssetRecord> _secretIconAssets = [];
     private readonly Func<string> _idFactory;
     private readonly Func<DateTimeOffset> _clock;
     private readonly string _modifiedDeviceId;
@@ -75,6 +76,40 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
 
         _iconAssets.Add(iconAsset);
         return iconAsset;
+    }
+
+    public SecretIconAssetRecord? GetSecretIconAsset(string secretIconAssetId)
+    {
+        ArgumentNullException.ThrowIfNull(secretIconAssetId);
+
+        return _secretIconAssets.FirstOrDefault(iconAsset => iconAsset.Id == secretIconAssetId);
+    }
+
+    public SecretIconAssetRecord? GetSecretIconAssetBySourceHash(
+        string sourceHashAlgorithm,
+        string sourceHash)
+    {
+        ArgumentNullException.ThrowIfNull(sourceHashAlgorithm);
+        ArgumentNullException.ThrowIfNull(sourceHash);
+
+        return _secretIconAssets.FirstOrDefault(iconAsset =>
+            string.Equals(iconAsset.SourceHashAlgorithm, sourceHashAlgorithm, StringComparison.Ordinal)
+            && string.Equals(iconAsset.SourceHash, sourceHash, StringComparison.Ordinal));
+    }
+
+    public SecretIconAssetRecord GetOrCreateSecretIconAsset(SecretIconAssetRecord secretIconAsset)
+    {
+        ArgumentNullException.ThrowIfNull(secretIconAsset);
+
+        var existing = GetSecretIconAssetBySourceHash(
+            secretIconAsset.SourceHashAlgorithm,
+            secretIconAsset.SourceHash);
+
+        if (existing is not null)
+            return existing;
+
+        _secretIconAssets.Add(secretIconAsset);
+        return secretIconAsset;
     }
 
     public BookmarkItemRecord AddBookmarkToFolderStart(
@@ -218,6 +253,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             Url = normalizedUrl,
             IsSecret = false,
             EncryptedPayload = null,
+            SecretIconAssetId = null,
             IconAssetId = null,
             Metadata = Touch(bookmark.Metadata)
         });
@@ -246,8 +282,8 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
     {
         var item = GetVisibleItem(itemId);
 
-        if (item.IsSecret && iconAssetId is not null)
-            throw new InvalidOperationException("Secret bookmarks cannot use custom icons.");
+        if (item.IsSecret)
+            throw new InvalidOperationException("Secret bookmarks cannot use plaintext custom icons.");
 
         if (iconAssetId is not null && GetIconAsset(iconAssetId) is null)
             throw new InvalidOperationException("Icon asset was not found.");
@@ -255,6 +291,30 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         return Replace(item with
         {
             IconAssetId = iconAssetId,
+            SecretIconAssetId = null,
+            Metadata = Touch(item.Metadata)
+        });
+    }
+
+    public BookmarkItemRecord SetItemSecretIconAsset(
+        string itemId,
+        string? secretIconAssetId)
+    {
+        var item = GetVisibleItem(itemId);
+
+        if (!item.IsSecret)
+            throw new InvalidOperationException("Plaintext items cannot use encrypted custom icons.");
+
+        if (item.Kind != BookmarkItemKind.Bookmark)
+            throw new InvalidOperationException("Only secret bookmarks can use encrypted custom icons.");
+
+        if (secretIconAssetId is not null && GetSecretIconAsset(secretIconAssetId) is null)
+            throw new InvalidOperationException("Secret icon asset was not found.");
+
+        return Replace(item with
+        {
+            IconAssetId = null,
+            SecretIconAssetId = secretIconAssetId,
             Metadata = Touch(item.Metadata)
         });
     }
@@ -293,6 +353,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         _items.RemoveAll(item =>
             item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } ||
             folderIdsToPurge.Contains(item.Id));
+        _secretIconAssets.Clear();
 
         return purgedSecretBookmarkCount;
     }

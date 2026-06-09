@@ -79,7 +79,7 @@ The synthetic root folder is special:
 Dialogs:
 
 - `BookmarkEditorDialog` handles add/edit for both bookmarks and folders.
-- `BookmarkEditorDialog` can mark bookmarks as secret. Secret bookmark editing hides custom icon choices in v1.
+- `BookmarkEditorDialog` can mark bookmarks as secret. When the secret session is unlocked, secret bookmark editing supports the same icon choices as normal bookmark editing.
 - For bookmark add/edit, `BookmarkEditorDialog` can fetch page metadata from the entered URL and show the discovered page title as a clickable suggestion.
 - `ConfirmDialog` handles delete confirmation for bookmarks and folders.
 - `LanguageDialog` handles choosing the application UI language.
@@ -152,9 +152,13 @@ Icons:
 - `IconAssetService` hashes original source bytes with SHA-256, reuses an existing asset with the same source hash, or creates a new immutable icon asset.
 - `IconImageProcessor` normalizes source images into `64x64` PNG with aspect ratio preserved.
 - `BookmarkIconImageCache` decodes stored icon blobs lazily and avoids repeated SQLite blob decoding.
+- Secret bookmark custom icons are stored separately in encrypted `secret_icon_assets` rows and referenced through `items.secret_icon_asset_id`.
+- Visible unlocked secret bookmarks can show decrypted custom icons; hidden secret bookmarks are absent from the UI.
+- `BookmarkIconImageCache` keeps decrypted secret icon bitmaps only in memory and clears that cache when the secret session changes.
 - `BookmarkEditorDialog` lets the user choose current/default/favicon/uploaded icon options.
 - Uploaded icon files use Avalonia's cross-platform storage provider.
 - Dialog code never writes icon blobs directly to SQLite. It returns a pending `BookmarkIconSelection`; `MainWindowViewModel` applies it through `IconAssetService` and `IBookmarkTreeStore`.
+- Secret icon selections are applied through `SecretIconAssetService`, which encrypts processed icon bytes with the runtime secret key.
 - Icon logs must not include URLs, page titles, local file paths, raw hashes, or raw image data.
 
 Search UI:
@@ -342,7 +346,8 @@ Current crypto shape:
   - changing the master password rewraps the DEK and does not re-encrypt every bookmark payload.
 - `items.encrypted_payload`, `items.encryption_nonce`, `items.crypto_profile_id`, and `items.secret_payload_format_version` store encrypted bookmark payload metadata.
 - Secret bookmark plaintext `title` and `url` columns are `NULL`.
-- Secret bookmarks have `items.icon_asset_id = NULL` in v1. Encrypted custom icons are deferred and documented in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
+- Secret bookmarks have `items.icon_asset_id = NULL` and may reference encrypted custom icons through `items.secret_icon_asset_id`.
+- Secret icon assets are stored in `secret_icon_assets`; the design is documented in `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md`.
 
 Current session behavior:
 
@@ -369,7 +374,7 @@ UI behavior:
 - If the user tries to create a secret bookmark before a master password exists, the app asks to create the master password first.
 - The settings window allows changing the master password.
 - If a crypto profile exists and the session is locked, changing the master password first asks for the current master password without forcing secrets to become visible.
-- Secret bookmarks currently use the default bookmark icon only.
+- Secret bookmarks can use encrypted custom/favicons while unlocked and visible; hidden secret bookmarks are absent from the UI, so their icons are not rendered.
 
 Logging/privacy constraints:
 

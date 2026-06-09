@@ -111,6 +111,45 @@ Field notes:
 - Icon rows should be treated as immutable. Changing an item's icon means changing `items.icon_asset_id`, not mutating an existing shared blob.
 - Unreferenced icon assets may remain in the database; cleanup can be implemented later.
 
+## Secret Icon Assets
+
+Secret bookmark icons should use a separate encrypted table, not plaintext
+`icon_assets`.
+
+Current table shape:
+
+```sql
+CREATE TABLE secret_icon_assets (
+    id TEXT PRIMARY KEY,
+
+    source_hash_algorithm TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    source_size_bytes INTEGER NOT NULL,
+
+    processed_mime_type TEXT NOT NULL,
+    processed_width INTEGER NOT NULL,
+    processed_height INTEGER NOT NULL,
+
+    encrypted_processed_bytes BLOB NOT NULL,
+    encryption_nonce BLOB NOT NULL,
+    payload_format_version INTEGER NOT NULL,
+
+    secret_generation_id TEXT NOT NULL,
+
+    created_at_utc TEXT NOT NULL,
+
+    UNIQUE (source_hash_algorithm, source_hash)
+);
+```
+
+Important design points:
+
+- `source_hash` is intentionally stored in plaintext for deduplication.
+- Deduplication is only inside `secret_icon_assets`; it does not deduplicate with
+  regular `icon_assets`.
+- Processed icon PNG bytes are encrypted with the secret runtime DEK.
+- See `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md`.
+
 ## Crypto Metadata
 
 Secret bookmark encryption uses a DEK/KEK model.
@@ -184,6 +223,7 @@ CREATE TABLE items (
     title TEXT NULL,
     url TEXT NULL,
     icon_asset_id TEXT NULL REFERENCES icon_assets(id),
+    secret_icon_asset_id TEXT NULL REFERENCES secret_icon_assets(id),
 
     is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
     encrypted_payload BLOB NULL,
@@ -215,7 +255,8 @@ CREATE TABLE items (
             AND encrypted_payload IS NULL
             AND encryption_nonce IS NULL
             AND crypto_profile_id IS NULL
-            AND secret_payload_format_version IS NULL)
+            AND secret_payload_format_version IS NULL
+            AND secret_icon_asset_id IS NULL)
 
         OR
 
@@ -226,7 +267,8 @@ CREATE TABLE items (
             AND encrypted_payload IS NULL
             AND encryption_nonce IS NULL
             AND crypto_profile_id IS NULL
-            AND secret_payload_format_version IS NULL)
+            AND secret_payload_format_version IS NULL
+            AND secret_icon_asset_id IS NULL)
 
         OR
 
@@ -393,7 +435,7 @@ The event means:
 All secret bookmarks from this generation were intentionally discarded.
 ```
 
-The local reset also removes folders that only contained secret bookmark content, so folder names do not become newly visible as empty folders after the reset.
+The local reset also removes folders that only contained secret bookmark content, so folder names do not become newly visible as empty folders after the reset. Reset also removes encrypted secret icon assets for the reset generation.
 
 The event must not store bookmark titles, URLs, encrypted payloads, icon blobs, or key material.
 

@@ -54,7 +54,7 @@ public partial class App : Application
                 DataContext = new MainWindowViewModel(
                     treeStore,
                     new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
-                    new BookmarkIconImageCache(treeStore),
+                    new BookmarkIconImageCache(treeStore, secretSession),
                     SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds(),
                     secretProfileStore,
                     secretCryptoService,

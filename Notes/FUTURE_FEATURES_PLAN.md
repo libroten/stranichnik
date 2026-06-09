@@ -400,10 +400,9 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Decide whether encrypted custom icons for secret bookmarks should be implemented now or kept deferred.
-2. Tune search quality if the user wants better ranking/tokenization.
-3. Design WebDAV item-level sync using the current SQLite, search, encryption, icon, and reset data shapes.
-4. Implement WebDAV sync conservatively with stable IDs, conflict copies, ordinary item tombstones, and compact secret reset events.
+1. Tune search quality if the user wants better ranking/tokenization.
+2. Design WebDAV item-level sync using the current SQLite, search, encryption, icon, encrypted secret icon, and reset data shapes.
+3. Implement WebDAV sync conservatively with stable IDs, conflict copies, ordinary item tombstones, encrypted icon blobs, and compact secret reset events.
 
 ## References To Revisit
 

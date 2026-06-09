@@ -24,6 +24,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly BookmarkSearchService _searchService;
     private readonly BookmarkIconImageCache _iconImageCache;
     private readonly IconAssetService _iconAssetService;
+    private readonly SecretIconAssetService _secretIconAssetService;
     [SuppressMessage(
         "Performance",
         "CA1859:Use concrete types when possible for improved performance",
@@ -63,11 +64,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _treeStore = treeStore;
         _searchService = searchService;
-        _iconImageCache = iconImageCache ?? new BookmarkIconImageCache(treeStore);
-        _iconAssetService = new IconAssetService(_treeStore, new IconImageProcessor());
         _secretProfileStore = secretProfileStore ?? new InMemorySecretProfileStore();
         _secretCryptoService = secretCryptoService ?? new SecretCryptoService();
         _secretSession = secretSession ?? new SecretSessionService();
+        _secretIconAssetService = new SecretIconAssetService(_treeStore, new IconImageProcessor());
+        _iconImageCache = iconImageCache ?? new BookmarkIconImageCache(
+            treeStore,
+            _secretSession);
+        _iconAssetService = new IconAssetService(_treeStore, new IconImageProcessor());
         _secretProjectionService = secretProjectionService ?? new SecretBookmarkProjectionService(_secretCryptoService);
         _secretProfileSetupService = new SecretProfileSetupService(
             _secretProfileStore,
@@ -367,8 +371,12 @@ public partial class MainWindowViewModel : ViewModelBase
     public BookmarkTreeAddBookmarkResult AddSecretBookmarkToFolderStart(
         BookmarkFolderViewModel targetParent,
         string title,
-        string url)
+        string url,
+        BookmarkIconSelection? iconSelection = null)
     {
+        if (!TryPrepareSecretIconSelection(iconSelection, currentRecord: null, out var secretIconAssetId, out var shouldSetIcon))
+            return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
+
         var bookmarkId = Guid.NewGuid().ToString("N");
 
         if (!TryCreateEncryptedBookmarkPayload(bookmarkId, title, url, out var encryptedPayload))
@@ -392,6 +400,9 @@ public partial class MainWindowViewModel : ViewModelBase
             return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
         }
 
+        if (shouldSetIcon)
+            record = _treeStore.SetItemSecretIconAsset(record.Id, secretIconAssetId);
+
         var projectedRecord = record with
         {
             Title = title,
@@ -401,7 +412,7 @@ public partial class MainWindowViewModel : ViewModelBase
             title,
             url,
             record.Id,
-            iconImage: null,
+            _iconImageCache.GetSecretImage(record.SecretIconAssetId),
             isSecret: true)
         {
             Parent = targetParent
@@ -509,8 +520,13 @@ public partial class MainWindowViewModel : ViewModelBase
     public BookmarkTreeEditBookmarkResult EditBookmarkAsSecret(
         BookmarkViewModel bookmark,
         string title,
-        string url)
+        string url,
+        BookmarkIconSelection? iconSelection = null)
     {
+        var currentRecord = FindStorageRecord(bookmark.Id);
+        if (!TryPrepareSecretIconSelection(iconSelection, currentRecord, out var secretIconAssetId, out var shouldSetIcon))
+            return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
+
         if (!TryCreateEncryptedBookmarkPayload(bookmark.Id, title, url, out var encryptedPayload))
             return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
 
@@ -529,13 +545,16 @@ public partial class MainWindowViewModel : ViewModelBase
             return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
         }
 
+        if (shouldSetIcon)
+            record = _treeStore.SetItemSecretIconAsset(bookmark.Id, secretIconAssetId);
+
         var oldTitle = bookmark.Title;
         var oldUrl = bookmark.Url;
 
         bookmark.SetTitle(title);
         bookmark.SetUrl(url);
         bookmark.SetIsSecret(true);
-        bookmark.SetIconImage(null);
+        bookmark.SetIconImage(_iconImageCache.GetSecretImage(record.SecretIconAssetId));
         _searchService.AddOrUpdate(record with
         {
             Title = title,
@@ -555,7 +574,8 @@ public partial class MainWindowViewModel : ViewModelBase
         string url,
         BookmarkIconSelection? iconSelection = null)
     {
-        if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
+        var currentRecord = FindStorageRecord(bookmark.Id);
+        if (!TryPreparePlainIconSelection(iconSelection, currentRecord, out var iconAssetId, out var shouldSetIcon))
             return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
 
         BookmarkItemRecord record;
@@ -860,6 +880,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _ = sender;
         _ = args;
 
+        _iconImageCache.ClearSecretImages();
         ReloadVisibleTreeAndSearch();
         OnPropertyChanged(nameof(IsSecretSessionUnlocked));
         OnPropertyChanged(nameof(AreSecretsVisible));
@@ -912,6 +933,158 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             return false;
         }
+    }
+
+    private bool TryPreparePlainIconSelection(
+        BookmarkIconSelection? iconSelection,
+        BookmarkItemRecord? currentRecord,
+        out string? iconAssetId,
+        out bool shouldSetIcon)
+    {
+        iconAssetId = null;
+        shouldSetIcon = false;
+
+        if (iconSelection is null || iconSelection.Kind == BookmarkIconSelectionKind.KeepExisting)
+        {
+            if (currentRecord?.SecretIconAssetId is null)
+                return true;
+
+            return TryConvertSecretIconToPlain(currentRecord.SecretIconAssetId, out iconAssetId, out shouldSetIcon);
+        }
+
+        return TryPrepareIconSelection(iconSelection, out iconAssetId, out shouldSetIcon);
+    }
+
+    private bool TryPrepareSecretIconSelection(
+        BookmarkIconSelection? iconSelection,
+        BookmarkItemRecord? currentRecord,
+        out string? secretIconAssetId,
+        out bool shouldSetIcon)
+    {
+        secretIconAssetId = null;
+        shouldSetIcon = false;
+
+        if (iconSelection is null || iconSelection.Kind == BookmarkIconSelectionKind.KeepExisting)
+        {
+            if (currentRecord?.IconAssetId is not null)
+                return TryConvertPlainIconToSecret(currentRecord.IconAssetId, out secretIconAssetId, out shouldSetIcon);
+
+            return true;
+        }
+
+        if (iconSelection.Kind == BookmarkIconSelectionKind.UseDefault)
+        {
+            shouldSetIcon = true;
+            return true;
+        }
+
+        var profile = _secretProfileStore.LoadActiveProfile();
+        var dataKey = _secretSession.BorrowDataKey();
+
+        if (profile is null || dataKey is null)
+            return false;
+
+        try
+        {
+            var iconAsset = _secretIconAssetService.GetOrCreateFromOriginalBytes(
+                iconSelection.OriginalBytes,
+                dataKey,
+                profile.SecretGenerationId);
+            secretIconAssetId = iconAsset.Id;
+            shouldSetIcon = true;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (SecretPayloadException)
+        {
+            return false;
+        }
+    }
+
+    private bool TryConvertPlainIconToSecret(
+        string iconAssetId,
+        out string? secretIconAssetId,
+        out bool shouldSetIcon)
+    {
+        secretIconAssetId = null;
+        shouldSetIcon = false;
+        var profile = _secretProfileStore.LoadActiveProfile();
+        var dataKey = _secretSession.BorrowDataKey();
+
+        if (profile is null || dataKey is null)
+            return false;
+
+        try
+        {
+            var iconAsset = _secretIconAssetService.GetOrCreateFromRegularIconAsset(
+                iconAssetId,
+                dataKey,
+                profile.SecretGenerationId);
+            secretIconAssetId = iconAsset?.Id;
+            shouldSetIcon = true;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (SecretPayloadException)
+        {
+            return false;
+        }
+    }
+
+    private bool TryConvertSecretIconToPlain(
+        string secretIconAssetId,
+        out string? iconAssetId,
+        out bool shouldSetIcon)
+    {
+        iconAssetId = null;
+        shouldSetIcon = false;
+        var dataKey = _secretSession.BorrowDataKey();
+
+        if (dataKey is null)
+            return false;
+
+        try
+        {
+            var iconAsset = _secretIconAssetService.GetOrCreateRegularFromSecretIconAsset(
+                secretIconAssetId,
+                dataKey);
+            iconAssetId = iconAsset?.Id;
+            shouldSetIcon = true;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (SecretPayloadException)
+        {
+            return false;
+        }
+    }
+
+    private BookmarkItemRecord? FindStorageRecord(string itemId)
+    {
+        return _treeStore.Load()
+            .Items
+            .FirstOrDefault(item => string.Equals(item.Id, itemId, StringComparison.Ordinal));
     }
 
     private bool TryCreateEncryptedBookmarkPayload(

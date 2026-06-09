@@ -344,6 +344,41 @@ public sealed class SqliteBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void GetOrCreateSecretIconAsset_inserts_and_loads_asset()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var iconAsset = CreateSecretIconAsset("secret-icon", "hash");
+
+        var created = database.Store.GetOrCreateSecretIconAsset(iconAsset);
+        var loaded = database.Store.GetSecretIconAsset("secret-icon");
+
+        AssertSecretIconAssetEqual(iconAsset, created);
+        AssertSecretIconAssetEqual(iconAsset, Assert.IsType<SecretIconAssetRecord>(loaded));
+    }
+
+    [Fact]
+    public void GetOrCreateSecretIconAsset_reuses_existing_asset_with_same_source_hash()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var first = CreateSecretIconAsset("secret-icon-1", "same-hash");
+        var second = CreateSecretIconAsset("secret-icon-2", "same-hash");
+
+        var created = database.Store.GetOrCreateSecretIconAsset(first);
+        var reused = database.Store.GetOrCreateSecretIconAsset(second);
+
+        AssertSecretIconAssetEqual(first, created);
+        AssertSecretIconAssetEqual(first, reused);
+        AssertSecretIconAssetEqual(
+            first,
+            Assert.IsType<SecretIconAssetRecord>(database.Store.GetSecretIconAsset("secret-icon-1")));
+        AssertSecretIconAssetEqual(
+            first,
+            Assert.IsType<SecretIconAssetRecord>(
+                database.Store.GetSecretIconAssetBySourceHash("sha256", "same-hash")));
+        Assert.Null(database.Store.GetSecretIconAsset("secret-icon-2"));
+    }
+
+    [Fact]
     public void SetItemIconAsset_updates_and_clears_icon_reference()
     {
         using var database = TempSqliteDatabase.Create();
@@ -388,6 +423,45 @@ public sealed class SqliteBookmarkTreeStoreTests
 
         Assert.Throws<InvalidOperationException>(
             () => database.Store.SetItemIconAsset("bookmark", "icon"));
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.SetItemIconAsset("bookmark", iconAssetId: null));
+    }
+
+    [Fact]
+    public void SetItemSecretIconAsset_updates_secret_bookmark_and_clears_plaintext_icon_reference()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.EnsureSecretProfile();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+        database.Store.GetOrCreateSecretIconAsset(CreateSecretIconAsset("secret-icon", "hash"));
+
+        var withIcon = database.Store.SetItemSecretIconAsset("bookmark", "secret-icon");
+        var withoutIcon = database.Store.SetItemSecretIconAsset("bookmark", secretIconAssetId: null);
+
+        Assert.Equal("secret-icon", withIcon.SecretIconAssetId);
+        Assert.Null(withIcon.IconAssetId);
+        Assert.Null(withoutIcon.SecretIconAssetId);
+        Assert.Equal(3, withoutIcon.Metadata.Revision);
+        Assert.Null(database.Store.Load().Items.Single().SecretIconAssetId);
+    }
+
+    [Fact]
+    public void SetItemSecretIconAsset_rejects_plaintext_bookmark_custom_secret_icon()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.Store.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateBookmark("bookmark", parentId: null, sortOrder: 1000),
+        ]));
+        database.Store.GetOrCreateSecretIconAsset(CreateSecretIconAsset("secret-icon", "hash"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.SetItemSecretIconAsset("bookmark", "secret-icon"));
+        Assert.Throws<InvalidOperationException>(
+            () => database.Store.SetItemSecretIconAsset("bookmark", secretIconAssetId: null));
     }
 
     [Fact]
@@ -733,6 +807,24 @@ public sealed class SqliteBookmarkTreeStoreTests
             CreatedAt);
     }
 
+    private static SecretIconAssetRecord CreateSecretIconAsset(string id, string sourceHash)
+    {
+        return new(
+            id,
+            "sha256",
+            sourceHash,
+            SourceSizeBytes: 3,
+            "image/png",
+            ProcessedWidth: 64,
+            ProcessedHeight: 64,
+            new EncryptedSecretIconPayloadRecord(
+                Payload: EncryptedPayloadBytes,
+                Nonce: EncryptedNonceBytes,
+                PayloadFormatVersion: 1),
+            "secret-generation",
+            CreatedAt);
+    }
+
     private static void AssertIconAssetEqual(
         BookmarkIconAssetRecord expected,
         BookmarkIconAssetRecord actual)
@@ -745,6 +837,26 @@ public sealed class SqliteBookmarkTreeStoreTests
         Assert.Equal(expected.ProcessedWidth, actual.ProcessedWidth);
         Assert.Equal(expected.ProcessedHeight, actual.ProcessedHeight);
         Assert.Equal(expected.ProcessedBytes.ToArray(), actual.ProcessedBytes.ToArray());
+        Assert.Equal(expected.CreatedAtUtc, actual.CreatedAtUtc);
+    }
+
+    private static void AssertSecretIconAssetEqual(
+        SecretIconAssetRecord expected,
+        SecretIconAssetRecord actual)
+    {
+        Assert.Equal(expected.Id, actual.Id);
+        Assert.Equal(expected.SourceHashAlgorithm, actual.SourceHashAlgorithm);
+        Assert.Equal(expected.SourceHash, actual.SourceHash);
+        Assert.Equal(expected.SourceSizeBytes, actual.SourceSizeBytes);
+        Assert.Equal(expected.ProcessedMimeType, actual.ProcessedMimeType);
+        Assert.Equal(expected.ProcessedWidth, actual.ProcessedWidth);
+        Assert.Equal(expected.ProcessedHeight, actual.ProcessedHeight);
+        Assert.Equal(expected.EncryptedProcessedBytes.Payload.ToArray(), actual.EncryptedProcessedBytes.Payload.ToArray());
+        Assert.Equal(expected.EncryptedProcessedBytes.Nonce.ToArray(), actual.EncryptedProcessedBytes.Nonce.ToArray());
+        Assert.Equal(
+            expected.EncryptedProcessedBytes.PayloadFormatVersion,
+            actual.EncryptedProcessedBytes.PayloadFormatVersion);
+        Assert.Equal(expected.SecretGenerationId, actual.SecretGenerationId);
         Assert.Equal(expected.CreatedAtUtc, actual.CreatedAtUtc);
     }
 

@@ -26,9 +26,10 @@ For master-password reset:
 
 1. Create one compact `secret_reset_event`.
 2. Physically purge secret bookmark rows and their encrypted payloads from the live `items` table.
-3. Physically purge folders that only contained secret bookmark content and would otherwise become newly visible empty folders.
-4. Delete the active crypto profile for the old secret generation.
-5. Lock the runtime secret session and forget the in-memory data key.
+3. Physically purge encrypted secret icon assets for the reset generation.
+4. Physically purge folders that only contained secret bookmark content and would otherwise become newly visible empty folders.
+5. Delete the active crypto profile for the old secret generation.
+6. Lock the runtime secret session and forget the in-memory data key.
 
 This keeps the sync intent without keeping the heavy encrypted bookmark payloads.
 
@@ -105,8 +106,9 @@ SQLite reset transaction:
 4. Physically delete folders that:
    - have at least one secret bookmark descendant;
    - have no visible non-secret content when secrets are hidden.
-5. Delete the active row from `crypto_profiles`.
-6. Commit.
+5. Physically delete `secret_icon_assets` rows for the active `secret_generation_id`.
+6. Delete the active row from `crypto_profiles`.
+7. Commit.
 
 After commit:
 
@@ -139,9 +141,10 @@ When a device uploads a reset event:
 When another device downloads a reset event:
 
 1. If it has secret bookmarks belonging to the reset generation, physically purge them locally.
-2. If its active crypto profile belongs to the reset generation, delete that profile and lock the session.
-3. Mark the reset event as applied/synced according to the future sync protocol.
-4. Do not resurrect old secret bookmarks from remote item objects that belong to the reset generation.
+2. Physically purge local secret icon assets belonging to the reset generation.
+3. If its active crypto profile belongs to the reset generation, delete that profile and lock the session.
+4. Mark the reset event as applied/synced according to the future sync protocol.
+5. Do not resurrect old secret bookmarks or old secret icon assets from remote objects that belong to the reset generation.
 
 Open sync details:
 

@@ -5,7 +5,7 @@ namespace Stranichnik.Storage.Sqlite;
 
 public sealed class SqliteDatabaseMigrator
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
     private const string LegacySecretGenerationId = "legacy-generation";
 
     private readonly SqliteConnectionFactory _connectionFactory;
@@ -52,6 +52,13 @@ public sealed class SqliteDatabaseMigrator
             ApplyVersion4(connection);
             migrationApplied = true;
             currentVersion = 4;
+        }
+
+        if (currentVersion == 4)
+        {
+            ApplyVersion5(connection);
+            migrationApplied = true;
+            currentVersion = 5;
         }
 
         if (currentVersion > CurrentVersion)
@@ -258,6 +265,7 @@ public sealed class SqliteDatabaseMigrator
             transaction,
             "ALTER TABLE items RENAME TO items_v2;");
 
+        CreateSecretIconAssetsTable(connection, transaction);
         CreateCryptoProfilesTable(connection, transaction);
         CreateItemsTable(connection, transaction);
 
@@ -273,6 +281,7 @@ public sealed class SqliteDatabaseMigrator
                 title,
                 url,
                 icon_asset_id,
+                secret_icon_asset_id,
                 is_secret,
                 encrypted_payload,
                 encryption_nonce,
@@ -295,6 +304,7 @@ public sealed class SqliteDatabaseMigrator
                 title,
                 url,
                 icon_asset_id,
+                NULL,
                 is_secret,
                 encrypted_payload,
                 encryption_nonce,
@@ -344,6 +354,84 @@ public sealed class SqliteDatabaseMigrator
         ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 4;");
 
         transaction.Commit();
+    }
+
+    private static void ApplyVersion5(SqliteConnection connection)
+    {
+        ExecuteNonQuery(connection, "PRAGMA foreign_keys = OFF;");
+
+        using var transaction = connection.BeginTransaction();
+
+        CreateSecretIconAssetsTable(connection, transaction);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            "ALTER TABLE items RENAME TO items_v5;");
+
+        CreateItemsTable(connection, transaction);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            INSERT INTO items (
+                id,
+                parent_id,
+                item_type,
+                sort_order,
+                title,
+                url,
+                icon_asset_id,
+                secret_icon_asset_id,
+                is_secret,
+                encrypted_payload,
+                encryption_nonce,
+                crypto_profile_id,
+                secret_payload_format_version,
+                created_at_utc,
+                updated_at_utc,
+                deleted_at_utc,
+                revision,
+                content_hash,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                modified_device_id)
+            SELECT
+                id,
+                parent_id,
+                item_type,
+                sort_order,
+                title,
+                url,
+                icon_asset_id,
+                NULL,
+                is_secret,
+                encrypted_payload,
+                encryption_nonce,
+                crypto_profile_id,
+                secret_payload_format_version,
+                created_at_utc,
+                updated_at_utc,
+                deleted_at_utc,
+                revision,
+                content_hash,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                modified_device_id
+            FROM items_v5;
+            """);
+
+        ExecuteNonQuery(connection, transaction, "DROP TABLE items_v5;");
+        CreateItemIndexes(connection, transaction);
+
+        ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 5;");
+
+        transaction.Commit();
+
+        ExecuteNonQuery(connection, "PRAGMA foreign_keys = ON;");
     }
 
     private static void EnsureMetadata(SqliteConnection connection, string key, string value)
@@ -437,6 +525,7 @@ public sealed class SqliteDatabaseMigrator
                 title TEXT NULL,
                 url TEXT NULL,
                 icon_asset_id TEXT NULL REFERENCES icon_assets(id),
+                secret_icon_asset_id TEXT NULL REFERENCES secret_icon_assets(id),
 
                 is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
                 encrypted_payload BLOB NULL,
@@ -468,7 +557,8 @@ public sealed class SqliteDatabaseMigrator
                         AND encrypted_payload IS NULL
                         AND encryption_nonce IS NULL
                         AND crypto_profile_id IS NULL
-                        AND secret_payload_format_version IS NULL)
+                        AND secret_payload_format_version IS NULL
+                        AND secret_icon_asset_id IS NULL)
 
                     OR
 
@@ -479,7 +569,8 @@ public sealed class SqliteDatabaseMigrator
                         AND encrypted_payload IS NULL
                         AND encryption_nonce IS NULL
                         AND crypto_profile_id IS NULL
-                        AND secret_payload_format_version IS NULL)
+                        AND secret_payload_format_version IS NULL
+                        AND secret_icon_asset_id IS NULL)
 
                     OR
 
@@ -494,6 +585,45 @@ public sealed class SqliteDatabaseMigrator
                         AND secret_payload_format_version IS NOT NULL)
                 )
             );
+            """);
+    }
+
+    private static void CreateSecretIconAssetsTable(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE TABLE IF NOT EXISTS secret_icon_assets (
+                id TEXT PRIMARY KEY,
+
+                source_hash_algorithm TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_size_bytes INTEGER NOT NULL,
+
+                processed_mime_type TEXT NOT NULL,
+                processed_width INTEGER NOT NULL,
+                processed_height INTEGER NOT NULL,
+
+                encrypted_processed_bytes BLOB NOT NULL,
+                encryption_nonce BLOB NOT NULL,
+                payload_format_version INTEGER NOT NULL,
+
+                secret_generation_id TEXT NOT NULL,
+                created_at_utc TEXT NOT NULL,
+
+                UNIQUE (source_hash_algorithm, source_hash)
+            );
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE INDEX IF NOT EXISTS idx_secret_icon_assets_generation
+                ON secret_icon_assets(secret_generation_id);
             """);
     }
 

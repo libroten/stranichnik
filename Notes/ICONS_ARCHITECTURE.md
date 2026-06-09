@@ -352,19 +352,13 @@ Examples:
 - a favicon may reveal the site/domain of a secret bookmark;
 - a user-selected custom icon may reveal private meaning even if the bookmark title/url are encrypted.
 
-First implementation direction:
+Current implementation:
 
 - non-secret bookmarks/folders may use custom/favicon icon assets stored in plaintext SQLite blobs;
-- secret bookmarks currently use default icons only;
-- encrypted custom icons for secret bookmarks are deferred to `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`;
+- secret bookmarks may use encrypted custom/favicon icon assets stored in `secret_icon_assets`;
 - while secrets are locked, secret bookmarks are hidden anyway;
-- do not auto-store favicons for secret bookmarks later without an explicit privacy decision.
-
-Possible later options for secret bookmarks:
-
-- force default icons while locked and keep custom icon data inside encrypted payload;
-- allow non-secret-looking custom icons but document the privacy tradeoff;
-- store encrypted icon blobs for secret items.
+- secret icon processed PNG bytes must be encrypted;
+- plaintext source hashes for secret icons are accepted for deduplication.
 
 ## Sync Interaction
 

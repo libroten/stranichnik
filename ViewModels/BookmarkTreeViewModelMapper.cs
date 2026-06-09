@@ -94,7 +94,12 @@ public static class BookmarkTreeViewModelMapper
         BookmarkItemRecord record,
         BookmarkIconImageCache? iconImageCache)
     {
-        return iconImageCache?.GetImage(record.IconAssetId);
+        if (iconImageCache is null)
+            return null;
+
+        return record.IsSecret
+            ? iconImageCache.GetSecretImage(record.SecretIconAssetId)
+            : iconImageCache.GetImage(record.IconAssetId);
     }
 
     private static string RequireTitle(BookmarkItemRecord record)

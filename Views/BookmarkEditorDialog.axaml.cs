@@ -158,7 +158,7 @@ public sealed partial class BookmarkEditorDialog : Window
         Result = new(
             title.Length == 0 ? url : title,
             url,
-            isSecret ? BookmarkIconSelection.UseDefault : CreateIconSelection(),
+            CreateIconSelection(),
             isSecret);
         Close(Result);
     }
@@ -326,11 +326,7 @@ public sealed partial class BookmarkEditorDialog : Window
         if (_mode is BookmarkEditorDialogMode.AddFolder or BookmarkEditorDialogMode.EditFolder)
             return;
 
-        var isSecret = SecretCheckBox.IsChecked == true;
-        IconFieldPanel.IsVisible = !isSecret;
-
-        if (isSecret)
-            SelectIconChoice(BookmarkEditorIconChoice.Default);
+        IconFieldPanel.IsVisible = true;
     }
 
     private void OnClosed(object? sender, EventArgs e)

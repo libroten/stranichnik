@@ -67,6 +67,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
         Assert.Null(bookmark.Title);
         Assert.Null(bookmark.Url);
         Assert.Null(bookmark.IconAssetId);
+        Assert.Null(bookmark.SecretIconAssetId);
         Assert.Same(payload, bookmark.EncryptedPayload);
         Assert.Same(bookmark, store.Load().Items.First(item => item.Id == "created-1"));
     }
@@ -120,6 +121,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
         Assert.Equal("https://example.com", edited.Url);
         Assert.Null(edited.EncryptedPayload);
         Assert.Null(edited.IconAssetId);
+        Assert.Null(edited.SecretIconAssetId);
         Assert.Equal(2, edited.Metadata.Revision);
     }
 
@@ -175,6 +177,23 @@ public sealed class InMemoryBookmarkTreeStoreTests
     }
 
     [Fact]
+    public void GetOrCreateSecretIconAsset_reuses_existing_asset_with_same_source_hash()
+    {
+        var store = CreateStore();
+        var first = CreateSecretIconAsset("secret-icon-1", "same-hash");
+        var second = CreateSecretIconAsset("secret-icon-2", "same-hash");
+
+        var created = store.GetOrCreateSecretIconAsset(first);
+        var reused = store.GetOrCreateSecretIconAsset(second);
+
+        Assert.Same(first, created);
+        Assert.Same(first, reused);
+        Assert.Same(first, store.GetSecretIconAsset("secret-icon-1"));
+        Assert.Same(first, store.GetSecretIconAssetBySourceHash("sha256", "same-hash"));
+        Assert.Null(store.GetSecretIconAsset("secret-icon-2"));
+    }
+
+    [Fact]
     public void SetItemIconAsset_updates_and_clears_icon_reference()
     {
         var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
@@ -198,6 +217,37 @@ public sealed class InMemoryBookmarkTreeStoreTests
 
         Assert.Throws<InvalidOperationException>(
             () => store.SetItemIconAsset("bookmark", "icon"));
+        Assert.Throws<InvalidOperationException>(
+            () => store.SetItemIconAsset("bookmark", iconAssetId: null));
+    }
+
+    [Fact]
+    public void SetItemSecretIconAsset_updates_secret_bookmark_and_clears_plaintext_icon_reference()
+    {
+        var bookmark = CreateSecretBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+        store.GetOrCreateSecretIconAsset(CreateSecretIconAsset("secret-icon", "hash"));
+
+        var withIcon = store.SetItemSecretIconAsset("bookmark", "secret-icon");
+        var withoutIcon = store.SetItemSecretIconAsset("bookmark", secretIconAssetId: null);
+
+        Assert.Equal("secret-icon", withIcon.SecretIconAssetId);
+        Assert.Null(withIcon.IconAssetId);
+        Assert.Null(withoutIcon.SecretIconAssetId);
+        Assert.Equal(3, withoutIcon.Metadata.Revision);
+    }
+
+    [Fact]
+    public void SetItemSecretIconAsset_rejects_plaintext_bookmark_custom_secret_icon()
+    {
+        var bookmark = CreateBookmark("bookmark", parentId: null, sortOrder: 1000);
+        var store = CreateStore(bookmark);
+        store.GetOrCreateSecretIconAsset(CreateSecretIconAsset("secret-icon", "hash"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => store.SetItemSecretIconAsset("bookmark", "secret-icon"));
+        Assert.Throws<InvalidOperationException>(
+            () => store.SetItemSecretIconAsset("bookmark", secretIconAssetId: null));
     }
 
     [Fact]
@@ -418,6 +468,24 @@ public sealed class InMemoryBookmarkTreeStoreTests
             ProcessedWidth: 64,
             ProcessedHeight: 64,
             ProcessedIconBytes,
+            CreatedAt);
+    }
+
+    private static SecretIconAssetRecord CreateSecretIconAsset(string id, string sourceHash)
+    {
+        return new(
+            id,
+            "sha256",
+            sourceHash,
+            SourceSizeBytes: 3,
+            "image/png",
+            ProcessedWidth: 64,
+            ProcessedHeight: 64,
+            new EncryptedSecretIconPayloadRecord(
+                Payload: EncryptedPayloadBytes,
+                Nonce: EncryptedNonceBytes,
+                PayloadFormatVersion: 1),
+            "generation",
             CreatedAt);
     }
 

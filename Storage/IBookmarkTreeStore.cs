@@ -12,6 +12,14 @@ public interface IBookmarkTreeStore
 
     BookmarkIconAssetRecord GetOrCreateIconAsset(BookmarkIconAssetRecord iconAsset);
 
+    SecretIconAssetRecord? GetSecretIconAsset(string secretIconAssetId);
+
+    SecretIconAssetRecord? GetSecretIconAssetBySourceHash(
+        string sourceHashAlgorithm,
+        string sourceHash);
+
+    SecretIconAssetRecord GetOrCreateSecretIconAsset(SecretIconAssetRecord secretIconAsset);
+
     BookmarkItemRecord AddBookmarkToFolderStart(
         string? parentId,
         string title,
@@ -47,6 +55,10 @@ public interface IBookmarkTreeStore
     BookmarkItemRecord SetItemIconAsset(
         string itemId,
         string? iconAssetId);
+
+    BookmarkItemRecord SetItemSecretIconAsset(
+        string itemId,
+        string? secretIconAssetId);
 
     void DeleteItem(string itemId);
 

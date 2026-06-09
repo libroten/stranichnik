@@ -359,21 +359,17 @@ secret_payload_format_version = 1
 
 ### Icon Policy For Secret Bookmarks
 
-First version:
+Current implementation:
 
-- Secret bookmarks should use a neutral built-in/default icon only.
-- Secret bookmarks should have `icon_asset_id = NULL`.
-- When converting a normal bookmark to secret, clear `icon_asset_id`.
-- When converting a secret bookmark back to normal, keep default icon; the user can choose a custom icon again later.
+- Secret bookmarks must have `icon_asset_id = NULL`.
+- Secret bookmarks may have `secret_icon_asset_id`.
+- Secret icon assets are stored in `secret_icon_assets`.
+- Processed secret icon PNG bytes are encrypted with the runtime secret DEK.
+- Secret icon source hashes are stored in plaintext for deduplication inside the secret icon category.
+- When converting a normal bookmark to secret, an existing regular icon is copied/encrypted into `secret_icon_assets` when possible.
+- When converting a secret bookmark back to normal, an existing secret icon is decrypted/copied into `icon_assets` when possible.
 
-Reason:
-
-- Favicons and custom icons can reveal the site or bookmark meaning.
-- Current icon assets are stored as plaintext blobs and deduplicated by source hash.
-- Encrypting icon assets while preserving deduplication is a separate design problem.
-
-This is a temporary conservative v1 restriction, not a permanent product decision.
-Future encrypted icon support is tracked in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
+See `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md` for details.
 
 ### Secret Folders
 
@@ -677,6 +673,7 @@ Steps:
    - `title = NULL`;
    - `url = NULL`;
    - `icon_asset_id = NULL`;
+   - set `secret_icon_asset_id` when the editor selected a secret icon;
    - encrypted payload fields set.
 4. Update visible tree:
    - if secrets visible: add decrypted bookmark view model;
@@ -695,6 +692,7 @@ Steps:
    - set `is_secret = 1`;
    - clear plaintext `title` and `url`;
    - clear `icon_asset_id`;
+   - convert the selected or existing regular icon to `secret_icon_asset_id` when possible;
    - set encrypted payload fields.
 4. Update tree/search according to current visibility.
 
@@ -714,8 +712,7 @@ Steps:
 1. Decrypt existing payload.
 2. Save plaintext title and URL.
 3. Clear secret fields.
-4. Keep `icon_asset_id = NULL` initially.
-5. User can add custom icon later.
+4. Convert `secret_icon_asset_id` back into a regular `icon_asset_id` when possible.
 
 ### Delete Secret Bookmark
 
@@ -811,7 +808,7 @@ Editor changes:
 - If enabled and no master password exists, run first-password setup.
 - If enabled and session locked, ask for unlock.
 - If canceled, revert toggle to off.
-- If secret is enabled, hide/disable custom icon/favicons and show a neutral built-in/default icon only.
+- Secret bookmarks can use encrypted custom/favicons as described in `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md`.
 
 ## Keyboard Shortcut Details
 
