@@ -26,8 +26,9 @@ For master-password reset:
 
 1. Create one compact `secret_reset_event`.
 2. Physically purge secret bookmark rows and their encrypted payloads from the live `items` table.
-3. Delete the active crypto profile for the old secret generation.
-4. Lock the runtime secret session and forget the in-memory data key.
+3. Physically purge folders that only contained secret bookmark content and would otherwise become newly visible empty folders.
+4. Delete the active crypto profile for the old secret generation.
+5. Lock the runtime secret session and forget the in-memory data key.
 
 This keeps the sync intent without keeping the heavy encrypted bookmark payloads.
 
@@ -98,11 +99,14 @@ SQLite reset transaction:
 
 1. Confirm an active crypto profile exists.
 2. Insert a `secret_reset_events` row for the active `secret_generation_id`.
-3. Physically delete all rows from `items` where:
+3. Physically delete all bookmark rows from `items` where:
    - `item_type = 'bookmark'`;
    - `is_secret = 1`.
-4. Delete the active row from `crypto_profiles`.
-5. Commit.
+4. Physically delete folders that:
+   - have at least one secret bookmark descendant;
+   - have no visible non-secret content when secrets are hidden.
+5. Delete the active row from `crypto_profiles`.
+6. Commit.
 
 After commit:
 
@@ -203,4 +207,3 @@ On success:
 On failure:
 
 - show a status banner with a non-sensitive error.
-

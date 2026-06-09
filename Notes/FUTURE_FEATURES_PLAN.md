@@ -334,7 +334,7 @@ Risk reduction strategy:
 
 - Stable IDs for every folder/bookmark.
 - Tombstones for deletions.
-- Compact reset events for bulk secret master-password reset, rather than retaining full encrypted payload tombstones.
+- Compact reset events for bulk secret master-password reset, rather than retaining full encrypted payload tombstones; local reset also physically purges folders that only contained secret bookmark content.
 - Idempotent sync operations.
 - Conservative conflict handling: preserve both versions when unsure.
 - Device IDs and revision metadata.
@@ -399,10 +399,10 @@ This prepares the app for:
 
 Recommended next steps, still flexible:
 
-1. Finish review/cleanup for the current selective encryption implementation.
+1. Finish review/cleanup for the current master-password reset behavior.
 2. Decide whether encrypted custom icons for secret bookmarks should be implemented now or kept deferred.
 3. Tune search quality if the user wants better ranking/tokenization.
-4. Add WebDAV item-level sync after encryption data shapes are stable enough.
+4. Add WebDAV item-level sync after encryption and reset data shapes are stable enough.
 
 ## References To Revisit
 

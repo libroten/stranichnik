@@ -14,6 +14,9 @@ public sealed class SecretMasterPasswordResetServiceTests
         var treeStore = new InMemoryBookmarkTreeStore(
         [
             CreateBookmark("normal", isSecret: false),
+            CreateFolder("secret-folder", parentId: null),
+            CreateFolder("secret-nested-folder", "secret-folder"),
+            CreateBookmark("nested-secret", "secret-nested-folder", isSecret: true),
             CreateBookmark("secret", isSecret: true),
         ]);
         var profileStore = new InMemorySecretProfileStore();
@@ -32,7 +35,7 @@ public sealed class SecretMasterPasswordResetServiceTests
         var result = service.ResetMasterPasswordAndDeleteSecrets();
 
         Assert.True(result.WasReset);
-        Assert.Equal(1, result.PurgedSecretBookmarkCount);
+        Assert.Equal(2, result.PurgedSecretBookmarkCount);
         Assert.Null(result.FailureReason);
         Assert.Null(profileStore.LoadActiveProfile());
         Assert.Equal(SecretSessionStatus.NotConfigured, session.Status);
@@ -63,11 +66,43 @@ public sealed class SecretMasterPasswordResetServiceTests
         Assert.Empty(resetStore.LoadResetEvents());
     }
 
+    [Fact]
+    public void ResetMasterPasswordAndDeleteSecrets_keeps_folder_with_visible_non_secret_content()
+    {
+        var treeStore = new InMemoryBookmarkTreeStore(
+        [
+            CreateFolder("mixed-folder", parentId: null),
+            CreateBookmark("secret", "mixed-folder", isSecret: true),
+            CreateBookmark("normal", "mixed-folder", isSecret: false),
+        ]);
+        var profileStore = new InMemorySecretProfileStore();
+        var profile = CreateProfile("generation");
+        profileStore.SaveNewProfile(profile);
+        using var session = new SecretSessionService();
+        var resetStore = new InMemorySecretResetStore(treeStore, profileStore);
+        var service = new SecretMasterPasswordResetService(profileStore, resetStore, session);
+
+        var result = service.ResetMasterPasswordAndDeleteSecrets();
+
+        Assert.True(result.WasReset);
+        Assert.Equal(1, result.PurgedSecretBookmarkCount);
+
+        var loadedItems = treeStore.Load().Items;
+        Assert.Equal(2, loadedItems.Count);
+        Assert.Contains(loadedItems, item => item.Id == "mixed-folder");
+        Assert.Contains(loadedItems, item => item.Id == "normal");
+    }
+
     private static BookmarkItemRecord CreateBookmark(string id, bool isSecret)
+    {
+        return CreateBookmark(id, parentId: null, isSecret);
+    }
+
+    private static BookmarkItemRecord CreateBookmark(string id, string? parentId, bool isSecret)
     {
         return new(
             id,
-            ParentId: null,
+            parentId,
             BookmarkItemKind.Bookmark,
             SortOrder: 1000,
             isSecret ? null : "Title",
@@ -76,6 +111,28 @@ public sealed class SecretMasterPasswordResetServiceTests
             isSecret
                 ? new EncryptedBookmarkPayloadRecord(EncryptedPayload, EncryptedNonce, 1, 1)
                 : null,
+            new BookmarkItemMetadata(
+                Now,
+                Now,
+                DeletedAtUtc: null,
+                Revision: 1,
+                BookmarkSyncState.Dirty,
+                RemoteEtag: null,
+                LastSyncedAtUtc: null,
+                ModifiedDeviceId: "test-device"));
+    }
+
+    private static BookmarkItemRecord CreateFolder(string id, string? parentId)
+    {
+        return new(
+            id,
+            parentId,
+            BookmarkItemKind.Folder,
+            SortOrder: 1000,
+            "Folder",
+            Url: null,
+            IsSecret: false,
+            EncryptedPayload: null,
             new BookmarkItemMetadata(
                 Now,
                 Now,

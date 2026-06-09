@@ -775,7 +775,7 @@ Accepted reset direction:
 
 - "Forget encrypted data and reset master password."
 - Create one compact secret reset event for the active secret generation.
-- Physically purge secret bookmark rows and encrypted payloads from live storage.
+- Physically purge secret bookmark rows, encrypted payloads, and folders that only contained secret bookmark content from live storage.
 - Delete the old active crypto profile.
 - Do not keep full encrypted payload tombstones for every secret bookmark.
 - Future WebDAV sync should treat the reset event as authoritative and must not resurrect old secret items from that generation.

@@ -106,6 +106,7 @@ Completed broad areas:
 - Secret master-password reset is implemented:
   - reset uses `secret_generation_id` plus compact `secret_reset_events`;
   - reset physically purges secret bookmark rows and encrypted payloads from live storage;
+  - reset also purges folders that only contained secret bookmark content;
   - reset deletes the old active crypto profile;
   - reset does not keep full encrypted payload tombstones for every secret bookmark;
   - reset is exposed from the settings window with destructive confirmations;

@@ -57,7 +57,7 @@ Security/application code
     -> SqliteSecretResetStore
 ```
 
-Reset does not create full tombstones for every secret bookmark. It creates a compact reset event, physically purges secret bookmark rows from live storage, and deletes the active crypto profile in one SQLite transaction where possible. The design is documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
+Reset does not create full tombstones for every secret bookmark. It creates a compact reset event, physically purges secret bookmark rows plus folders that only contained secret bookmark content, and deletes the active crypto profile in one SQLite transaction where possible. The design is documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 
 ## Target Shape
 

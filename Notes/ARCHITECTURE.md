@@ -381,6 +381,7 @@ Master-password reset:
 - Documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 - Reset creates a compact `secret_reset_events` marker for the active secret generation.
 - Reset physically purges secret bookmark rows and encrypted payloads from live storage.
+- Reset also purges folders that only contained secret bookmark content, so their names do not become newly visible after reset.
 - Reset deletes the old active crypto profile and marks the runtime secret session as not configured.
 - Reset intentionally does not keep full encrypted payload tombstones for every secret bookmark.
 - SQLite file compaction is a separate maintenance concern; row deletion frees pages for reuse but may not immediately shrink the database file.

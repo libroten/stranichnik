@@ -310,7 +310,7 @@ CREATE INDEX idx_items_updated_at
 - Non-`NULL` means tombstoned.
 - UI queries should hide tombstoned items.
 - Sync needs tombstones so deletes can propagate.
-- Master-password reset is a special bulk operation and does not keep full secret bookmark tombstones. It uses compact `secret_reset_events` instead.
+- Master-password reset is a special bulk operation and does not keep full secret bookmark tombstones. It uses compact `secret_reset_events` instead, physically purging secret bookmark rows and folders that only contained secret bookmark content.
 
 `revision`:
 
@@ -392,6 +392,8 @@ The event means:
 ```text
 All secret bookmarks from this generation were intentionally discarded.
 ```
+
+The local reset also removes folders that only contained secret bookmark content, so folder names do not become newly visible as empty folders after the reset.
 
 The event must not store bookmark titles, URLs, encrypted payloads, icon blobs, or key material.
 

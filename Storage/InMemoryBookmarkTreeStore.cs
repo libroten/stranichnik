@@ -287,7 +287,14 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
 
     internal int PurgeSecretBookmarksForMasterPasswordReset()
     {
-        return _items.RemoveAll(item => item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true });
+        var folderIdsToPurge = FindSecretOnlyFolderIdsForMasterPasswordReset();
+        var purgedSecretBookmarkCount = _items.Count(item => item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true });
+
+        _items.RemoveAll(item =>
+            item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } ||
+            folderIdsToPurge.Contains(item.Id));
+
+        return purgedSecretBookmarkCount;
     }
 
     public bool CanMoveToFolderStart(
@@ -401,6 +408,74 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             foreach (var descendantId in GetDescendantIds(child.Id))
                 yield return descendantId;
         }
+    }
+
+    private HashSet<string> FindSecretOnlyFolderIdsForMasterPasswordReset()
+    {
+        var liveChildrenByParentId = _items
+            .Where(item => IsVisible(item) && item.ParentId is not null)
+            .GroupBy(item => item.ParentId!, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+
+        var folderIds = _items
+            .Where(item => item.Kind == BookmarkItemKind.Folder)
+            .Select(item => item.Id)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var visibility = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var secretDescendants = new Dictionary<string, bool>(StringComparer.Ordinal);
+
+        return folderIds
+            .Where(folderId =>
+                HasSecretBookmarkDescendant(folderId, liveChildrenByParentId, secretDescendants) &&
+                !IsVisibleWhenSecretsAreHidden(folderId, liveChildrenByParentId, visibility))
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
+    private static bool HasSecretBookmarkDescendant(
+        string folderId,
+        Dictionary<string, List<BookmarkItemRecord>> childrenByParentId,
+        Dictionary<string, bool> cache)
+    {
+        if (cache.TryGetValue(folderId, out var cached))
+            return cached;
+
+        if (!childrenByParentId.TryGetValue(folderId, out var children))
+        {
+            cache[folderId] = false;
+            return false;
+        }
+
+        var hasSecretBookmark = children.Any(child =>
+            child is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } ||
+            child.Kind == BookmarkItemKind.Folder &&
+            HasSecretBookmarkDescendant(child.Id, childrenByParentId, cache));
+
+        cache[folderId] = hasSecretBookmark;
+        return hasSecretBookmark;
+    }
+
+    private static bool IsVisibleWhenSecretsAreHidden(
+        string folderId,
+        Dictionary<string, List<BookmarkItemRecord>> childrenByParentId,
+        Dictionary<string, bool> cache)
+    {
+        if (cache.TryGetValue(folderId, out var cached))
+            return cached;
+
+        if (!childrenByParentId.TryGetValue(folderId, out var children))
+        {
+            cache[folderId] = true;
+            return true;
+        }
+
+        var isVisible = children.Any(child =>
+            child is { Kind: BookmarkItemKind.Bookmark, IsSecret: false } ||
+            child.Kind == BookmarkItemKind.Folder &&
+            IsVisibleWhenSecretsAreHidden(child.Id, childrenByParentId, cache));
+
+        cache[folderId] = isVisible;
+        return isVisible;
     }
 
     private bool IsDescendantOf(string? possibleDescendantId, string folderId)

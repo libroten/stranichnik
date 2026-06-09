@@ -49,11 +49,58 @@ public sealed class SqliteSecretResetStoreTests
             () => database.ResetStore.ResetMasterPasswordAndPurgeSecrets("other-generation"));
     }
 
+    [Fact]
+    public void ResetMasterPasswordAndPurgeSecrets_purges_folders_that_only_contained_secret_bookmarks()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.ProfileStore.SaveNewProfile(CreateProfile("generation"));
+        database.TreeStore.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("secret-folder", parentId: null),
+            CreateFolder("secret-nested-folder", "secret-folder"),
+            CreateBookmark("secret", "secret-nested-folder", isSecret: true),
+        ]));
+
+        var result = database.ResetStore.ResetMasterPasswordAndPurgeSecrets("generation");
+
+        Assert.Equal(1, result.PurgedSecretBookmarkCount);
+        Assert.Empty(database.TreeStore.Load().Items);
+        Assert.Equal(0, database.TreeStore.CountAllItems());
+    }
+
+    [Fact]
+    public void ResetMasterPasswordAndPurgeSecrets_keeps_folder_with_visible_non_secret_content()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.ProfileStore.SaveNewProfile(CreateProfile("generation"));
+        database.TreeStore.InsertSeedItems(new BookmarkTreeSnapshot(
+        [
+            CreateFolder("mixed-folder", parentId: null),
+            CreateBookmark("secret", "mixed-folder", isSecret: true),
+            CreateBookmark("normal", "mixed-folder", isSecret: false),
+        ]));
+
+        var result = database.ResetStore.ResetMasterPasswordAndPurgeSecrets("generation");
+
+        Assert.Equal(1, result.PurgedSecretBookmarkCount);
+
+        var loadedItems = database.TreeStore.Load().Items;
+        Assert.Equal(2, loadedItems.Count);
+        Assert.Contains(loadedItems, item => item.Id == "mixed-folder");
+        Assert.Contains(loadedItems, item => item.Id == "normal");
+        Assert.Equal(2, database.TreeStore.CountAllItems());
+    }
+
     private static BookmarkItemRecord CreateBookmark(string id, bool isSecret)
+    {
+        return CreateBookmark(id, parentId: null, isSecret);
+    }
+
+    private static BookmarkItemRecord CreateBookmark(string id, string? parentId, bool isSecret)
     {
         return new(
             id,
-            ParentId: null,
+            parentId,
             BookmarkItemKind.Bookmark,
             SortOrder: 1000,
             isSecret ? null : "Title",
@@ -62,6 +109,28 @@ public sealed class SqliteSecretResetStoreTests
             isSecret
                 ? new EncryptedBookmarkPayloadRecord(EncryptedPayload, EncryptedNonce, 1, 1)
                 : null,
+            new BookmarkItemMetadata(
+                Now,
+                Now,
+                DeletedAtUtc: null,
+                Revision: 1,
+                BookmarkSyncState.Dirty,
+                RemoteEtag: null,
+                LastSyncedAtUtc: null,
+                ModifiedDeviceId: "test-device"));
+    }
+
+    private static BookmarkItemRecord CreateFolder(string id, string? parentId)
+    {
+        return new(
+            id,
+            parentId,
+            BookmarkItemKind.Folder,
+            SortOrder: 1000,
+            "Folder",
+            Url: null,
+            IsSecret: false,
+            EncryptedPayload: null,
             new BookmarkItemMetadata(
                 Now,
                 Now,
