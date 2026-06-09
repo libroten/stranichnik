@@ -117,6 +117,18 @@
   <data name="Confirm_DeleteFolderTitle" xml:space="preserve">
     <value>Delete folder</value>
   </data>
+  <data name="Confirm_ResetSecretMasterPasswordFinalMessage" xml:space="preserve">
+    <value>This is the final confirmation. All secret bookmarks will be deleted permanently and cannot be restored from this application without another copy. Continue?</value>
+  </data>
+  <data name="Confirm_ResetSecretMasterPasswordFinalTitle" xml:space="preserve">
+    <value>Final confirmation</value>
+  </data>
+  <data name="Confirm_ResetSecretMasterPasswordMessage" xml:space="preserve">
+    <value>Resetting the master password will permanently delete all secret bookmarks and remove the old secret profile. This does not recover forgotten data. You will be able to set a new master password later.</value>
+  </data>
+  <data name="Confirm_ResetSecretMasterPasswordTitle" xml:space="preserve">
+    <value>Reset master password?</value>
+  </data>
   <data name="Confirm_Title" xml:space="preserve">
     <value>Confirmation</value>
   </data>
@@ -218,6 +230,21 @@
   </data>
   <data name="Settings_SecretRepeatPasswordLabel" xml:space="preserve">
     <value>Repeat master password</value>
+  </data>
+  <data name="Settings_SecretResetDescription" xml:space="preserve">
+    <value>If you forgot the master password, you can reset secret bookmarks. This permanently deletes all secret bookmarks and removes the old master password.</value>
+  </data>
+  <data name="Settings_SecretResetFailed" xml:space="preserve">
+    <value>Could not reset the master password.</value>
+  </data>
+  <data name="Settings_SecretResetNotConfigured" xml:space="preserve">
+    <value>No master password is configured.</value>
+  </data>
+  <data name="Settings_SecretResetPasswordAction" xml:space="preserve">
+    <value>Reset and delete secrets</value>
+  </data>
+  <data name="Settings_SecretResetSuccess" xml:space="preserve">
+    <value>Master password reset. Secret bookmarks were deleted.</value>
   </data>
   <data name="Settings_SecretSavePasswordAction" xml:space="preserve">
     <value>Save password</value>

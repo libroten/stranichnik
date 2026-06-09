@@ -5,7 +5,8 @@ namespace Stranichnik.Storage.Sqlite;
 
 public sealed class SqliteDatabaseMigrator
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
+    private const string LegacySecretGenerationId = "legacy-generation";
 
     private readonly SqliteConnectionFactory _connectionFactory;
     private readonly Func<string> _idFactory;
@@ -44,6 +45,13 @@ public sealed class SqliteDatabaseMigrator
             ApplyVersion3(connection);
             migrationApplied = true;
             currentVersion = 3;
+        }
+
+        if (currentVersion == 3)
+        {
+            ApplyVersion4(connection);
+            migrationApplied = true;
+            currentVersion = 4;
         }
 
         if (currentVersion > CurrentVersion)
@@ -319,6 +327,25 @@ public sealed class SqliteDatabaseMigrator
         ExecuteNonQuery(connection, "PRAGMA foreign_keys = ON;");
     }
 
+    private static void ApplyVersion4(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction();
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"""
+            ALTER TABLE crypto_profiles
+                ADD COLUMN secret_generation_id TEXT NOT NULL DEFAULT '{LegacySecretGenerationId}';
+            """);
+
+        CreateSecretResetEventsTable(connection, transaction);
+
+        ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 4;");
+
+        transaction.Commit();
+    }
+
     private static void EnsureMetadata(SqliteConnection connection, string key, string value)
     {
         using var command = connection.CreateCommand();
@@ -496,6 +523,38 @@ public sealed class SqliteDatabaseMigrator
             """
             CREATE INDEX idx_items_updated_at
                 ON items(updated_at_utc);
+            """);
+    }
+
+    private static void CreateSecretResetEventsTable(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE TABLE secret_reset_events (
+                id TEXT PRIMARY KEY,
+
+                secret_generation_id TEXT NOT NULL UNIQUE,
+                reset_at_utc TEXT NOT NULL,
+                reset_device_id TEXT NOT NULL,
+
+                sync_state TEXT NOT NULL DEFAULT 'dirty'
+                    CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
+
+                remote_etag TEXT NULL,
+                last_synced_at_utc TEXT NULL
+            );
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE INDEX idx_secret_reset_events_sync_state
+                ON secret_reset_events(sync_state);
             """);
     }
 }

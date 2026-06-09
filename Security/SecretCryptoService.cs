@@ -70,7 +70,8 @@ public sealed class SecretCryptoService : ISecretCryptoService
                 passwordCheckPayload,
                 passwordCheckNonce,
                 nowUtc,
-                nowUtc);
+                nowUtc,
+                Guid.NewGuid().ToString("N"));
 
             return new CryptoProfileCreationResult(profile, new RuntimeSecretKey(dataKey));
         }
@@ -352,7 +353,8 @@ public sealed class SecretCryptoService : ISecretCryptoService
             profile.KekLengthBytes == SecretEncryptionConstants.KekLengthBytes &&
             string.Equals(profile.DataKeyAlgorithm, SecretEncryptionConstants.DataKeyAlgorithm, StringComparison.Ordinal) &&
             string.Equals(profile.EncryptionAlgorithm, SecretEncryptionConstants.EncryptionAlgorithm, StringComparison.Ordinal) &&
-            string.Equals(profile.PayloadFormat, SecretEncryptionConstants.PayloadFormat, StringComparison.Ordinal);
+            string.Equals(profile.PayloadFormat, SecretEncryptionConstants.PayloadFormat, StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(profile.SecretGenerationId);
     }
 
     private static void ValidatePassword(string password, string parameterName)

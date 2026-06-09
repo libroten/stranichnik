@@ -334,6 +334,7 @@ Risk reduction strategy:
 
 - Stable IDs for every folder/bookmark.
 - Tombstones for deletions.
+- Compact reset events for bulk secret master-password reset, rather than retaining full encrypted payload tombstones.
 - Idempotent sync operations.
 - Conservative conflict handling: preserve both versions when unsure.
 - Device IDs and revision metadata.
@@ -392,7 +393,7 @@ This prepares the app for:
 - SQLite store writes.
 - Search index updates.
 - Secret payload handling.
-- Sync dirty flags and tombstones.
+- Sync dirty flags, ordinary item tombstones, and compact secret reset events.
 
 ## Current Concrete Next Steps
 

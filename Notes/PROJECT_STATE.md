@@ -103,6 +103,13 @@ Completed broad areas:
   - visible unlocked secret bookmarks are projected in memory and may be searched during that unlocked-visible state;
   - secret bookmarks use default icons only in v1;
   - encrypted custom icons are deferred and documented in `Notes/ENCRYPTED_SECRET_ICONS_DRAFT.md`.
+- Secret master-password reset is implemented:
+  - reset uses `secret_generation_id` plus compact `secret_reset_events`;
+  - reset physically purges secret bookmark rows and encrypted payloads from live storage;
+  - reset deletes the old active crypto profile;
+  - reset does not keep full encrypted payload tombstones for every secret bookmark;
+  - reset is exposed from the settings window with destructive confirmations;
+  - details are documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 - Secret bookmark settings UI is implemented:
   - `Stranichnik -> Settings` opens a scrollable settings dialog;
   - the first section is `Secret bookmarks`;

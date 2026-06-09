@@ -35,6 +35,10 @@ public static class UiStrings
     public static string CommonSave => TextResources.Get("Common_Save");
     public static string ConfirmDeleteBookmarkTitle => TextResources.Get("Confirm_DeleteBookmarkTitle");
     public static string ConfirmDeleteFolderTitle => TextResources.Get("Confirm_DeleteFolderTitle");
+    public static string ConfirmResetSecretMasterPasswordFinalMessage => TextResources.Get("Confirm_ResetSecretMasterPasswordFinalMessage");
+    public static string ConfirmResetSecretMasterPasswordFinalTitle => TextResources.Get("Confirm_ResetSecretMasterPasswordFinalTitle");
+    public static string ConfirmResetSecretMasterPasswordMessage => TextResources.Get("Confirm_ResetSecretMasterPasswordMessage");
+    public static string ConfirmResetSecretMasterPasswordTitle => TextResources.Get("Confirm_ResetSecretMasterPasswordTitle");
     public static string ConfirmTitle => TextResources.Get("Confirm_Title");
     public static string ErrorCannotLaunchBrowser => TextResources.Get("Error_CannotLaunchBrowser");
     public static string ErrorInvalidBookmarkUrl => TextResources.Get("Error_InvalidBookmarkUrl");
@@ -70,6 +74,11 @@ public static class UiStrings
     public static string SettingsSecretPasswordSaveFailed => TextResources.Get("Settings_SecretPasswordSaveFailed");
     public static string SettingsSecretPasswordsDoNotMatch => TextResources.Get("Settings_SecretPasswordsDoNotMatch");
     public static string SettingsSecretRepeatPasswordLabel => TextResources.Get("Settings_SecretRepeatPasswordLabel");
+    public static string SettingsSecretResetDescription => TextResources.Get("Settings_SecretResetDescription");
+    public static string SettingsSecretResetFailed => TextResources.Get("Settings_SecretResetFailed");
+    public static string SettingsSecretResetNotConfigured => TextResources.Get("Settings_SecretResetNotConfigured");
+    public static string SettingsSecretResetPasswordAction => TextResources.Get("Settings_SecretResetPasswordAction");
+    public static string SettingsSecretResetSuccess => TextResources.Get("Settings_SecretResetSuccess");
     public static string SettingsSecretSavePasswordAction => TextResources.Get("Settings_SecretSavePasswordAction");
     public static string SettingsSecretUnlockRequired => TextResources.Get("Settings_SecretUnlockRequired");
     public static string SetMasterPasswordPasswordLabel => TextResources.Get("SetMasterPassword_PasswordLabel");

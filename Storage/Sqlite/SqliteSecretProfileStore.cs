@@ -65,7 +65,8 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
                 password_check_payload = $passwordCheckPayload,
                 password_check_nonce = $passwordCheckNonce,
                 created_at_utc = $createdAtUtc,
-                updated_at_utc = $updatedAtUtc
+                updated_at_utc = $updatedAtUtc,
+                secret_generation_id = $secretGenerationId
             WHERE id = $id;
             """;
         AddProfileParameters(command, profile);
@@ -97,7 +98,8 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
                 password_check_payload,
                 password_check_nonce,
                 created_at_utc,
-                updated_at_utc
+                updated_at_utc,
+                secret_generation_id
             FROM crypto_profiles
             WHERE id = $id;
             """;
@@ -141,7 +143,8 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
                 password_check_payload,
                 password_check_nonce,
                 created_at_utc,
-                updated_at_utc)
+                updated_at_utc,
+                secret_generation_id)
             VALUES (
                 $id,
                 $profileVersion,
@@ -158,7 +161,8 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
                 $passwordCheckPayload,
                 $passwordCheckNonce,
                 $createdAtUtc,
-                $updatedAtUtc);
+                $updatedAtUtc,
+                $secretGenerationId);
             """;
         AddProfileParameters(command, profile);
         command.ExecuteNonQuery();
@@ -182,6 +186,7 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
         command.Parameters.AddWithValue("$passwordCheckNonce", profile.PasswordCheckNonce.ToArray());
         command.Parameters.AddWithValue("$createdAtUtc", SqliteBookmarkItemMapper.FormatDateTime(profile.CreatedAtUtc));
         command.Parameters.AddWithValue("$updatedAtUtc", SqliteBookmarkItemMapper.FormatDateTime(profile.UpdatedAtUtc));
+        command.Parameters.AddWithValue("$secretGenerationId", profile.SecretGenerationId);
     }
 
     private static CryptoProfileRecord ReadProfile(SqliteDataReader reader)
@@ -202,7 +207,8 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
             ReadRequiredBytes(reader, "password_check_payload"),
             ReadRequiredBytes(reader, "password_check_nonce"),
             SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("created_at_utc"))),
-            SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("updated_at_utc"))));
+            SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("updated_at_utc"))),
+            reader.GetString(reader.GetOrdinal("secret_generation_id")));
     }
 
     private static byte[] ReadRequiredBytes(SqliteDataReader reader, string name)

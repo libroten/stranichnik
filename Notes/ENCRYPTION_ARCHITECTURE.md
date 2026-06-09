@@ -300,6 +300,8 @@ CREATE TABLE crypto_profiles (
     password_check_payload BLOB NOT NULL,
     password_check_nonce BLOB NOT NULL,
 
+    secret_generation_id TEXT NOT NULL,
+
     created_at_utc TEXT NOT NULL,
     updated_at_utc TEXT NOT NULL
 );
@@ -316,6 +318,7 @@ kek_length_bytes: 32
 data_key_algorithm: AES-256-GCM-DEK
 encryption_algorithm: AES-256-GCM
 payload_format: stranichnik-secret-json-v1
+secret_generation_id: random opaque ID, generated once per secret-data generation
 ```
 
 ### Current `items` Secret Fields
@@ -721,6 +724,8 @@ Steps:
 - Future sync can propagate encrypted tombstone metadata.
 - If permanent cleanup is implemented later, encrypted payload may be removed then.
 
+This section describes ordinary delete for individual items. Master-password reset is a separate destructive bulk operation and intentionally does not keep full encrypted payload tombstones. Reset design is documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
+
 ### Move Secret Bookmark
 
 - Moving does not need decryption.
@@ -766,11 +771,16 @@ There is no recovery if the user forgets the master password.
 
 The app should communicate this clearly when setting the password.
 
-Possible future reset flow:
+Accepted reset direction:
 
 - "Forget encrypted data and reset master password."
-- This would permanently delete or tombstone secret bookmarks.
-- Do not implement this until the user explicitly wants it.
+- Create one compact secret reset event for the active secret generation.
+- Physically purge secret bookmark rows and encrypted payloads from live storage.
+- Delete the old active crypto profile.
+- Do not keep full encrypted payload tombstones for every secret bookmark.
+- Future WebDAV sync should treat the reset event as authoritative and must not resurrect old secret items from that generation.
+
+Details are in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 
 ## UI Components To Add
 

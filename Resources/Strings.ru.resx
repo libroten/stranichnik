@@ -117,6 +117,18 @@
   <data name="Confirm_DeleteFolderTitle" xml:space="preserve">
     <value>Удалить папку</value>
   </data>
+  <data name="Confirm_ResetSecretMasterPasswordFinalMessage" xml:space="preserve">
+    <value>Это последнее подтверждение. Все секретные закладки будут удалены навсегда, и приложение не сможет восстановить их без другой копии данных. Продолжить?</value>
+  </data>
+  <data name="Confirm_ResetSecretMasterPasswordFinalTitle" xml:space="preserve">
+    <value>Последнее подтверждение</value>
+  </data>
+  <data name="Confirm_ResetSecretMasterPasswordMessage" xml:space="preserve">
+    <value>Сброс мастер-пароля навсегда удалит все секретные закладки и удалит старый секретный профиль. Это не восстановит забытые данные. Позже вы сможете задать новый мастер-пароль.</value>
+  </data>
+  <data name="Confirm_ResetSecretMasterPasswordTitle" xml:space="preserve">
+    <value>Сбросить мастер-пароль?</value>
+  </data>
   <data name="Confirm_Title" xml:space="preserve">
     <value>Подтверждение</value>
   </data>
@@ -218,6 +230,21 @@
   </data>
   <data name="Settings_SecretRepeatPasswordLabel" xml:space="preserve">
     <value>Повторите мастер-пароль</value>
+  </data>
+  <data name="Settings_SecretResetDescription" xml:space="preserve">
+    <value>Если вы забыли мастер-пароль, можно сбросить секретные закладки. Это навсегда удалит все секретные закладки и уберет старый мастер-пароль.</value>
+  </data>
+  <data name="Settings_SecretResetFailed" xml:space="preserve">
+    <value>Не удалось сбросить мастер-пароль.</value>
+  </data>
+  <data name="Settings_SecretResetNotConfigured" xml:space="preserve">
+    <value>Мастер-пароль не задан.</value>
+  </data>
+  <data name="Settings_SecretResetPasswordAction" xml:space="preserve">
+    <value>Сбросить и удалить секреты</value>
+  </data>
+  <data name="Settings_SecretResetSuccess" xml:space="preserve">
+    <value>Мастер-пароль сброшен. Секретные закладки удалены.</value>
   </data>
   <data name="Settings_SecretSavePasswordAction" xml:space="preserve">
     <value>Сохранить пароль</value>

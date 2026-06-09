@@ -36,4 +36,16 @@ public sealed class InMemorySecretProfileStore : ISecretProfileStore
         _profile = profile;
         return profile;
     }
+
+    internal bool DeleteActiveProfileForMasterPasswordReset(string secretGenerationId)
+    {
+        if (_profile is null ||
+            !string.Equals(_profile.SecretGenerationId, secretGenerationId, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        _profile = null;
+        return true;
+    }
 }

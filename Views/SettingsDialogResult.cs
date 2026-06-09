@@ -15,6 +15,11 @@ public sealed record SettingsDialogResult(
         return new SettingsDialogResult(true, false, null);
     }
 
+    public static SettingsDialogResult Reset()
+    {
+        return new SettingsDialogResult(true, false, null);
+    }
+
     public static SettingsDialogResult Failed(string errorMessage)
     {
         return new SettingsDialogResult(false, false, errorMessage);

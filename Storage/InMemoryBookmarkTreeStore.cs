@@ -285,6 +285,11 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         }
     }
 
+    internal int PurgeSecretBookmarksForMasterPasswordReset()
+    {
+        return _items.RemoveAll(item => item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true });
+    }
+
     public bool CanMoveToFolderStart(
         string itemId,
         string? targetParentId)

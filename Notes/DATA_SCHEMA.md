@@ -141,6 +141,8 @@ CREATE TABLE crypto_profiles (
     password_check_payload BLOB NOT NULL,
     password_check_nonce BLOB NOT NULL,
 
+    secret_generation_id TEXT NOT NULL,
+
     created_at_utc TEXT NOT NULL,
     updated_at_utc TEXT NOT NULL
 );
@@ -151,6 +153,7 @@ Current direction:
 - Use application-level payload encryption.
 - Do not encrypt the whole database file by default.
 - Secret bookmarks hide sensitive fields inside `encrypted_payload`.
+- `secret_generation_id` identifies one generation of secret data for master-password reset and future sync.
 - Maximum cryptographic sophistication is not the goal for the first version.
 - Do not invent custom cryptography.
 
@@ -307,6 +310,7 @@ CREATE INDEX idx_items_updated_at
 - Non-`NULL` means tombstoned.
 - UI queries should hide tombstoned items.
 - Sync needs tombstones so deletes can propagate.
+- Master-password reset is a special bulk operation and does not keep full secret bookmark tombstones. It uses compact `secret_reset_events` instead.
 
 `revision`:
 
@@ -364,6 +368,34 @@ Known privacy tradeoff:
 
 - The database may reveal that a secret row exists, where it is in the tree, and when it was modified.
 - The database should not reveal the secret title or URL without the password.
+
+## Secret Reset Events
+
+Master-password reset is represented by a compact reset event rather than by keeping every deleted encrypted payload.
+
+Shape:
+
+```sql
+CREATE TABLE secret_reset_events (
+    id TEXT PRIMARY KEY,
+    secret_generation_id TEXT NOT NULL UNIQUE,
+    reset_at_utc TEXT NOT NULL,
+    reset_device_id TEXT NOT NULL,
+    sync_state TEXT NOT NULL CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
+    remote_etag TEXT NULL,
+    last_synced_at_utc TEXT NULL
+);
+```
+
+The event means:
+
+```text
+All secret bookmarks from this generation were intentionally discarded.
+```
+
+The event must not store bookmark titles, URLs, encrypted payloads, icon blobs, or key material.
+
+See `Notes/SECRET_RESET_ARCHITECTURE.md` for the full reset design.
 
 ## Search Interaction
 

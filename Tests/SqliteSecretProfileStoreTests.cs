@@ -92,7 +92,8 @@ public sealed class SqliteSecretProfileStoreTests
             new byte[] { 10, 11, 12 },
             new byte[] { 13, 14, 15 },
             CreatedAt,
-            updatedAtUtc);
+            updatedAtUtc,
+            "secret-generation");
     }
 
     private static void AssertProfileEqual(CryptoProfileRecord expected, CryptoProfileRecord actual)
@@ -113,6 +114,7 @@ public sealed class SqliteSecretProfileStoreTests
         Assert.Equal(expected.PasswordCheckNonce.ToArray(), actual.PasswordCheckNonce.ToArray());
         Assert.Equal(expected.CreatedAtUtc, actual.CreatedAtUtc);
         Assert.Equal(expected.UpdatedAtUtc, actual.UpdatedAtUtc);
+        Assert.Equal(expected.SecretGenerationId, actual.SecretGenerationId);
     }
 
     private sealed class TempSqliteDatabase : IDisposable

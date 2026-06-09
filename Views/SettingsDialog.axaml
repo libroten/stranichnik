@@ -81,6 +81,21 @@
             <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
         </Style>
+        <Style Selector="Button.dialogButton.danger">
+            <Setter Property="Background" Value="{DynamicResource DialogDangerButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonBackgroundBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton.danger:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton.danger:focus">
+            <Setter Property="Background" Value="{DynamicResource ActionDeleteBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
+        </Style>
     </Window.Styles>
 
     <Border Background="{DynamicResource DialogBackgroundBrush}">
@@ -127,6 +142,24 @@
                                         Click="OnSaveSecretPasswordClick">
                                     <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretSavePasswordAction}"/>
                                 </Button>
+                            </StackPanel>
+
+                            <Border Height="1"
+                                    Background="{DynamicResource DialogInputBorderBrush}"/>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretResetDescription}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Right">
+                                    <Button Classes="dialogButton danger"
+                                            Click="OnResetSecretMasterPasswordClick">
+                                        <TextBlock Text="{x:Static localization:UiStrings.SettingsSecretResetPasswordAction}"
+                                                   TextWrapping="Wrap"/>
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

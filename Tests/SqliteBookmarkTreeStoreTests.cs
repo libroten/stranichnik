@@ -785,7 +785,8 @@ public sealed class SqliteBookmarkTreeStoreTests
             PasswordCheckPayloadBytes,
             PasswordCheckNonceBytes,
             CreatedAt,
-            CreatedAt);
+            CreatedAt,
+            "secret-generation");
     }
 
     private static readonly byte[] EncryptedPayloadBytes = [10, 20, 30];

@@ -17,6 +17,7 @@ The storage design should support:
 - Future WebDAV item-level sync.
 - Tombstone-based deletes.
 - Secret crypto profile storage for selective encryption.
+- Compact secret reset events for master-password reset and future sync.
 
 The storage design should avoid:
 
@@ -47,6 +48,16 @@ Security/application code
 ```
 
 `ISecretProfileStore` stores the active crypto profile used for DEK/KEK-based secret bookmark encryption. It is intentionally separate from `IBookmarkTreeStore` so tree CRUD and crypto-profile lifecycle can evolve independently.
+
+Secret master-password reset uses a separate reset storage boundary because it is a cross-cutting destructive operation:
+
+```text
+Security/application code
+  -> ISecretResetStore
+    -> SqliteSecretResetStore
+```
+
+Reset does not create full tombstones for every secret bookmark. It creates a compact reset event, physically purges secret bookmark rows from live storage, and deletes the active crypto profile in one SQLite transaction where possible. The design is documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 
 ## Target Shape
 

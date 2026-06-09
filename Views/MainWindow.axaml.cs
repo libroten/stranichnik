@@ -15,6 +15,7 @@ using Avalonia.VisualTree;
 using Stranichnik.Localization;
 using Stranichnik.Opening;
 using Stranichnik.Searching;
+using Stranichnik.Security;
 using Stranichnik.Settings;
 using Stranichnik.Theming;
 using Stranichnik.ViewModels;
@@ -188,7 +189,8 @@ public partial class MainWindow : Window
         SettingsDialog.Open(
             this,
             (owner, newMasterPassword) =>
-                SaveSecretMasterPasswordFromSettingsAsync(owner, viewModel, newMasterPassword));
+                SaveSecretMasterPasswordFromSettingsAsync(owner, viewModel, newMasterPassword),
+            _ => ResetSecretMasterPasswordFromSettingsAsync(viewModel));
     }
 
     private static async Task<SettingsDialogResult> SaveSecretMasterPasswordFromSettingsAsync(
@@ -216,6 +218,22 @@ public partial class MainWindow : Window
             SecretPasswordSaveFailureReason.SetupFailed => UiStrings.SecretSetupFailedMessage,
             _ => UiStrings.SettingsSecretPasswordSaveFailed
         });
+    }
+
+    private static Task<SettingsDialogResult> ResetSecretMasterPasswordFromSettingsAsync(
+        MainWindowViewModel viewModel)
+    {
+        var result = viewModel.ResetMasterPasswordAndDeleteSecrets();
+        if (result.WasReset)
+            return Task.FromResult(SettingsDialogResult.Reset());
+
+        var message = result.FailureReason switch
+        {
+            SecretMasterPasswordResetFailureReason.NotConfigured => UiStrings.SettingsSecretResetNotConfigured,
+            _ => UiStrings.SettingsSecretResetFailed
+        };
+
+        return Task.FromResult(SettingsDialogResult.Failed(message));
     }
 
     private void OnMenuPopupClosed(object? sender, EventArgs e)

@@ -38,6 +38,9 @@ public partial class App : Application
             var treeStore = SqliteBookmarkTreeStoreFactory.CreateDefault(AppStartupOptions.UseSampleData);
             var secretConnectionFactory = new SqliteConnectionFactory(AppDataPaths.DatabasePath);
             var secretProfileStore = new SqliteSecretProfileStore(secretConnectionFactory);
+            var secretResetStore = new SqliteSecretResetStore(
+                secretConnectionFactory,
+                resetDeviceId: new SqliteDatabaseMigrator(secretConnectionFactory).GetMetadataValue("device_id"));
             var secretCryptoService = new SecretCryptoService();
             var secretSession = new SecretSessionService();
 
@@ -55,7 +58,8 @@ public partial class App : Application
                     SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds(),
                     secretProfileStore,
                     secretCryptoService,
-                    secretSession),
+                    secretSession,
+                    secretResetStore: secretResetStore),
             };
         }
 

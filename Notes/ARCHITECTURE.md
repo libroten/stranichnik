@@ -333,6 +333,7 @@ Current crypto shape:
 
 - The app uses application-level encryption for secret bookmark payloads, not whole-database encryption.
 - A secret crypto profile is stored in SQLite table `crypto_profiles`.
+- Each secret crypto profile has a `secret_generation_id` for master-password reset and future sync.
 - The current profile uses PBKDF2-SHA256 with a per-profile salt and AES-256-GCM.
 - The implementation uses a DEK/KEK model:
   - a random Data Encryption Key encrypts bookmark payloads;
@@ -373,7 +374,16 @@ UI behavior:
 Logging/privacy constraints:
 
 - It is acceptable to log secret subsystem state transitions and failure reasons.
-- Do not log master passwords, derived keys, salts, nonces, ciphertext, encrypted payloads, URLs, titles, folder names, search queries, or local icon file paths.
+- Do not log master passwords, derived keys, salts, nonces, ciphertext, encrypted payloads, secret generation ids, secret reset event ids, URLs, titles, folder names, search queries, or local icon file paths.
+
+Master-password reset:
+
+- Documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
+- Reset creates a compact `secret_reset_events` marker for the active secret generation.
+- Reset physically purges secret bookmark rows and encrypted payloads from live storage.
+- Reset deletes the old active crypto profile and marks the runtime secret session as not configured.
+- Reset intentionally does not keep full encrypted payload tombstones for every secret bookmark.
+- SQLite file compaction is a separate maintenance concern; row deletion frees pages for reuse but may not immediately shrink the database file.
 
 ## Search
 

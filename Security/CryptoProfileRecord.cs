@@ -18,4 +18,5 @@ public sealed record CryptoProfileRecord(
     ReadOnlyMemory<byte> PasswordCheckPayload,
     ReadOnlyMemory<byte> PasswordCheckNonce,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    string SecretGenerationId);

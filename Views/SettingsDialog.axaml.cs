@@ -11,24 +11,34 @@ namespace Stranichnik.Views;
 public sealed partial class SettingsDialog : Window
 {
     private readonly Func<Window, string, Task<SettingsDialogResult>> _saveSecretPassword;
+    private readonly Func<Window, Task<SettingsDialogResult>> _resetSecretMasterPassword;
 
     public SettingsDialog()
-        : this((_, _) => Task.FromResult(SettingsDialogResult.Failed(string.Empty)))
+        : this(
+            (_, _) => Task.FromResult(SettingsDialogResult.Failed(string.Empty)),
+            _ => Task.FromResult(SettingsDialogResult.Failed(string.Empty)))
     {
     }
 
-    public SettingsDialog(Func<Window, string, Task<SettingsDialogResult>> saveSecretPassword)
+    public SettingsDialog(
+        Func<Window, string, Task<SettingsDialogResult>> saveSecretPassword,
+        Func<Window, Task<SettingsDialogResult>> resetSecretMasterPassword)
     {
         ArgumentNullException.ThrowIfNull(saveSecretPassword);
+        ArgumentNullException.ThrowIfNull(resetSecretMasterPassword);
 
         InitializeComponent();
         _saveSecretPassword = saveSecretPassword;
+        _resetSecretMasterPassword = resetSecretMasterPassword;
         Opened += OnOpened;
     }
 
-    public static void Open(Window owner, Func<Window, string, Task<SettingsDialogResult>> saveSecretPassword)
+    public static void Open(
+        Window owner,
+        Func<Window, string, Task<SettingsDialogResult>> saveSecretPassword,
+        Func<Window, Task<SettingsDialogResult>> resetSecretMasterPassword)
     {
-        var dialog = new SettingsDialog(saveSecretPassword);
+        var dialog = new SettingsDialog(saveSecretPassword, resetSecretMasterPassword);
         dialog.Show(owner);
     }
 
@@ -45,6 +55,26 @@ public sealed partial class SettingsDialog : Window
     private async void OnSaveSecretPasswordClick(object? sender, RoutedEventArgs e)
     {
         await SaveSecretPasswordAsync();
+    }
+
+    private async void OnResetSecretMasterPasswordClick(object? sender, RoutedEventArgs e)
+    {
+        if (!await ConfirmDialog.ShowResetSecretMasterPassword(this))
+            return;
+
+        if (!await ConfirmDialog.ShowResetSecretMasterPasswordFinal(this))
+            return;
+
+        var result = await _resetSecretMasterPassword(this);
+        if (!result.Succeeded)
+        {
+            ShowSecretPasswordError(result.ErrorMessage ?? UiStrings.SettingsSecretResetFailed);
+            return;
+        }
+
+        NewMasterPasswordTextBox.Clear();
+        RepeatMasterPasswordTextBox.Clear();
+        SecretPasswordStatusBanner.ShowSuccess(UiStrings.SettingsSecretResetSuccess);
     }
 
     private async Task SaveSecretPasswordAsync()

@@ -39,6 +39,24 @@ public sealed partial class ConfirmDialog : Window
         return dialog.ShowDialog<bool>(owner);
     }
 
+    public static Task<bool> ShowResetSecretMasterPassword(Window owner)
+    {
+        var dialog = new ConfirmDialog(
+            UiStrings.ConfirmResetSecretMasterPasswordTitle,
+            UiStrings.ConfirmResetSecretMasterPasswordMessage);
+
+        return dialog.ShowDialog<bool>(owner);
+    }
+
+    public static Task<bool> ShowResetSecretMasterPasswordFinal(Window owner)
+    {
+        var dialog = new ConfirmDialog(
+            UiStrings.ConfirmResetSecretMasterPasswordFinalTitle,
+            UiStrings.ConfirmResetSecretMasterPasswordFinalMessage);
+
+        return dialog.ShowDialog<bool>(owner);
+    }
+
     private void OnConfirmClick(object? sender, RoutedEventArgs e)
     {
         Close(true);

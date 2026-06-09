@@ -22,10 +22,12 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.True(TableExists(connection, "crypto_profiles"));
         Assert.True(TableExists(connection, "icon_assets"));
         Assert.True(TableExists(connection, "items"));
+        Assert.True(TableExists(connection, "secret_reset_events"));
         Assert.True(ColumnExists(connection, "items", "icon_asset_id"));
         Assert.True(ColumnExists(connection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "wrapped_data_key"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "kdf_hash_algorithm"));
+        Assert.True(ColumnExists(connection, "crypto_profiles", "secret_generation_id"));
     }
 
     [Fact]
@@ -95,6 +97,8 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.True(ColumnExists(upgradedConnection, "items", "icon_asset_id"));
         Assert.True(ColumnExists(upgradedConnection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "wrapped_data_key"));
+        Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "secret_generation_id"));
+        Assert.True(TableExists(upgradedConnection, "secret_reset_events"));
         Assert.Equal("Title", GetItemTitle(upgradedConnection, "bookmark"));
     }
 
@@ -118,6 +122,8 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
         Assert.True(ColumnExists(upgradedConnection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "wrapped_data_key"));
+        Assert.True(ColumnExists(upgradedConnection, "crypto_profiles", "secret_generation_id"));
+        Assert.True(TableExists(upgradedConnection, "secret_reset_events"));
         Assert.Equal("Title", GetItemTitle(upgradedConnection, "bookmark"));
     }
 

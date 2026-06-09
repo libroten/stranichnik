@@ -43,6 +43,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SecretProfileSetupService _secretProfileSetupService;
     private readonly SecretUnlockService _secretUnlockService;
     private readonly SecretMasterPasswordChangeService _secretMasterPasswordChangeService;
+    private readonly SecretMasterPasswordResetService? _secretMasterPasswordResetService;
     private readonly Dictionary<string, BookmarkViewModel> _bookmarkViewModelsById = new(StringComparer.Ordinal);
     private string _searchQuery = string.Empty;
 
@@ -54,7 +55,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ISecretProfileStore? secretProfileStore = null,
         ISecretCryptoService? secretCryptoService = null,
         ISecretSessionService? secretSession = null,
-        SecretBookmarkProjectionService? secretProjectionService = null)
+        SecretBookmarkProjectionService? secretProjectionService = null,
+        ISecretResetStore? secretResetStore = null)
     {
         ArgumentNullException.ThrowIfNull(treeStore);
         ArgumentNullException.ThrowIfNull(searchService);
@@ -79,6 +81,15 @@ public partial class MainWindowViewModel : ViewModelBase
             _secretProfileStore,
             _secretCryptoService,
             _secretSession);
+        secretResetStore ??= CreateDefaultSecretResetStore(treeStore, _secretProfileStore);
+        if (secretResetStore is not null)
+        {
+            _secretMasterPasswordResetService = new SecretMasterPasswordResetService(
+                _secretProfileStore,
+                secretResetStore,
+                _secretSession);
+        }
+
         _secretSession.StateChanged += OnSecretSessionStateChanged;
 
         RootFolder = new BookmarkFolderViewModel(
@@ -237,6 +248,23 @@ public partial class MainWindowViewModel : ViewModelBase
         return changeResult.WasChanged
             ? SecretPasswordSaveResult.Changed()
             : SecretPasswordSaveResult.Failed(SecretPasswordSaveFailureReason.ChangeFailed);
+    }
+
+    public SecretMasterPasswordResetResult ResetMasterPasswordAndDeleteSecrets()
+    {
+        if (_secretMasterPasswordResetService is null)
+        {
+            Logs.Print("Secret master password reset failed. Reason=StoreResetFailed.");
+            return SecretMasterPasswordResetResult.Failed(
+                SecretMasterPasswordResetFailureReason.StoreResetFailed);
+        }
+
+        var result = _secretMasterPasswordResetService.ResetMasterPasswordAndDeleteSecrets();
+        if (!result.WasReset)
+            return result;
+
+        OnPropertyChanged(nameof(IsSecretProfileConfigured));
+        return result;
     }
 
     public bool CanMoveItemToFolder(BookmarkTreeItemViewModel item, BookmarkFolderViewModel? targetParent)
@@ -840,6 +868,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private static string? GetStorageParentId(BookmarkFolderViewModel? targetParent)
     {
         return targetParent is null || targetParent.IsRoot ? null : targetParent.Id;
+    }
+
+    private static InMemorySecretResetStore? CreateDefaultSecretResetStore(
+        IBookmarkTreeStore treeStore,
+        ISecretProfileStore secretProfileStore)
+    {
+        return treeStore is InMemoryBookmarkTreeStore inMemoryTreeStore &&
+            secretProfileStore is InMemorySecretProfileStore inMemorySecretProfileStore
+            ? new InMemorySecretResetStore(inMemoryTreeStore, inMemorySecretProfileStore)
+            : null;
     }
 
     private bool TryPrepareIconSelection(
