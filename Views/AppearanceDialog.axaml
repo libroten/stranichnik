@@ -73,12 +73,12 @@
                 BorderThickness="1"
                 CornerRadius="12"
                 ClipToBounds="True">
-            <Grid RowDefinitions="Auto,1,Auto">
-                <Button x:Name="LightButton"
+            <Grid RowDefinitions="Auto,1,Auto,1,Auto">
+                <Button x:Name="SystemButton"
                         Grid.Row="0"
                         Classes="optionRow"
-                        Click="OnLightClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogLightTheme}"
+                        Click="OnSystemClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogSystemTheme}"
                                HorizontalAlignment="Center"
                                TextAlignment="Center"
                                FontSize="18"/>
@@ -87,8 +87,21 @@
                 <Border Grid.Row="1"
                         Background="{DynamicResource FocusBorderBrush}"/>
 
-                <Button x:Name="DarkButton"
+                <Button x:Name="LightButton"
                         Grid.Row="2"
+                        Classes="optionRow"
+                        Click="OnLightClick">
+                    <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogLightTheme}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               FontSize="18"/>
+                </Button>
+
+                <Border Grid.Row="3"
+                        Background="{DynamicResource FocusBorderBrush}"/>
+
+                <Button x:Name="DarkButton"
+                        Grid.Row="4"
                         Classes="optionRow"
                         Click="OnDarkClick">
                     <TextBlock Text="{x:Static localization:UiStrings.AppearanceDialogDarkTheme}"

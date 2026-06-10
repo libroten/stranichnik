@@ -67,7 +67,7 @@ Completed broad areas:
   - theme state is stored in `settings.json`;
   - theme logic lives in `Theming/`;
   - the app does not use Avalonia theme variants as the theme model;
-  - `Service -> Appearance` opens an appearance dialog with Light/Dark choices;
+  - `Service -> Appearance` opens an appearance dialog with System/Light/Dark choices;
   - main window and dialogs use semantic theme resources for visible colors.
 - Bookmark title metadata fetching is implemented:
   - `BookmarkEditorDialog` fetches page metadata for bookmark URLs after a debounce;
@@ -183,7 +183,9 @@ Main window:
 Theme:
 
 - Light is the default for missing or invalid settings.
-- Dark can be selected from `Service -> Appearance`.
+- System, Light, and Dark can be selected from `Service -> Appearance`.
+- System mode reads the OS theme signal and maps it to the project-owned light
+  or dark palette.
 - Theme changes apply immediately and are persisted to `settings.json`.
 - The implementation is project-owned and does not use Avalonia `ThemeVariant` as the model.
 
@@ -332,7 +334,7 @@ Useful commands for the user:
 
 ```bash
 dotnet build
-dotnet run
+dotnet run -- --print-logs-to-console
 dotnet test Tests/Stranichnik.Tests.csproj
 dotnet build Stranichnik.Search/Stranichnik.Search.csproj
 dotnet test Stranichnik.Search.Tests/Stranichnik.Search.Tests.csproj

@@ -106,6 +106,7 @@ public static class UiStrings
     public static string UnlockSecretsTitle => TextResources.Get("UnlockSecrets_Title");
     public static string AppearanceDialogDarkTheme => TextResources.Get("AppearanceDialog_DarkTheme");
     public static string AppearanceDialogLightTheme => TextResources.Get("AppearanceDialog_LightTheme");
+    public static string AppearanceDialogSystemTheme => TextResources.Get("AppearanceDialog_SystemTheme");
     public static string AppearanceDialogTitle => TextResources.Get("AppearanceDialog_Title");
     public static string ValidationTitleRequired => TextResources.Get("Validation_TitleRequired");
     public static string ValidationUrlRequired => TextResources.Get("Validation_UrlRequired");

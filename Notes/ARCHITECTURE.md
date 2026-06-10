@@ -221,6 +221,9 @@ Theme support is implemented by Stranichnik, not by Avalonia's built-in light/da
 
 - Do not use `RequestedThemeVariant` as the app theme state.
 - Do not use Avalonia `ThemeVariant.Light` or `ThemeVariant.Dark` as the app theme model.
+- `System` mode may read Avalonia `Application.ActualThemeVariant` as an OS
+  theme signal, but the effective colors still come from project-owned
+  `ThemePalettes.Light` / `ThemePalettes.Dark`.
 - Keep the app theme mode in `Settings/AppSettings.cs`.
 - Apply theme palettes through `Theming/ThemeService.cs`.
 - Use semantic `DynamicResource` brushes in XAML for theme-dependent colors.
@@ -237,7 +240,7 @@ Theme switching UI:
 
 - `Service -> Appearance` opens `Views/AppearanceDialog.axaml`.
 - `Stranichnik -> Settings` opens `Views/SettingsDialog.axaml`.
-- The appearance dialog currently supports `Light` and `Dark`.
+- The appearance dialog supports `System`, `Light`, and `Dark`.
 - The selected theme is saved in `settings.json` and applied immediately.
 
 ## Localization Direction

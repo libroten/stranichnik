@@ -37,10 +37,19 @@ public sealed partial class AppearanceDialog : Window
 
     private void OnOpened(object? sender, EventArgs e)
     {
-        var focusTarget = _currentTheme == ThemeMode.Dark
-            ? DarkButton
-            : LightButton;
+        var focusTarget = _currentTheme switch
+        {
+            ThemeMode.System => SystemButton,
+            ThemeMode.Dark => DarkButton,
+            _ => LightButton
+        };
         focusTarget.Focus();
+    }
+
+    private void OnSystemClick(object? sender, RoutedEventArgs e)
+    {
+        ApplyTheme(ThemeMode.System);
+        e.Handled = true;
     }
 
     private void OnLightClick(object? sender, RoutedEventArgs e)
@@ -66,6 +75,7 @@ public sealed partial class AppearanceDialog : Window
 
     private void UpdateSelection()
     {
+        SetSelected(SystemButton, _currentTheme == ThemeMode.System);
         SetSelected(LightButton, _currentTheme == ThemeMode.Light);
         SetSelected(DarkButton, _currentTheme == ThemeMode.Dark);
     }
