@@ -114,6 +114,7 @@ public partial class MainWindow : Window
     {
         NotifySecretActivity();
         ToggleMenuPopup(ServiceMenuPopup, ServiceMenuButton);
+        UpdateSecretVisibilityMenuState();
         e.Handled = true;
     }
 
@@ -126,7 +127,10 @@ public partial class MainWindow : Window
     private void OnServiceMenuPointerEntered(object? sender, PointerEventArgs e)
     {
         if (StranichnikMenuPopup.IsOpen)
+        {
             OpenOnlyMenuPopup(ServiceMenuPopup, ServiceMenuButton);
+            UpdateSecretVisibilityMenuState();
+        }
     }
 
     private void OnAboutMenuClick(object? sender, RoutedEventArgs e)
@@ -202,6 +206,15 @@ public partial class MainWindow : Window
             (owner, newMasterPassword) =>
                 SaveSecretMasterPasswordFromSettingsAsync(owner, viewModel, newMasterPassword),
             _ => ResetSecretMasterPasswordFromSettingsAsync(viewModel));
+    }
+
+    private async void OnToggleSecretsMenuClick(object? sender, RoutedEventArgs e)
+    {
+        NotifySecretActivity();
+        e.Handled = true;
+
+        await ToggleSecretBookmarksAsync(closePopups: false);
+        UpdateSecretVisibilityMenuState();
     }
 
     private static async Task<SettingsDialogResult> SaveSecretMasterPasswordFromSettingsAsync(
@@ -460,7 +473,7 @@ public partial class MainWindow : Window
             return;
 
         e.Handled = true;
-        await ToggleSecretBookmarksAsync();
+        await ToggleSecretBookmarksAsync(closePopups: true);
     }
 
     private static bool IsSecretToggleShortcut(KeyEventArgs e)
@@ -496,12 +509,16 @@ public partial class MainWindow : Window
 
         UpdateBookmarksHorizontalOverflow();
         UpdateSecretInactivityTimer();
+        UpdateSecretVisibilityMenuState();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.AreSecretsVisible))
+        {
             UpdateSecretInactivityTimer();
+            UpdateSecretVisibilityMenuState();
+        }
     }
 
     private void OnWindowActivityPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -537,6 +554,25 @@ public partial class MainWindow : Window
         }
 
         _secretInactivityTimer.Stop();
+    }
+
+    private void UpdateSecretVisibilityMenuState()
+    {
+        var areSecretsVisible = _observedViewModel?.AreSecretsVisible == true;
+
+        SecretVisibilitySwitchText.Text = areSecretsVisible
+            ? UiStrings.CommonOn
+            : UiStrings.CommonOff;
+
+        if (areSecretsVisible)
+        {
+            if (!SecretVisibilitySwitch.Classes.Contains("on"))
+                SecretVisibilitySwitch.Classes.Add("on");
+
+            return;
+        }
+
+        SecretVisibilitySwitch.Classes.Remove("on");
     }
 
     private void OnSecretInactivityTimerTick(object? sender, EventArgs e)
@@ -784,12 +820,13 @@ public partial class MainWindow : Window
         return false;
     }
 
-    private async Task ToggleSecretBookmarksAsync()
+    private async Task ToggleSecretBookmarksAsync(bool closePopups)
     {
         if (DataContext is not MainWindowViewModel viewModel)
             return;
 
-        CloseAllPopups();
+        if (closePopups)
+            CloseAllPopups();
 
         if (!viewModel.IsSecretProfileConfigured)
         {

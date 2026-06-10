@@ -132,6 +132,12 @@
   <data name="Common_OK" xml:space="preserve">
     <value>OK</value>
   </data>
+  <data name="Common_Off" xml:space="preserve">
+    <value>ВЫКЛ</value>
+  </data>
+  <data name="Common_On" xml:space="preserve">
+    <value>ВКЛ</value>
+  </data>
   <data name="Common_Save" xml:space="preserve">
     <value>Сохранить</value>
   </data>
@@ -212,6 +218,9 @@
   </data>
   <data name="MainMenu_Service_Language" xml:space="preserve">
     <value>Язык</value>
+  </data>
+  <data name="MainMenu_Service_ShowSecrets" xml:space="preserve">
+    <value>Показывать секреты</value>
   </data>
   <data name="Root_AllBookmarks" xml:space="preserve">
     <value>Все закладки</value>

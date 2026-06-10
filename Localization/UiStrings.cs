@@ -42,6 +42,8 @@ public static class UiStrings
     public static string CommonDelete => TextResources.Get("Common_Delete");
     public static string CommonMessage => TextResources.Get("Common_Message");
     public static string CommonOk => TextResources.Get("Common_OK");
+    public static string CommonOff => TextResources.Get("Common_Off");
+    public static string CommonOn => TextResources.Get("Common_On");
     public static string CommonSave => TextResources.Get("Common_Save");
     public static string ConfirmDeleteBookmarkTitle => TextResources.Get("Confirm_DeleteBookmarkTitle");
     public static string ConfirmDeleteFolderTitle => TextResources.Get("Confirm_DeleteFolderTitle");
@@ -67,6 +69,7 @@ public static class UiStrings
     public static string MainMenuService => TextResources.Get("MainMenu_Service");
     public static string MainMenuServiceAppearance => TextResources.Get("MainMenu_Service_Appearance");
     public static string MainMenuServiceLanguage => TextResources.Get("MainMenu_Service_Language");
+    public static string MainMenuServiceShowSecrets => TextResources.Get("MainMenu_Service_ShowSecrets");
     public static string RootAllBookmarks => TextResources.Get("Root_AllBookmarks");
     public static string SearchNoMatches => TextResources.Get("Search_NoMatches");
     public static string SearchPlaceholder => TextResources.Get("Search_Placeholder");

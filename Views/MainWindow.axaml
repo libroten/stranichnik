@@ -554,6 +554,29 @@
                         <Setter Property="Background" Value="{DynamicResource PressedBackgroundBrush}"/>
                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                     </Style>
+                    <Style Selector="Button.secretVisibilityMenuItem">
+                        <Setter Property="MinWidth" Value="230"/>
+                        <Setter Property="Height" Value="34"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    </Style>
+                    <Style Selector="Border.secretVisibilitySwitch">
+                        <Setter Property="MinWidth" Value="48"/>
+                        <Setter Property="Height" Value="22"/>
+                        <Setter Property="Padding" Value="8,0"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="6"/>
+                    </Style>
+                    <Style Selector="Border.secretVisibilitySwitch.on">
+                        <Setter Property="Background" Value="{DynamicResource FocusBorderBrush}"/>
+                    </Style>
+                    <Style Selector="Border.secretVisibilitySwitch TextBlock">
+                        <Setter Property="Foreground" Value="{DynamicResource FocusBorderBrush}"/>
+                    </Style>
+                    <Style Selector="Border.secretVisibilitySwitch.on TextBlock">
+                        <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+                    </Style>
                     <Style Selector="Border.menuPopupSeparator">
                         <Setter Property="Height" Value="1"/>
                         <Setter Property="Margin" Value="6,4"/>
@@ -628,6 +651,26 @@
                                 <Button Classes="menuPopupItem"
                                         Click="OnLanguageMenuClick">
                                     <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceLanguage}"/>
+                                </Button>
+                                <Border Classes="menuPopupSeparator"/>
+                                <Button Classes="menuPopupItem secretVisibilityMenuItem"
+                                        Click="OnToggleSecretsMenuClick">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="16">
+                                        <TextBlock Text="{x:Static localization:UiStrings.MainMenuServiceShowSecrets}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border x:Name="SecretVisibilitySwitch"
+                                                Grid.Column="1"
+                                                Classes="secretVisibilitySwitch"
+                                                VerticalAlignment="Center">
+                                            <TextBlock x:Name="SecretVisibilitySwitchText"
+                                                       Text="{x:Static localization:UiStrings.CommonOff}"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
                                 </Button>
                             </StackPanel>
                         </Border>
