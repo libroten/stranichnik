@@ -1,15 +1,12 @@
 # Third-Party Notices
 
-This file tracks third-party components used by Stranichnik. It is intended to
-be useful both in the source repository and as part of binary release artifacts.
+This file summarizes third-party runtime components used by Stranichnik.
 
-Keep this file up to date whenever NuGet packages, bundled assets, fonts,
-native libraries, copied source files, generated resources based on third-party
-material, or other external components are added, removed, or replaced.
+Full license and notice texts are bundled in `THIRD_PARTY_LICENSES/` and are
+also available in the application through `Stranichnik -> About`.
 
-This document is an engineering inventory, not legal advice. Before publishing a
-binary release, verify the final packaged output and include this file plus the
-license and notice texts from `THIRD_PARTY_LICENSES/`.
+This document is a best-effort open-source notice for the current dependency
+set. It is not legal advice.
 
 ## Runtime NuGet Packages
 
@@ -30,7 +27,7 @@ Notable transitive runtime packages:
 | Component | Version | License | Notes |
 | --- | --- | --- | --- |
 | Avalonia.* platform/rendering packages | 12.0.3 | MIT | Pulled by Avalonia desktop/runtime packages. |
-| Avalonia.Angle.Windows.Natives | 2.1.25547.20250602 | BSD-style license file in package | Windows native ANGLE binaries. Preserve notices for binary distribution. |
+| Avalonia.Angle.Windows.Natives | 2.1.25547.20250602 | BSD-style package license file | Windows native ANGLE binaries. |
 | Avalonia.BuildServices | 11.3.2 | MIT | Avalonia build tooling. |
 | Avalonia.Remote.Protocol | 12.0.3 | MIT | Avalonia remote/dev protocol dependency. |
 | Avalonia.FreeDesktop and Avalonia.FreeDesktop.AtSpi | 12.0.3 | MIT | Linux desktop integration dependencies. |
@@ -43,77 +40,29 @@ Notable transitive runtime packages:
 | System.Memory | 4.5.3 | .NET Foundation license URL in package metadata | Transitive dependency. |
 | Tmds.DBus.Protocol | 0.92.0 | MIT | Linux desktop integration dependency. |
 
-## Test-Only NuGet Packages
+## Bundled License Texts
 
-These packages are used by test projects and are not runtime application
-features:
+The following license and notice text files are bundled with the application
+when applicable:
 
-| Component | Version | License |
-| --- | --- | --- |
-| Microsoft.CodeCoverage | 17.12.0 | MIT |
-| Microsoft.NET.Test.Sdk | 17.12.0 | MIT |
-| Microsoft.TestPlatform.ObjectModel | 17.12.0 | MIT |
-| Microsoft.TestPlatform.TestHost | 17.12.0 | MIT |
-| Newtonsoft.Json | 13.0.1 | MIT |
-| System.Reflection.Metadata | 1.6.0 | .NET Foundation license URL in package metadata |
-| xunit | 2.9.2 | Apache-2.0 |
-| xunit.abstractions | 2.0.3 | xUnit license URL in package metadata |
-| xunit.analyzers | 1.16.0 | Apache-2.0 |
-| xunit.assert | 2.9.2 | Apache-2.0 |
-| xunit.core | 2.9.2 | Apache-2.0 |
-| xunit.extensibility.core | 2.9.2 | Apache-2.0 |
-| xunit.extensibility.execution | 2.9.2 | Apache-2.0 |
-| xunit.runner.visualstudio | 2.8.2 | Apache-2.0 |
-
-## Local Project Components
-
-| Component | Location | Notes |
-| --- | --- | --- |
-| Stranichnik.Search | `Stranichnik.Search/` | First-party library in this repository. |
-| Project SVG action icons | `icons/*.svg`, `Assets/Icons/ActionIcons.axaml` | First-party project assets. |
-| Default bookmark/folder SVG icons | `Assets/Icons/*.svg` | First-party project assets. |
-| Application icon | `Assets/app-icon.png` | First-party project asset. Used as the window icon for `dotnet run`. |
-
-## Removed Components
-
-| Component | Previous version | Reason |
-| --- | --- | --- |
-| AvaloniaUI.DiagnosticsSupport | 2.2.1 | Removed because the package did not declare a license in local NuGet metadata and the app does not directly use it. |
-
-## Release Packaging Notes
-
-Binary release archives/packages should include:
-
-- `LICENSE`;
-- `THIRD_PARTY_NOTICES.md`;
-- `THIRD_PARTY_LICENSES/`;
-- any additional license or notice files discovered in the final publish output.
-
-Before publishing a binary release:
-
-1. run `dotnet publish` for the exact target platform/runtime that will be
-   distributed;
-2. inspect the generated publish directory, not only `.csproj` files;
-3. look for third-party managed assemblies, native libraries, fonts, resources,
-   and copied assets;
-4. compare those files with the runtime package inventory in this document;
-5. if new third-party components appear, update this document and
-   `THIRD_PARTY_LICENSES/` in the same change;
-6. package the license files somewhere users can access after installation.
-
-The application does not currently have an in-app "Third-party licenses" screen.
-For the current dependency set, the intended release approach is to ship the
-license and notice files on disk with the application. An in-app viewer can be
-added later as a usability feature, especially for packaged macOS/Windows/Linux
-installers where users may not naturally browse the installation directory.
-
-## Maintenance Checklist
-
-When dependency or external asset usage changes:
-
-- update this file;
-- update `THIRD_PARTY_LICENSES/` if runtime release obligations change;
-- check direct and transitive NuGet license metadata after restore;
-- update `README.md` if the change affects contributors or release notes;
-- update `Notes/PROJECT_STATE.md` or architecture notes when the change affects project structure;
-- for release packaging, verify the final publish output and include required full license texts/notices for bundled binaries and native libraries.
+- `THIRD_PARTY_LICENSES/Apache-2.0.txt`
+- `THIRD_PARTY_LICENSES/Avalonia.Angle.Windows.Natives-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp.NativeAssets.Linux-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp.NativeAssets.Win32-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp.NativeAssets.Win32-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp.NativeAssets.macOS-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/HarfBuzzSharp.NativeAssets.macOS-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/MIT.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp.NativeAssets.Linux-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp.NativeAssets.Linux-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp.NativeAssets.Win32-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp.NativeAssets.Win32-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp.NativeAssets.macOS-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/SkiaSharp.NativeAssets.macOS-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/System.IO.Pipelines-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/System.IO.Pipelines-THIRD-PARTY-NOTICES.txt`
+- `THIRD_PARTY_LICENSES/System.Memory-LICENSE.txt`
+- `THIRD_PARTY_LICENSES/System.Memory-THIRD-PARTY-NOTICES.txt`

@@ -12,6 +12,33 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="AboutDialog_Description" xml:space="preserve">
+    <value>Stranichnik — десктопный менеджер закладок с открытым исходным кодом. В этом окне показаны лицензия проекта и тексты лицензий сторонних компонентов, поставляемые вместе с приложением.</value>
+  </data>
+  <data name="AboutDialog_DocumentMissing" xml:space="preserve">
+    <value>Документ не найден в каталоге приложения.</value>
+  </data>
+  <data name="AboutDialog_DocumentReadFailed" xml:space="preserve">
+    <value>Не удалось прочитать документ.</value>
+  </data>
+  <data name="AboutDialog_NoThirdPartyDocumentsMessage" xml:space="preserve">
+    <value>В каталоге приложения не найдены документы с лицензиями сторонних компонентов.</value>
+  </data>
+  <data name="AboutDialog_NoThirdPartyDocumentsTitle" xml:space="preserve">
+    <value>Документы не найдены</value>
+  </data>
+  <data name="AboutDialog_ProjectLicenseTitle" xml:space="preserve">
+    <value>Лицензия проекта</value>
+  </data>
+  <data name="AboutDialog_ThirdPartyDescription" xml:space="preserve">
+    <value>Выберите документ ниже, чтобы посмотреть уведомления и тексты лицензий сторонних компонентов, включенные в этот релиз.</value>
+  </data>
+  <data name="AboutDialog_ThirdPartyTitle" xml:space="preserve">
+    <value>Сторонние компоненты</value>
+  </data>
+  <data name="AboutDialog_Title" xml:space="preserve">
+    <value>О программе Stranichnik</value>
+  </data>
   <data name="Action_AddBookmark" xml:space="preserve">
     <value>Добавить закладку</value>
   </data>
@@ -92,6 +119,9 @@
   </data>
   <data name="Common_Cancel" xml:space="preserve">
     <value>Отмена</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Закрыть</value>
   </data>
   <data name="Common_Delete" xml:space="preserve">
     <value>Удалить</value>

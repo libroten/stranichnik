@@ -14,10 +14,14 @@ Completed broad areas:
 - `net8.0` target.
 - README.
 - 0BSD license.
-- `THIRD_PARTY_NOTICES.md` tracks external NuGet components, notable transitive
-  dependencies, and bundled assets; `THIRD_PARTY_LICENSES/` stores runtime
-  license/notice texts for binary releases. Keep both current when dependencies
-  or external assets change.
+- `THIRD_PARTY_NOTICES.md` is the user-facing runtime third-party summary;
+  `THIRD_PARTY_LICENSES/` stores user-facing runtime license/notice texts for
+  binary releases; maintainer-only dependency notes live in
+  `Notes/THIRD_PARTY_MAINTENANCE.md` and `Notes/NUGET_LICENSE_METADATA.md`.
+  Keep these current when dependencies or external assets change. The in-app
+  `Stranichnik -> About` screen displays the project license, third-party
+  notices, and bundled license texts from the application output directory, so
+  keep that view in sync with release legal files.
 - Analyzer/code-style infrastructure.
 - xUnit test project.
 - In-memory bookmark/folder tree.

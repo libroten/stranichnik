@@ -12,6 +12,33 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="AboutDialog_Description" xml:space="preserve">
+    <value>Stranichnik is an open-source desktop bookmark manager. This window shows the project license and third-party license notices bundled with the application.</value>
+  </data>
+  <data name="AboutDialog_DocumentMissing" xml:space="preserve">
+    <value>The document was not found in the application directory.</value>
+  </data>
+  <data name="AboutDialog_DocumentReadFailed" xml:space="preserve">
+    <value>The document could not be read.</value>
+  </data>
+  <data name="AboutDialog_NoThirdPartyDocumentsMessage" xml:space="preserve">
+    <value>No third-party license documents were found in the application directory.</value>
+  </data>
+  <data name="AboutDialog_NoThirdPartyDocumentsTitle" xml:space="preserve">
+    <value>No documents</value>
+  </data>
+  <data name="AboutDialog_ProjectLicenseTitle" xml:space="preserve">
+    <value>Project license</value>
+  </data>
+  <data name="AboutDialog_ThirdPartyDescription" xml:space="preserve">
+    <value>Select a document below to view third-party component notices and license texts included with this release.</value>
+  </data>
+  <data name="AboutDialog_ThirdPartyTitle" xml:space="preserve">
+    <value>Third-party components</value>
+  </data>
+  <data name="AboutDialog_Title" xml:space="preserve">
+    <value>About Stranichnik</value>
+  </data>
   <data name="Action_AddBookmark" xml:space="preserve">
     <value>Add bookmark</value>
   </data>
@@ -92,6 +119,9 @@
   </data>
   <data name="Common_Cancel" xml:space="preserve">
     <value>Cancel</value>
+  </data>
+  <data name="Common_Close" xml:space="preserve">
+    <value>Close</value>
   </data>
   <data name="Common_Delete" xml:space="preserve">
     <value>Delete</value>

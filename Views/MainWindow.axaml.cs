@@ -129,11 +129,13 @@ public partial class MainWindow : Window
             OpenOnlyMenuPopup(ServiceMenuPopup, ServiceMenuButton);
     }
 
-    private void OnMenuPopupItemClick(object? sender, RoutedEventArgs e)
+    private void OnAboutMenuClick(object? sender, RoutedEventArgs e)
     {
         NotifySecretActivity();
         CloseMenuPopups();
         e.Handled = true;
+
+        _ = AboutDialog.ShowAsync(this);
     }
 
     private void OnExitMenuClick(object? sender, RoutedEventArgs e)

@@ -1,0 +1,218 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Stranichnik.Localization"
+        x:Class="Stranichnik.Views.AboutDialog"
+        Title="{x:Static localization:UiStrings.AboutDialogTitle}"
+        Width="820"
+        Height="680"
+        MinWidth="760"
+        MinHeight="460"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        KeyDown="OnKeyDown">
+    <Window.Styles>
+        <Style Selector="Button.aboutDocumentButton">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MaxWidth" Value="220"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.aboutDocumentButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="Button.aboutDocumentButton.selected">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="Button.aboutDocumentButton TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.aboutDocumentButton:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+        </Style>
+        <Style Selector="Button.aboutDocumentButton.selected TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton">
+            <Setter Property="MinWidth" Value="104"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonBackgroundBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.dialogButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+        </Style>
+        <Style Selector="Button.dialogButton:focus">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogAccentButtonHoverBackgroundBrush}"/>
+        </Style>
+        <Style Selector="Border.aboutTextBox">
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12"/>
+        </Style>
+        <Style Selector="ListBox.aboutDocumentTextList">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+        </Style>
+        <Style Selector="ListBox.aboutDocumentTextList ListBoxItem">
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Padding="{TemplateBinding Padding}"/>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.aboutDocumentTextList ListBoxItem:pointerover">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.aboutDocumentTextList ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Background="{DynamicResource DialogBackgroundBrush}">
+        <ScrollViewer x:Name="AboutScrollViewer"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+                <StackPanel Margin="22"
+                            Spacing="22"
+                            Width="720"
+                            HorizontalAlignment="Center">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{x:Static localization:UiStrings.AboutDialogTitle}"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+                        <TextBlock Text="{x:Static localization:UiStrings.AboutDialogDescription}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <Border Height="1"
+                            Background="{DynamicResource DialogInputBorderBrush}"/>
+
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{x:Static localization:UiStrings.AboutProjectLicenseTitle}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+                        <Border Classes="aboutTextBox">
+                            <TextBlock x:Name="ProjectLicenseTextBlock"
+                                       TextWrapping="Wrap"
+                                       FontFamily="Consolas, Menlo, Monaco, Courier New"
+                                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{x:Static localization:UiStrings.AboutThirdPartyTitle}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+                        <TextBlock Text="{x:Static localization:UiStrings.AboutThirdPartyDescription}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+
+                        <WrapPanel x:Name="DocumentButtonsPanel"
+                                   Orientation="Horizontal"/>
+
+                        <TextBlock x:Name="SelectedDocumentTitleTextBlock"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+                        <Border Classes="aboutTextBox"
+                                Height="360">
+                            <ListBox x:Name="SelectedDocumentLinesListBox"
+                                     Classes="aboutDocumentTextList"
+                                     SelectionMode="Single"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <VirtualizingStackPanel/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}"
+                                                   FontFamily="Consolas, Menlo, Monaco, Courier New"
+                                                   FontSize="12"
+                                                   TextWrapping="NoWrap"
+                                                   Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right">
+                        <Button x:Name="CloseButton"
+                                Classes="dialogButton"
+                                Click="OnCloseClick">
+                            <TextBlock Text="{x:Static localization:UiStrings.CommonClose}"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Border>
+</Window>

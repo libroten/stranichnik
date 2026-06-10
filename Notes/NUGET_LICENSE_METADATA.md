@@ -4,6 +4,9 @@ This file records license metadata observed in local NuGet `.nuspec` files for
 runtime packages. Some NuGet packages declare only an SPDX license expression and
 do not include a standalone license file in the package contents.
 
+This is a maintainer note, not a user-facing legal document. User-facing release
+documents live in `THIRD_PARTY_NOTICES.md` and `THIRD_PARTY_LICENSES/*.txt`.
+
 ## Direct Runtime Packages
 
 | Package | Version | License expression | Copyright / authors from package metadata |
@@ -36,5 +39,5 @@ do not include a standalone license file in the package contents.
 | System.Memory | 4.5.3 | .NET Foundation license URL in package metadata | See package license copy. |
 | Tmds.DBus.Protocol | 0.92.0 | MIT | Tom Deseyn |
 
-When this table changes, update `../THIRD_PARTY_NOTICES.md` and the package
-license/notice copies in this directory.
+When this table changes, update `THIRD_PARTY_NOTICES.md` and the package
+license/notice copies in `THIRD_PARTY_LICENSES/`.

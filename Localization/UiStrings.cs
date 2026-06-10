@@ -2,6 +2,15 @@ namespace Stranichnik.Localization;
 
 public static class UiStrings
 {
+    public static string AboutDialogDescription => TextResources.Get("AboutDialog_Description");
+    public static string AboutDialogTitle => TextResources.Get("AboutDialog_Title");
+    public static string AboutDocumentMissing => TextResources.Get("AboutDialog_DocumentMissing");
+    public static string AboutDocumentReadFailed => TextResources.Get("AboutDialog_DocumentReadFailed");
+    public static string AboutNoThirdPartyDocumentsMessage => TextResources.Get("AboutDialog_NoThirdPartyDocumentsMessage");
+    public static string AboutNoThirdPartyDocumentsTitle => TextResources.Get("AboutDialog_NoThirdPartyDocumentsTitle");
+    public static string AboutProjectLicenseTitle => TextResources.Get("AboutDialog_ProjectLicenseTitle");
+    public static string AboutThirdPartyDescription => TextResources.Get("AboutDialog_ThirdPartyDescription");
+    public static string AboutThirdPartyTitle => TextResources.Get("AboutDialog_ThirdPartyTitle");
     public static string ActionAddBookmark => TextResources.Get("Action_AddBookmark");
     public static string ActionAddFolder => TextResources.Get("Action_AddFolder");
     public static string ActionCopyUrl => TextResources.Get("Action_CopyUrl");
@@ -29,6 +38,7 @@ public static class UiStrings
     public static string BookmarkEditorUrlPlaceholder => TextResources.Get("BookmarkEditor_UrlPlaceholder");
     public static string CommonAdd => TextResources.Get("Common_Add");
     public static string CommonCancel => TextResources.Get("Common_Cancel");
+    public static string CommonClose => TextResources.Get("Common_Close");
     public static string CommonDelete => TextResources.Get("Common_Delete");
     public static string CommonMessage => TextResources.Get("Common_Message");
     public static string CommonOk => TextResources.Get("Common_OK");
