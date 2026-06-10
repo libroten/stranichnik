@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Stranichnik.Storage;
 using Stranichnik.ViewModels;
@@ -27,6 +29,47 @@ public sealed class BookmarkTreeViewModelMapperTests
         Assert.Equal("Folder folder", folder.Title);
         Assert.Equal("Bookmark bookmark", bookmark.Title);
         Assert.Equal("https://bookmark.example.com", bookmark.Url);
+    }
+
+    [Fact]
+    public void CreateViewModels_expands_two_real_folder_levels_by_default()
+    {
+        var snapshot = new BookmarkTreeSnapshot(new[]
+        {
+            CreateFolder("level-1", parentId: null, sortOrder: 1000),
+            CreateFolder("level-2", "level-1", sortOrder: 1000),
+            CreateFolder("level-3", "level-2", sortOrder: 1000)
+        });
+
+        var items = BookmarkTreeViewModelMapper.CreateViewModels(snapshot);
+
+        var level1 = Assert.IsType<BookmarkFolderViewModel>(Assert.Single(items));
+        var level2 = Assert.IsType<BookmarkFolderViewModel>(Assert.Single(level1.Children));
+        var level3 = Assert.IsType<BookmarkFolderViewModel>(Assert.Single(level2.Children));
+
+        Assert.True(level1.IsExpanded);
+        Assert.True(level2.IsExpanded);
+        Assert.False(level3.IsExpanded);
+    }
+
+    [Fact]
+    public void CreateViewModels_uses_explicit_expanded_folder_ids_when_provided()
+    {
+        var snapshot = new BookmarkTreeSnapshot(new[]
+        {
+            CreateFolder("level-1", parentId: null, sortOrder: 1000),
+            CreateFolder("level-2", "level-1", sortOrder: 1000)
+        });
+
+        var items = BookmarkTreeViewModelMapper.CreateViewModels(
+            snapshot,
+            expandedFolderIds: new HashSet<string>(StringComparer.Ordinal) { "level-2" });
+
+        var level1 = Assert.IsType<BookmarkFolderViewModel>(Assert.Single(items));
+        var level2 = Assert.IsType<BookmarkFolderViewModel>(Assert.Single(level1.Children));
+
+        Assert.False(level1.IsExpanded);
+        Assert.True(level2.IsExpanded);
     }
 
     [Fact]

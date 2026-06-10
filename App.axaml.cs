@@ -10,7 +10,6 @@ using Stranichnik.Search;
 using Stranichnik.Searching;
 using Stranichnik.Security;
 using Stranichnik.Settings;
-using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
 using Stranichnik.Theming;
 using Stranichnik.ViewModels;
@@ -55,10 +54,10 @@ public partial class App : Application
                     treeStore,
                     new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
                     new BookmarkIconImageCache(treeStore, secretSession),
-                    SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds(),
-                    secretProfileStore,
-                    secretCryptoService,
-                    secretSession,
+                    expandedFolderIds: null,
+                    secretProfileStore: secretProfileStore,
+                    secretCryptoService: secretCryptoService,
+                    secretSession: secretSession,
                     secretResetStore: secretResetStore),
             };
         }

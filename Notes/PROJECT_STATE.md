@@ -195,6 +195,9 @@ Folders:
 - Have rounded container corners.
 - Have vertical spacing around the full folder container.
 - Can be expanded/collapsed on pointer release.
+- When the tree is first created without a previously supplied expanded-folder
+  state, the first two real folder levels below the synthetic root are expanded
+  by default. The synthetic root is not counted as a real folder level.
 - Normal folders show action buttons on row hover:
   - add bookmark
   - add folder

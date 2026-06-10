@@ -56,6 +56,9 @@ The UI is a tree-like bookmark catalog:
 
 - A synthetic root folder named `Все закладки`.
 - Folder rows can be expanded and collapsed.
+- On initial tree creation, when no explicit expanded-folder state is supplied,
+  the UI expands the first two real folder levels below the synthetic root.
+  The synthetic root itself is not counted as one of those two levels.
 - Bookmark rows show title and URL.
 - A search bar can replace the tree area with bookmark search results.
 - Folder and bookmark rows have hover actions.

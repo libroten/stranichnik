@@ -36,17 +36,6 @@ public static class SampleBookmarkRecordsFactory
         return new(builder.Items);
     }
 
-    public static IReadOnlySet<string> CreateDefaultExpandedFolderIds()
-    {
-        return new HashSet<string>(StringComparer.Ordinal)
-        {
-            "work",
-            "development",
-            "deep-level-1",
-            "scroll-test"
-        };
-    }
-
     private static void AddDeepTestFolder(Builder builder)
     {
         string? parentId = null;

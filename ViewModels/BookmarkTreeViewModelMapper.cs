@@ -11,6 +11,7 @@ namespace Stranichnik.ViewModels;
 public static class BookmarkTreeViewModelMapper
 {
     private const string RootParentKey = "";
+    private const int DefaultExpandedFolderDepth = 2;
 
     public static ObservableCollection<BookmarkTreeItemViewModel> CreateViewModels(
         BookmarkTreeSnapshot snapshot,
@@ -31,9 +32,39 @@ public static class BookmarkTreeViewModelMapper
         return CreateChildren(
             parentId: null,
             itemsByParentId,
-            expandedFolderIds ?? EmptyExpandedFolderIds,
+            expandedFolderIds ?? CreateDefaultExpandedFolderIds(itemsByParentId),
             iconImageCache,
             []);
+    }
+
+    private static HashSet<string> CreateDefaultExpandedFolderIds(
+        IReadOnlyDictionary<string, List<BookmarkItemRecord>> itemsByParentId)
+    {
+        var expandedFolderIds = new HashSet<string>(StringComparer.Ordinal);
+        AddDefaultExpandedFolderIds(parentId: null, depth: 1, itemsByParentId, expandedFolderIds);
+
+        return expandedFolderIds;
+    }
+
+    private static void AddDefaultExpandedFolderIds(
+        string? parentId,
+        int depth,
+        IReadOnlyDictionary<string, List<BookmarkItemRecord>> itemsByParentId,
+        HashSet<string> expandedFolderIds)
+    {
+        if (depth > DefaultExpandedFolderDepth)
+            return;
+
+        if (!itemsByParentId.TryGetValue(GetParentKey(parentId), out var childRecords))
+            return;
+
+        foreach (var folder in childRecords.Where(item => item.Kind == BookmarkItemKind.Folder))
+        {
+            if (!expandedFolderIds.Add(folder.Id))
+                continue;
+
+            AddDefaultExpandedFolderIds(folder.Id, depth + 1, itemsByParentId, expandedFolderIds);
+        }
     }
 
     private static ObservableCollection<BookmarkTreeItemViewModel> CreateChildren(

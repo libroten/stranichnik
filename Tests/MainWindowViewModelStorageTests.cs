@@ -625,8 +625,7 @@ public sealed class MainWindowViewModelStorageTests
         return CreateViewModel(
             SampleBookmarkRecordsFactory.Create(),
             secretSession: null,
-            secretCryptoService: null,
-            expandedFolderIds: SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds());
+            secretCryptoService: null);
     }
 
     private static MainWindowViewModel CreateViewModel(
@@ -657,7 +656,6 @@ public sealed class MainWindowViewModelStorageTests
         return new MainWindowViewModel(
             store,
             new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
-            expandedFolderIds: SampleBookmarkRecordsFactory.CreateDefaultExpandedFolderIds(),
             secretProfileStore: secretProfileStore,
             secretCryptoService: cryptoService,
             secretSession: secretSession,
