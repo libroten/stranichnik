@@ -290,7 +290,7 @@ Current behavior:
 - Drop moves dragged item to the start of the target folder.
 - Root drop target is the placeholder inside `Все закладки`.
 - Closed folders can auto-expand while dragging.
-- Auto-scroll works near top/bottom of the scroll viewer.
+- Auto-scroll works near the left, right, top, and bottom edges of the scroll viewer.
 - Layout compensation is used to prevent large visual jumps when drag starts, folders auto-expand, and drop completes.
 
 Known design choice:

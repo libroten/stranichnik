@@ -468,7 +468,7 @@ Current DnD behavior:
 - Dropping moves the item to the start of the target folder.
 - Explicit item ordering is not supported.
 - Closed folders can auto-expand during drag after a delay.
-- Auto-scroll runs near the top and bottom of the scroll viewport.
+- Auto-scroll runs near the left, right, top, and bottom edges of the scroll viewport.
 - Layout/scroll compensation is used to reduce visual jumps when placeholders appear or disappear.
 
 Important constraints:

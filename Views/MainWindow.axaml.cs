@@ -1249,29 +1249,48 @@ public partial class MainWindow : Window
             return;
         }
 
-        var viewportHeight = BookmarksScrollViewer.Viewport.Height;
-        if (viewportHeight <= 0)
+        var viewport = BookmarksScrollViewer.Viewport;
+        if (viewport.Width <= 0 && viewport.Height <= 0)
             return;
 
-        var distanceFromTop = _lastTreeDragPoint.Y;
-        var distanceFromBottom = viewportHeight - _lastTreeDragPoint.Y;
+        var horizontalStep = 0d;
         var verticalStep = 0d;
 
-        if (distanceFromTop < DragAutoScrollEdgeSize)
-            verticalStep = -GetAutoScrollStep(distanceFromTop);
-        else if (distanceFromBottom < DragAutoScrollEdgeSize)
-            verticalStep = GetAutoScrollStep(distanceFromBottom);
+        if (viewport.Width > 0)
+        {
+            var distanceFromLeft = _lastTreeDragPoint.X;
+            var distanceFromRight = viewport.Width - _lastTreeDragPoint.X;
 
-        if (verticalStep == 0)
+            if (distanceFromLeft < DragAutoScrollEdgeSize)
+                horizontalStep = -GetAutoScrollStep(distanceFromLeft);
+            else if (distanceFromRight < DragAutoScrollEdgeSize)
+                horizontalStep = GetAutoScrollStep(distanceFromRight);
+        }
+
+        if (viewport.Height > 0)
+        {
+            var distanceFromTop = _lastTreeDragPoint.Y;
+            var distanceFromBottom = viewport.Height - _lastTreeDragPoint.Y;
+
+            if (distanceFromTop < DragAutoScrollEdgeSize)
+                verticalStep = -GetAutoScrollStep(distanceFromTop);
+            else if (distanceFromBottom < DragAutoScrollEdgeSize)
+                verticalStep = GetAutoScrollStep(distanceFromBottom);
+        }
+
+        if (horizontalStep == 0 && verticalStep == 0)
             return;
 
         var currentOffset = BookmarksScrollViewer.Offset;
         BookmarksScrollViewer.Offset = new Vector(
-            currentOffset.X,
+            ClampOffset(
+                currentOffset.X + horizontalStep,
+                BookmarksScrollViewer.Extent.Width,
+                viewport.Width),
             ClampOffset(
                 currentOffset.Y + verticalStep,
                 BookmarksScrollViewer.Extent.Height,
-                BookmarksScrollViewer.Viewport.Height));
+                viewport.Height));
     }
 
     private static double GetAutoScrollStep(double distanceFromEdge)
