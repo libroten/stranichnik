@@ -41,7 +41,7 @@ public static class ThemePalettes
 
         (ThemeResourceKeys.SearchBoxBackgroundBrush, "#F7F3EF"),
         (ThemeResourceKeys.SearchBoxBorderBrush, "#E5DFD8"),
-        (ThemeResourceKeys.SearchIconBrush, "#9EA3AE"),
+        (ThemeResourceKeys.SearchIconBrush, "#35416D"),
         (ThemeResourceKeys.SearchClearButtonForegroundBrush, "#596073"),
         (ThemeResourceKeys.SearchEmptyTextBrush, "#7D8290"),
 
@@ -110,7 +110,7 @@ public static class ThemePalettes
 
         (ThemeResourceKeys.SearchBoxBackgroundBrush, "#444654"),
         (ThemeResourceKeys.SearchBoxBorderBrush, "#3F4554"),
-        (ThemeResourceKeys.SearchIconBrush, "#AFA59C"),
+        (ThemeResourceKeys.SearchIconBrush, "#C6BDAA"),
         (ThemeResourceKeys.SearchClearButtonForegroundBrush, "#D9CFC5"),
         (ThemeResourceKeys.SearchEmptyTextBrush, "#AFA59C"),
 

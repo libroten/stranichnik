@@ -1,0 +1,6 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Search</title>
+  <desc id="desc">A minimal magnifying glass glyph for search.</desc>
+  <path d="M10.75 17.25C14.34 17.25 17.25 14.34 17.25 10.75C17.25 7.16 14.34 4.25 10.75 4.25C7.16 4.25 4.25 7.16 4.25 10.75C4.25 14.34 7.16 17.25 10.75 17.25Z"/>
+  <path d="M15.5 15.5L19.75 19.75"/>
+</svg>

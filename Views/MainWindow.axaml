@@ -710,14 +710,21 @@
                         <Setter Property="Background" Value="{DynamicResource SearchBoxBackgroundBrush}"/>
                         <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
                     </Style>
-                    <Style Selector="TextBlock.searchIcon">
-                        <Setter Property="Foreground" Value="{DynamicResource SearchIconBrush}"/>
-                        <Setter Property="FontSize" Value="40"/>
+                    <Style Selector="Viewbox.searchIconFrame">
+                        <Setter Property="Width" Value="26"/>
+                        <Setter Property="Height" Value="26"/>
                         <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="IsHitTestVisible" Value="False"/>
+                    </Style>
+                    <Style Selector="Path.searchIcon">
+                        <Setter Property="Stroke" Value="{DynamicResource SearchIconBrush}"/>
+                        <Setter Property="StrokeThickness" Value="1.75"/>
+                        <Setter Property="StrokeLineCap" Value="Round"/>
+                        <Setter Property="StrokeJoin" Value="Round"/>
                     </Style>
                     <Style Selector="TextBox.searchBoxInput">
                         <Setter Property="Height" Value="34"/>
-                        <Setter Property="Padding" Value="8,6"/>
+                        <Setter Property="Padding" Value="8,8,8,4"/>
                         <Setter Property="Background" Value="Transparent"/>
                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                         <Setter Property="PlaceholderForeground" Value="{DynamicResource PlaceholderTextBrush}"/>
@@ -1029,9 +1036,14 @@
                         <Grid ColumnDefinitions="Auto,*,Auto"
                               ColumnSpacing="6"
                               VerticalAlignment="Center">
-                            <TextBlock Grid.Column="0"
-                                       Classes="searchIcon"
-                                       Text="⌕"/>
+                            <Viewbox Grid.Column="0"
+                                     Classes="searchIconFrame">
+                                <Canvas Width="24"
+                                        Height="24">
+                                    <Path Classes="searchIcon"
+                                          Data="{StaticResource SearchIconGeometry}"/>
+                                </Canvas>
+                            </Viewbox>
                             <TextBox Grid.Column="1"
                                      Classes="searchBoxInput"
                                      PlaceholderText="{x:Static localization:UiStrings.SearchPlaceholder}"
