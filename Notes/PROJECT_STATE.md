@@ -15,8 +15,9 @@ Completed broad areas:
 - README.
 - 0BSD license.
 - `THIRD_PARTY_NOTICES.md` tracks external NuGet components, notable transitive
-  dependencies, and bundled assets; keep it current when dependencies or
-  external assets change.
+  dependencies, and bundled assets; `THIRD_PARTY_LICENSES/` stores runtime
+  license/notice texts for binary releases. Keep both current when dependencies
+  or external assets change.
 - Analyzer/code-style infrastructure.
 - xUnit test project.
 - In-memory bookmark/folder tree.

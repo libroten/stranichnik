@@ -29,10 +29,12 @@ Avalonia and test dependencies are restored automatically through NuGet when run
 
 Third-party NuGet packages, notable transitive dependencies, and bundled project
 assets are tracked in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Runtime license texts and package-provided notices intended for binary releases
+are kept in [THIRD_PARTY_LICENSES/](THIRD_PARTY_LICENSES/).
 
 When adding, removing, or replacing external packages, copied assets, generated
 resources based on third-party material, fonts, native libraries, or other
-external components, update that file in the same change.
+external components, update these files in the same change.
 
 ## Clone the Repository
 
