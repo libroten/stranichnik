@@ -600,7 +600,7 @@
                                     <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppSettings}"/>
                                 </Button>
                                 <Button Classes="menuPopupItem"
-                                        Click="OnMenuPopupItemClick">
+                                        Click="OnExitMenuClick">
                                     <TextBlock Text="{x:Static localization:UiStrings.MainMenuAppExit}"/>
                                 </Button>
                             </StackPanel>

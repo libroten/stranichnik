@@ -136,6 +136,15 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
+    private void OnExitMenuClick(object? sender, RoutedEventArgs e)
+    {
+        NotifySecretActivity();
+        CloseMenuPopups();
+        e.Handled = true;
+
+        Close();
+    }
+
     private void OnAppearanceMenuClick(object? sender, RoutedEventArgs e)
     {
         NotifySecretActivity();
