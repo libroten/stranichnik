@@ -25,6 +25,15 @@ The command should print an `8.x.x` SDK version or newer compatible SDK.
 
 Avalonia and test dependencies are restored automatically through NuGet when running `dotnet restore`, `dotnet build`, `dotnet run`, or `dotnet test`.
 
+## Third-Party Components
+
+Third-party NuGet packages, notable transitive dependencies, and bundled project
+assets are tracked in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+When adding, removing, or replacing external packages, copied assets, generated
+resources based on third-party material, fonts, native libraries, or other
+external components, update that file in the same change.
+
 ## Clone the Repository
 
 ```bash

@@ -14,6 +14,9 @@ Completed broad areas:
 - `net8.0` target.
 - README.
 - 0BSD license.
+- `THIRD_PARTY_NOTICES.md` tracks external NuGet components, notable transitive
+  dependencies, and bundled assets; keep it current when dependencies or
+  external assets change.
 - Analyzer/code-style infrastructure.
 - xUnit test project.
 - In-memory bookmark/folder tree.
