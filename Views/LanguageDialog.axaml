@@ -19,6 +19,8 @@
             <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="RenderTransform" Value="{x:Null}"/>
+            <Setter Property="Transitions" Value="{x:Null}"/>
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}">
@@ -32,17 +34,42 @@
             </Setter>
         </Style>
         <Style Selector="Button.optionRow:pointerover">
-            <Setter Property="Background" Value="{DynamicResource DialogButtonHoverBackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+            <Setter Property="RenderTransform" Value="{x:Null}"/>
+        </Style>
+        <Style Selector="Button.optionRow:pressed">
+            <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+            <Setter Property="RenderTransform" Value="{x:Null}"/>
         </Style>
         <Style Selector="Button.optionRow.selected">
-            <Setter Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource FocusBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+        </Style>
+        <Style Selector="Button.optionRow.selected:pointerover">
+            <Setter Property="Background" Value="{DynamicResource FocusBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="RenderTransform" Value="{x:Null}"/>
+        </Style>
+        <Style Selector="Button.optionRow.selected:pressed">
+            <Setter Property="Background" Value="{DynamicResource FocusBorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+            <Setter Property="RenderTransform" Value="{x:Null}"/>
+        </Style>
+        <Style Selector="Button.optionRow TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="Button.optionRow.selected TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
+        </Style>
+        <Style Selector="Button.optionRow.selected:pointerover TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
         </Style>
     </Window.Styles>
 
     <Border Padding="20"
             Background="{DynamicResource DialogBackgroundBrush}">
-        <Border Background="{DynamicResource DialogButtonBackgroundBrush}"
-                BorderBrush="{DynamicResource DialogButtonBorderBrush}"
+        <Border Background="Transparent"
+                BorderBrush="{DynamicResource FocusBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="12"
                 ClipToBounds="True">
@@ -58,7 +85,7 @@
                 </Button>
 
                 <Border Grid.Row="1"
-                        Background="{DynamicResource DialogButtonBorderBrush}"/>
+                        Background="{DynamicResource FocusBorderBrush}"/>
 
                 <Button x:Name="RussianButton"
                         Grid.Row="2"
