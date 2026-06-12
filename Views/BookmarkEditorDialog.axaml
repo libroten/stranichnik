@@ -10,6 +10,14 @@
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource DialogBackgroundBrush}"
         KeyDown="OnKeyDown">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Stranichnik/Assets/Icons/ActionIcons.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Window.Styles>
         <Style Selector="TextBox">
             <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
@@ -184,12 +192,12 @@
             <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
-        <Style Selector="TextBlock.iconPreviewGlyph">
-            <Setter Property="Foreground" Value="{DynamicResource ActionAddBookmarkBrush}"/>
-            <Setter Property="FontSize" Value="18"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
+        <Style Selector="Path.iconPreviewIcon">
+            <Setter Property="Stroke" Value="{DynamicResource FocusBorderBrush}"/>
+            <Setter Property="StrokeThickness" Value="1.75"/>
+            <Setter Property="StrokeLineCap" Value="Round"/>
+            <Setter Property="StrokeJoin" Value="Round"/>
+            <Setter Property="Fill" Value="Transparent"/>
         </Style>
         <Style Selector="TextBlock.iconChoiceLabel">
             <Setter Property="FontSize" Value="11"/>
@@ -373,9 +381,17 @@
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"
                                            IsVisible="False"/>
-                                    <TextBlock x:Name="LibraryIconGlyph"
-                                               Classes="iconPreviewGlyph"
-                                               Text="..."/>
+                                    <Viewbox x:Name="LibraryIconPlaceholderIcon"
+                                             Width="22"
+                                             Height="22"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                        <Canvas Width="24"
+                                                Height="24">
+                                            <Path Classes="iconPreviewIcon"
+                                                  Data="{StaticResource ActionIconLibraryStackGeometry}"/>
+                                        </Canvas>
+                                    </Viewbox>
                                 </Grid>
                             </Border>
                             <TextBlock x:Name="LibraryIconTextBlock"
@@ -408,8 +424,16 @@
                         <StackPanel Spacing="6"
                                     HorizontalAlignment="Center">
                             <Border Classes="iconPreview">
-                                <TextBlock Classes="iconPreviewGlyph"
-                                           Text="+"/>
+                                <Viewbox Width="22"
+                                         Height="22"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center">
+                                    <Canvas Width="24"
+                                            Height="24">
+                                        <Path Classes="iconPreviewIcon"
+                                              Data="{StaticResource ActionIconFileUploadGeometry}"/>
+                                    </Canvas>
+                                </Viewbox>
                             </Border>
                             <TextBlock x:Name="UploadIconTextBlock"
                                        Classes="iconChoiceLabel"/>

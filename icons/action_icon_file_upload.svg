@@ -1,0 +1,8 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Choose icon file</title>
+  <desc id="desc">A minimal file outline with an upward arrow for choosing an icon file.</desc>
+  <path d="M7.25 3.75H14.25L18.75 8.25V18.75C18.75 19.58 18.08 20.25 17.25 20.25H7.25C6.42 20.25 5.75 19.58 5.75 18.75V5.25C5.75 4.42 6.42 3.75 7.25 3.75Z"/>
+  <path d="M14.25 3.75V8.25H18.75"/>
+  <path d="M12.25 16.25V10.75"/>
+  <path d="M9.75 13.25L12.25 10.75L14.75 13.25"/>
+</svg>

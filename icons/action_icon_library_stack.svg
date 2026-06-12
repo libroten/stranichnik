@@ -1,0 +1,8 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Icon library stack</title>
+  <desc id="desc">A minimal stack of saved icon cards.</desc>
+  <path d="M8.25 4.75H17.75C18.58 4.75 19.25 5.42 19.25 6.25V15.75"/>
+  <path d="M5.75 7.25H15.25C16.08 7.25 16.75 7.92 16.75 8.75V18.25C16.75 19.08 16.08 19.75 15.25 19.75H5.75C4.92 19.75 4.25 19.08 4.25 18.25V8.75C4.25 7.92 4.92 7.25 5.75 7.25Z"/>
+  <path d="M7.75 15.75L9.55 13.95L11.1 15.5L12.25 14.35L14.25 16.35"/>
+  <path d="M8.25 10.75H8.27"/>
+</svg>

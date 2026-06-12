@@ -1369,14 +1369,8 @@ public sealed partial class BookmarkFolderViewModel : BookmarkTreeItemViewModel
     public bool IsExpanded
     {
         get => _isExpanded;
-        set
-        {
-            if (SetProperty(ref _isExpanded, value))
-                OnPropertyChanged(nameof(ExpansionGlyph));
-        }
+        set => SetProperty(ref _isExpanded, value);
     }
-
-    public string ExpansionGlyph => IsExpanded ? "▾" : "▸";
 
     public bool IsDropPlaceholderVisible
     {

@@ -275,7 +275,7 @@ public sealed partial class BookmarkEditorDialog : Window
         _libraryIconSelection = result.Selection;
         LibraryIconImage.Source = result.Preview;
         LibraryIconImage.IsVisible = true;
-        LibraryIconGlyph.IsVisible = false;
+        LibraryIconPlaceholderIcon.IsVisible = false;
         SelectIconChoice(BookmarkEditorIconChoice.Library);
         Logs.Print("Bookmark editor library icon selected.");
         e.Handled = true;
