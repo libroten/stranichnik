@@ -12,6 +12,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Stranichnik.Icons;
 using Stranichnik.Localization;
 using Stranichnik.Opening;
 using Stranichnik.Searching;
@@ -55,7 +56,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _folderAutoExpandTimer;
     private readonly DispatcherTimer _dragAutoScrollTimer;
     private readonly DispatcherTimer _dragGhostAnimationTimer;
-    private readonly DispatcherTimer _secretInactivityTimer;
+    private readonly SecretInactivityController _secretInactivityController;
     private readonly ScaleTransform _dragGhostScaleTransform = new()
     {
         ScaleX = 1,
@@ -88,11 +89,13 @@ public partial class MainWindow : Window
         DragGhost.RenderTransform = _dragGhostScaleTransform;
         DragGhost.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
 
-        _secretInactivityTimer = new DispatcherTimer
+        var secretInactivityTimer = new DispatcherTimer
         {
             Interval = SecretInactivityTimeout
         };
-        _secretInactivityTimer.Tick += OnSecretInactivityTimerTick;
+        _secretInactivityController = new SecretInactivityController(
+            new DispatcherSecretInactivityTimer(secretInactivityTimer),
+            OnSecretInactivityTimeout);
 
         AddHandler(PointerPressedEvent, OnWindowActivityPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnWindowActivityPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -538,22 +541,12 @@ public partial class MainWindow : Window
 
     private void NotifySecretActivity()
     {
-        if (_observedViewModel?.AreSecretsVisible != true)
-            return;
-
-        _secretInactivityTimer.Stop();
-        _secretInactivityTimer.Start();
+        _secretInactivityController.NotifyActivity();
     }
 
     private void UpdateSecretInactivityTimer()
     {
-        if (_observedViewModel?.AreSecretsVisible == true)
-        {
-            NotifySecretActivity();
-            return;
-        }
-
-        _secretInactivityTimer.Stop();
+        _secretInactivityController.SetSecretsVisible(_observedViewModel?.AreSecretsVisible == true);
     }
 
     private void UpdateSecretVisibilityMenuState()
@@ -575,10 +568,8 @@ public partial class MainWindow : Window
         SecretVisibilitySwitch.Classes.Remove("on");
     }
 
-    private void OnSecretInactivityTimerTick(object? sender, EventArgs e)
+    private void OnSecretInactivityTimeout()
     {
-        _secretInactivityTimer.Stop();
-
         if (_observedViewModel?.AreSecretsVisible != true)
             return;
 
@@ -700,16 +691,14 @@ public partial class MainWindow : Window
             return;
 
         var dialog = BookmarkEditorDialog.AddBookmark(owner =>
-            EnsureSecretEditingAvailableAsync(viewModel, owner));
-        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+            EnsureSecretEditingAvailableAsync(viewModel, owner),
+            (owner, request) => ChooseIconFromLibraryAsync(owner, viewModel, request));
+        var result = await ShowBookmarkEditorDialogAsync(dialog);
 
         if (result is null)
             return;
 
-        if (result.IsSecret)
-        {
-            folder = viewModel.FindFolder(folder.Id) ?? folder;
-        }
+        folder = viewModel.FindFolder(folder.Id) ?? folder;
 
         var addResult = result.IsSecret
             ? viewModel.AddSecretBookmarkToFolderStart(
@@ -734,11 +723,14 @@ public partial class MainWindow : Window
         if (DataContext is not MainWindowViewModel viewModel)
             return;
 
-        var dialog = BookmarkEditorDialog.AddFolder();
-        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+        var dialog = BookmarkEditorDialog.AddFolder((owner, request) =>
+            ChooseIconFromLibraryAsync(owner, viewModel, request));
+        var result = await ShowBookmarkEditorDialogAsync(dialog);
 
         if (result is null)
             return;
+
+        folder = viewModel.FindFolder(folder.Id) ?? folder;
 
         var addResult = viewModel.AddFolderToFolderStart(folder, result.Title, result.IconSelection);
         if (addResult.WasAdded)
@@ -764,8 +756,9 @@ public partial class MainWindow : Window
             bookmark.Url,
             bookmark.IconImage,
             bookmark.IsSecret,
-            owner => EnsureSecretEditingAvailableAsync(viewModel, owner));
-        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+            owner => EnsureSecretEditingAvailableAsync(viewModel, owner),
+            (owner, request) => ChooseIconFromLibraryAsync(owner, viewModel, request));
+        var result = await ShowBookmarkEditorDialogAsync(dialog);
 
         if (result is not null)
         {
@@ -879,8 +872,11 @@ public partial class MainWindow : Window
         if (DataContext is not MainWindowViewModel viewModel)
             return;
 
-        var dialog = BookmarkEditorDialog.EditFolder(folder.Title, folder.IconImage);
-        var result = await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+        var dialog = BookmarkEditorDialog.EditFolder(
+            folder.Title,
+            folder.IconImage,
+            (owner, request) => ChooseIconFromLibraryAsync(owner, viewModel, request));
+        var result = await ShowBookmarkEditorDialogAsync(dialog);
 
         if (result is not null)
         {
@@ -899,6 +895,54 @@ public partial class MainWindow : Window
         {
             viewModel.DeleteItem(bookmark);
             UpdateBookmarksHorizontalOverflow();
+        }
+    }
+
+    private static Task<IconLibraryDialogResult?> ChooseIconFromLibraryAsync(
+        Window owner,
+        MainWindowViewModel viewModel,
+        IconLibraryRequest request)
+    {
+        var items = viewModel.BuildIconLibrary(request);
+        return IconLibraryDialog.ShowAsync(owner, items);
+    }
+
+    private async Task<BookmarkEditorDialogResult?> ShowBookmarkEditorDialogAsync(BookmarkEditorDialog dialog)
+    {
+        _secretInactivityController.Pause();
+        try
+        {
+            return await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
+        }
+        finally
+        {
+            _secretInactivityController.Resume();
+        }
+    }
+
+    private sealed class DispatcherSecretInactivityTimer : ISecretInactivityTimer
+    {
+        private readonly DispatcherTimer _timer;
+
+        public DispatcherSecretInactivityTimer(DispatcherTimer timer)
+        {
+            _timer = timer;
+        }
+
+        public event EventHandler? Tick
+        {
+            add => _timer.Tick += value;
+            remove => _timer.Tick -= value;
+        }
+
+        public void StartTimer()
+        {
+            _timer.Start();
+        }
+
+        public void StopTimer()
+        {
+            _timer.Stop();
         }
     }
 

@@ -1,0 +1,92 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:localization="using:Stranichnik.Localization"
+        xmlns:icons="using:Stranichnik.Icons"
+        x:Class="Stranichnik.Views.IconLibraryDialog"
+        Title="{x:Static localization:UiStrings.IconLibraryTitle}"
+        Width="420"
+        Height="460"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource DialogBackgroundBrush}"
+        KeyDown="OnKeyDown">
+    <Window.Styles>
+        <Style Selector="Button.iconLibraryOption">
+            <Setter Property="Width" Value="70"/>
+            <Setter Property="Height" Value="70"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,10,10"/>
+            <Setter Property="Background" Value="{DynamicResource DialogInputBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DialogInputBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.iconLibraryOption:pointerover">
+            <Setter Property="Background" Value="{DynamicResource DialogButtonHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="Button.iconLibraryOption:pressed">
+            <Setter Property="Background" Value="{DynamicResource ActionAddBookmarkHoverBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ActionAddBookmarkBrush}"/>
+        </Style>
+    </Window.Styles>
+
+    <Border Padding="20"
+            Background="{DynamicResource DialogBackgroundBrush}">
+        <Grid RowDefinitions="Auto,*">
+            <TextBlock Text="{x:Static localization:UiStrings.IconLibraryTitle}"
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"
+                       Margin="0,0,0,14"/>
+
+            <TextBlock x:Name="EmptyTextBlock"
+                       Grid.Row="1"
+                       Text="{x:Static localization:UiStrings.IconLibraryEmpty}"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource DialogTextSecondaryBrush}"
+                       IsVisible="False"/>
+
+            <ScrollViewer Grid.Row="1"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="ItemsControl">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.DataTemplates>
+                        <DataTemplate DataType="icons:IconLibraryItem">
+                            <Button Classes="iconLibraryOption"
+                                    Click="OnIconClick">
+                                <Image Source="{Binding Preview}"
+                                       Width="34"
+                                       Height="34"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.DataTemplates>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>

@@ -159,10 +159,15 @@ Icons:
 - Visible unlocked secret bookmarks can show decrypted custom icons; hidden secret bookmarks are absent from the UI.
 - `BookmarkIconImageCache` keeps decrypted secret icon bitmaps only in memory and clears that cache when the secret session changes.
 - `BookmarkEditorDialog` lets the user choose current/default/favicon/uploaded icon options.
+- `BookmarkEditorDialog` also lets the user choose an already stored visible icon from `IconLibraryDialog`.
 - Uploaded icon files use Avalonia's cross-platform storage provider.
 - Dialog code never writes icon blobs directly to SQLite. It returns a pending `BookmarkIconSelection`; `MainWindowViewModel` applies it through `IconAssetService` and `IBookmarkTreeStore`.
 - Secret icon selections are applied through `SecretIconAssetService`, which encrypts processed icon bytes with the runtime secret key.
+- `IconLibraryService` builds the icon library from the currently visible projected storage snapshot.
+- The icon library shows only referenced icon assets, deduplicates displayed entries by source hash, and excludes secret icons while secrets are hidden.
+- Applying a library icon is resolved by `MainWindowViewModel` according to the final target kind and secret state: regular targets use/copy to `icon_assets`, secret bookmarks use/copy to `secret_icon_assets`.
 - Icon logs must not include URLs, page titles, local file paths, raw hashes, or raw image data.
+- The icon library design is documented in `Notes/ICON_LIBRARY_ARCHITECTURE.md`.
 
 Search UI:
 

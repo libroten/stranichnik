@@ -38,6 +38,29 @@ public sealed class MainWindowViewModelStorageTests
     }
 
     [Fact]
+    public void AddBookmarkToFolderStart_refreshes_stale_target_folder_after_tree_reload()
+    {
+        var viewModel = CreateViewModel();
+        var staleTargetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+        viewModel.ReloadVisibleTreeAndSearch();
+        var currentTargetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+
+        var result = viewModel.AddBookmarkToFolderStart(
+            staleTargetFolder,
+            "New Docs",
+            "https://new-docs.example.com");
+
+        var bookmark = Assert.IsType<BookmarkViewModel>(result.Bookmark);
+        Assert.True(result.WasAdded);
+        Assert.NotSame(staleTargetFolder, currentTargetFolder);
+        Assert.Same(currentTargetFolder, result.TargetParent);
+        Assert.Same(bookmark, currentTargetFolder.Children[0]);
+        Assert.DoesNotContain(bookmark, staleTargetFolder.Children);
+    }
+
+    [Fact]
     public void AddFolderToFolderStart_adds_folder_through_storage_path()
     {
         var viewModel = CreateViewModel();
@@ -58,6 +81,28 @@ public sealed class MainWindowViewModelStorageTests
         Assert.False(string.IsNullOrWhiteSpace(folder.Id));
         Assert.Equal(0, result.TargetIndex);
         Assert.Same(targetFolder, result.TargetParent);
+    }
+
+    [Fact]
+    public void AddFolderToFolderStart_refreshes_stale_target_folder_after_tree_reload()
+    {
+        var viewModel = CreateViewModel();
+        var staleTargetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+        viewModel.ReloadVisibleTreeAndSearch();
+        var currentTargetFolder = Assert.IsType<BookmarkFolderViewModel>(
+            viewModel.Items.First(item => item.Id == "work"));
+
+        var result = viewModel.AddFolderToFolderStart(
+            staleTargetFolder,
+            "New Folder");
+
+        var folder = Assert.IsType<BookmarkFolderViewModel>(result.Folder);
+        Assert.True(result.WasAdded);
+        Assert.NotSame(staleTargetFolder, currentTargetFolder);
+        Assert.Same(currentTargetFolder, result.TargetParent);
+        Assert.Same(folder, currentTargetFolder.Children[0]);
+        Assert.DoesNotContain(folder, staleTargetFolder.Children);
     }
 
     [Fact]
@@ -315,6 +360,136 @@ public sealed class MainWindowViewModelStorageTests
         Assert.Equal("plain-icon", plaintextRecord.IconAssetId);
         Assert.Null(plaintextRecord.SecretIconAssetId);
         Assert.Equal("Plain Icon Bookmark", bookmark.Title);
+    }
+
+    [Fact]
+    public void AddBookmarkToFolderStart_can_use_regular_library_icon()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        store.GetOrCreateIconAsset(CreateIconAsset("library-icon", "library-source"));
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+
+        var result = viewModel.AddBookmarkToFolderStart(
+            viewModel.RootFolder,
+            "Bookmark",
+            "https://example.com",
+            BookmarkIconSelection.FromLibrary(new IconLibrarySelection("library-icon", SecretIconAssetId: null)));
+
+        var record = Assert.Single(store.Load().Items);
+        Assert.True(result.WasAdded);
+        Assert.Equal("library-icon", record.IconAssetId);
+        Assert.Null(record.SecretIconAssetId);
+    }
+
+    [Fact]
+    public void AddBookmarkToFolderStart_rejects_missing_regular_library_icon()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+
+        var result = viewModel.AddBookmarkToFolderStart(
+            viewModel.RootFolder,
+            "Bookmark",
+            "https://example.com",
+            BookmarkIconSelection.FromLibrary(new IconLibrarySelection("missing-icon", SecretIconAssetId: null)));
+
+        Assert.False(result.WasAdded);
+        Assert.Empty(store.Load().Items);
+    }
+
+    [Fact]
+    public void AddSecretBookmarkToFolderStart_can_convert_regular_library_icon_to_secret()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        store.GetOrCreateIconAsset(CreateIconAsset("regular-icon", "same-source"));
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+        viewModel.CreateMasterPassword("password", showSecrets: true);
+
+        var result = viewModel.AddSecretBookmarkToFolderStart(
+            viewModel.RootFolder,
+            "Secret",
+            "https://secret.example.com",
+            BookmarkIconSelection.FromLibrary(new IconLibrarySelection("regular-icon", SecretIconAssetId: null)));
+
+        var record = Assert.Single(store.Load().Items);
+        var secretIconAsset = Assert.IsType<SecretIconAssetRecord>(store.GetSecretIconAsset(
+            Assert.IsType<string>(record.SecretIconAssetId)));
+        Assert.True(result.WasAdded);
+        Assert.True(record.IsSecret);
+        Assert.Null(record.IconAssetId);
+        Assert.Equal("same-source", secretIconAsset.SourceHash);
+    }
+
+    [Fact]
+    public void AddSecretBookmarkToFolderStart_rejects_missing_secret_library_icon()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+        viewModel.CreateMasterPassword("password", showSecrets: true);
+
+        var result = viewModel.AddSecretBookmarkToFolderStart(
+            viewModel.RootFolder,
+            "Secret",
+            "https://secret.example.com",
+            BookmarkIconSelection.FromLibrary(new IconLibrarySelection(
+                RegularIconAssetId: null,
+                SecretIconAssetId: "missing-secret-icon")));
+
+        Assert.False(result.WasAdded);
+        Assert.Empty(store.Load().Items);
+    }
+
+    [Fact]
+    public void AddFolderToFolderStart_can_convert_secret_library_icon_to_regular()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        store.GetOrCreateIconAsset(CreateIconAsset("regular-icon", "same-source"));
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+        viewModel.CreateMasterPassword("password", showSecrets: true);
+        var secretIconAsset = CreateSecretIconAssetFromRegular(store, session, profileStore, "regular-icon");
+
+        var result = viewModel.AddFolderToFolderStart(
+            viewModel.RootFolder,
+            "Folder",
+            BookmarkIconSelection.FromLibrary(new IconLibrarySelection(RegularIconAssetId: null, secretIconAsset.Id)));
+
+        var record = Assert.Single(store.Load().Items);
+        Assert.True(result.WasAdded);
+        Assert.Equal("regular-icon", record.IconAssetId);
+        Assert.Null(record.SecretIconAssetId);
+    }
+
+    [Fact]
+    public void AddSecretBookmarkToFolderStart_can_use_secret_library_icon_directly()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        store.GetOrCreateIconAsset(CreateIconAsset("regular-icon", "same-source"));
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var viewModel = CreateViewModel(store, profileStore, session);
+        viewModel.CreateMasterPassword("password", showSecrets: true);
+        var secretIconAsset = CreateSecretIconAssetFromRegular(store, session, profileStore, "regular-icon");
+
+        var result = viewModel.AddSecretBookmarkToFolderStart(
+            viewModel.RootFolder,
+            "Secret",
+            "https://secret.example.com",
+            BookmarkIconSelection.FromLibrary(new IconLibrarySelection(RegularIconAssetId: null, secretIconAsset.Id)));
+
+        var record = Assert.Single(store.Load().Items);
+        Assert.True(result.WasAdded);
+        Assert.Equal(secretIconAsset.Id, record.SecretIconAssetId);
+        Assert.Null(record.IconAssetId);
     }
 
     [Fact]
@@ -738,6 +913,22 @@ public sealed class MainWindowViewModelStorageTests
             ProcessedHeight: 64,
             ProcessedIconBytes,
             Now);
+    }
+
+    private static SecretIconAssetRecord CreateSecretIconAssetFromRegular(
+        InMemoryBookmarkTreeStore store,
+        SecretSessionService session,
+        InMemorySecretProfileStore profileStore,
+        string iconAssetId)
+    {
+        var profile = Assert.IsType<CryptoProfileRecord>(profileStore.LoadActiveProfile());
+        var dataKey = Assert.IsType<RuntimeSecretKey>(session.BorrowDataKey());
+        var service = new SecretIconAssetService(store, new IconImageProcessor());
+
+        return Assert.IsType<SecretIconAssetRecord>(service.GetOrCreateFromRegularIconAsset(
+            iconAssetId,
+            dataKey,
+            profile.SecretGenerationId));
     }
 
     private static BookmarkItemMetadata CreateMetadata()

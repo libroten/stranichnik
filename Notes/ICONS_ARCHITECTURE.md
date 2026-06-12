@@ -13,8 +13,12 @@ The icon can come from:
 - the built-in default icon for the item type;
 - a website favicon discovered while fetching bookmark page metadata;
 - an image file chosen by the user from disk.
+- the icon library of already stored, currently used visible icons.
 
 The user should be able to choose or change the icon while adding/editing a bookmark or folder.
+
+The icon-library design and ranking rules are documented separately in
+`Notes/ICON_LIBRARY_ARCHITECTURE.md`.
 
 ## Current Implementation Snapshot
 
@@ -65,6 +69,7 @@ Dialog UI:
   - current icon, when editing an item that already has a custom/favicon icon;
   - discovered favicon, when available;
   - default icon for this item kind;
+  - icon library, when the user wants to reuse an already stored visible icon;
   - a button to choose a local image file.
 - Selecting an option should update the pending dialog state.
 - The icon change is persisted only when the user saves the dialog.

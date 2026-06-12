@@ -27,6 +27,7 @@ public static class UiStrings
     public static string BookmarkEditorIconFileInvalid => TextResources.Get("BookmarkEditor_IconFileInvalid");
     public static string BookmarkEditorIconImageFiles => TextResources.Get("BookmarkEditor_IconImageFiles");
     public static string BookmarkEditorIconLabel => TextResources.Get("BookmarkEditor_IconLabel");
+    public static string BookmarkEditorIconLibrary => TextResources.Get("BookmarkEditor_IconLibrary");
     public static string BookmarkEditorIconPickerTitle => TextResources.Get("BookmarkEditor_IconPickerTitle");
     public static string BookmarkEditorIconPickerUnavailable => TextResources.Get("BookmarkEditor_IconPickerUnavailable");
     public static string BookmarkEditorIconUpload => TextResources.Get("BookmarkEditor_IconUpload");
@@ -57,6 +58,8 @@ public static class UiStrings
     public static string ErrorOpenPageTitle => TextResources.Get("Error_OpenPageTitle");
     public static string ErrorUnsupportedBookmarkUrlScheme => TextResources.Get("Error_UnsupportedBookmarkUrlScheme");
     public static string ErrorUrlBrowserStartFailed => TextResources.Get("Error_UrlBrowserStartFailed");
+    public static string IconLibraryEmpty => TextResources.Get("IconLibrary_Empty");
+    public static string IconLibraryTitle => TextResources.Get("IconLibrary_Title");
     public static string LanguageDialogEnglish => TextResources.Get("LanguageDialog_English");
     public static string LanguageDialogRestartMessage => TextResources.Get("LanguageDialog_RestartMessage");
     public static string LanguageDialogRestartTitle => TextResources.Get("LanguageDialog_RestartTitle");

@@ -36,6 +36,7 @@ public sealed partial class BookmarkEditorDialog : Window
 
     private readonly BookmarkEditorDialogMode _mode;
     private readonly Func<BookmarkEditorDialog, Task<bool>>? _ensureSecretEditingAvailable;
+    private readonly Func<BookmarkEditorDialog, IconLibraryRequest, Task<IconLibraryDialogResult?>>? _chooseIconFromLibrary;
     private readonly DispatcherTimer _metadataFetchDebounceTimer;
     private readonly IImage? _currentIconImage;
     private CancellationTokenSource? _metadataFetchCancellation;
@@ -43,6 +44,7 @@ public sealed partial class BookmarkEditorDialog : Window
     private string? _suggestedTitle;
     private ReadOnlyMemory<byte> _faviconOriginalBytes;
     private ReadOnlyMemory<byte> _uploadedOriginalBytes;
+    private IconLibrarySelection? _libraryIconSelection;
     private BookmarkEditorIconChoice _selectedIconChoice;
     private bool _isConfiguring;
 
@@ -62,10 +64,12 @@ public sealed partial class BookmarkEditorDialog : Window
         string url,
         IImage? currentIconImage,
         bool isSecret,
-        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null)
+        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null,
+        Func<BookmarkEditorDialog, IconLibraryRequest, Task<IconLibraryDialogResult?>>? chooseIconFromLibrary = null)
     {
         _mode = mode;
         _ensureSecretEditingAvailable = ensureSecretEditingAvailable;
+        _chooseIconFromLibrary = chooseIconFromLibrary;
         _currentIconImage = currentIconImage;
         _metadataFetchDebounceTimer = new DispatcherTimer
         {
@@ -88,7 +92,8 @@ public sealed partial class BookmarkEditorDialog : Window
     public BookmarkEditorDialogResult? Result { get; private set; }
 
     public static BookmarkEditorDialog AddBookmark(
-        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null)
+        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null,
+        Func<BookmarkEditorDialog, IconLibraryRequest, Task<IconLibraryDialogResult?>>? chooseIconFromLibrary = null)
     {
         return new(
             BookmarkEditorDialogMode.AddBookmark,
@@ -96,7 +101,8 @@ public sealed partial class BookmarkEditorDialog : Window
             url: string.Empty,
             currentIconImage: null,
             isSecret: false,
-            ensureSecretEditingAvailable);
+            ensureSecretEditingAvailable,
+            chooseIconFromLibrary);
     }
 
     public static BookmarkEditorDialog EditBookmark(
@@ -104,7 +110,8 @@ public sealed partial class BookmarkEditorDialog : Window
         string url,
         IImage? currentIconImage,
         bool isSecret,
-        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null)
+        Func<BookmarkEditorDialog, Task<bool>>? ensureSecretEditingAvailable = null,
+        Func<BookmarkEditorDialog, IconLibraryRequest, Task<IconLibraryDialogResult?>>? chooseIconFromLibrary = null)
     {
         return new(
             BookmarkEditorDialogMode.EditBookmark,
@@ -112,22 +119,34 @@ public sealed partial class BookmarkEditorDialog : Window
             url,
             currentIconImage,
             isSecret,
-            ensureSecretEditingAvailable);
+            ensureSecretEditingAvailable,
+            chooseIconFromLibrary);
     }
 
-    public static BookmarkEditorDialog AddFolder()
+    public static BookmarkEditorDialog AddFolder(
+        Func<BookmarkEditorDialog, IconLibraryRequest, Task<IconLibraryDialogResult?>>? chooseIconFromLibrary = null)
     {
         return new(
             BookmarkEditorDialogMode.AddFolder,
             title: string.Empty,
             url: string.Empty,
             currentIconImage: null,
-            isSecret: false);
+            isSecret: false,
+            chooseIconFromLibrary: chooseIconFromLibrary);
     }
 
-    public static BookmarkEditorDialog EditFolder(string title, IImage? currentIconImage)
+    public static BookmarkEditorDialog EditFolder(
+        string title,
+        IImage? currentIconImage,
+        Func<BookmarkEditorDialog, IconLibraryRequest, Task<IconLibraryDialogResult?>>? chooseIconFromLibrary = null)
     {
-        return new(BookmarkEditorDialogMode.EditFolder, title, url: string.Empty, currentIconImage, isSecret: false);
+        return new(
+            BookmarkEditorDialogMode.EditFolder,
+            title,
+            url: string.Empty,
+            currentIconImage,
+            isSecret: false,
+            chooseIconFromLibrary: chooseIconFromLibrary);
     }
 
     private void OnSaveClick(object? sender, RoutedEventArgs e)
@@ -235,6 +254,30 @@ public sealed partial class BookmarkEditorDialog : Window
     private void OnUploadedIconClick(object? sender, RoutedEventArgs e)
     {
         SelectIconChoice(BookmarkEditorIconChoice.Uploaded);
+        e.Handled = true;
+    }
+
+    private async void OnLibraryIconClick(object? sender, RoutedEventArgs e)
+    {
+        if (_chooseIconFromLibrary is null)
+            return;
+
+        var request = new IconLibraryRequest(
+            _mode is BookmarkEditorDialogMode.AddFolder or BookmarkEditorDialogMode.EditFolder
+                ? IconLibraryTargetKind.Folder
+                : IconLibraryTargetKind.Bookmark,
+            UrlTextBox.Text?.Trim(),
+            SecretCheckBox.IsChecked == true);
+        var result = await _chooseIconFromLibrary(this, request);
+        if (result is null)
+            return;
+
+        _libraryIconSelection = result.Selection;
+        LibraryIconImage.Source = result.Preview;
+        LibraryIconImage.IsVisible = true;
+        LibraryIconGlyph.IsVisible = false;
+        SelectIconChoice(BookmarkEditorIconChoice.Library);
+        Logs.Print("Bookmark editor library icon selected.");
         e.Handled = true;
     }
 
@@ -424,6 +467,7 @@ public sealed partial class BookmarkEditorDialog : Window
         CurrentIconTextBlock.Text = UiStrings.BookmarkEditorIconCurrent;
         FaviconIconTextBlock.Text = UiStrings.BookmarkEditorIconFavicon;
         DefaultIconTextBlock.Text = UiStrings.BookmarkEditorIconDefault;
+        LibraryIconTextBlock.Text = UiStrings.BookmarkEditorIconLibrary;
         UploadedIconTextBlock.Text = UiStrings.BookmarkEditorIconUploaded;
         UploadIconTextBlock.Text = UiStrings.BookmarkEditorIconUpload;
         var isFolderMode = _mode is BookmarkEditorDialogMode.AddFolder or BookmarkEditorDialogMode.EditFolder;
@@ -432,6 +476,7 @@ public sealed partial class BookmarkEditorDialog : Window
 
         CurrentIconButton.IsVisible = _currentIconImage is not null;
         CurrentIconImage.Source = _currentIconImage;
+        LibraryIconButton.IsVisible = _chooseIconFromLibrary is not null;
     }
 
     private BookmarkIconSelection CreateIconSelection()
@@ -442,6 +487,7 @@ public sealed partial class BookmarkEditorDialog : Window
                 ? BookmarkIconSelection.KeepExisting
                 : BookmarkIconSelection.UseDefault,
             BookmarkEditorIconChoice.Favicon => BookmarkIconSelection.FromOriginalBytes(_faviconOriginalBytes),
+            BookmarkEditorIconChoice.Library => BookmarkIconSelection.FromLibrary(_libraryIconSelection!),
             BookmarkEditorIconChoice.Uploaded => BookmarkIconSelection.FromOriginalBytes(_uploadedOriginalBytes),
             _ => BookmarkIconSelection.KeepExisting
         };
@@ -458,10 +504,14 @@ public sealed partial class BookmarkEditorDialog : Window
         if (choice == BookmarkEditorIconChoice.Uploaded && _uploadedOriginalBytes.Length == 0)
             choice = BookmarkEditorIconChoice.Default;
 
+        if (choice == BookmarkEditorIconChoice.Library && _libraryIconSelection is null)
+            choice = BookmarkEditorIconChoice.Default;
+
         _selectedIconChoice = choice;
         SetSelectedClass(CurrentIconButton, choice == BookmarkEditorIconChoice.Current);
         SetSelectedClass(DefaultIconButton, choice == BookmarkEditorIconChoice.Default);
         SetSelectedClass(FaviconIconButton, choice == BookmarkEditorIconChoice.Favicon);
+        SetSelectedClass(LibraryIconButton, choice == BookmarkEditorIconChoice.Library);
         SetSelectedClass(UploadedIconButton, choice == BookmarkEditorIconChoice.Uploaded);
     }
 
@@ -633,5 +683,6 @@ internal enum BookmarkEditorIconChoice
     Current,
     Default,
     Favicon,
+    Library,
     Uploaded
 }

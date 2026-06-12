@@ -87,6 +87,9 @@
   <data name="BookmarkEditor_IconLabel" xml:space="preserve">
     <value>Иконка</value>
   </data>
+  <data name="BookmarkEditor_IconLibrary" xml:space="preserve">
+    <value>Библиотека</value>
+  </data>
   <data name="BookmarkEditor_IconPickerTitle" xml:space="preserve">
     <value>Выбрать иконку</value>
   </data>
@@ -182,6 +185,12 @@
   </data>
   <data name="Error_UrlBrowserStartFailed" xml:space="preserve">
     <value>Не удалось запустить браузер для этой ссылки.</value>
+  </data>
+  <data name="IconLibrary_Empty" xml:space="preserve">
+    <value>Сохраненных иконок пока нет.</value>
+  </data>
+  <data name="IconLibrary_Title" xml:space="preserve">
+    <value>Библиотека иконок</value>
   </data>
   <data name="LanguageDialog_English" xml:space="preserve">
     <value>Английский</value>

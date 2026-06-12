@@ -25,6 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly BookmarkIconImageCache _iconImageCache;
     private readonly IconAssetService _iconAssetService;
     private readonly SecretIconAssetService _secretIconAssetService;
+    private readonly IconLibraryService _iconLibraryService;
     [SuppressMessage(
         "Performance",
         "CA1859:Use concrete types when possible for improved performance",
@@ -72,6 +73,7 @@ public partial class MainWindowViewModel : ViewModelBase
             treeStore,
             _secretSession);
         _iconAssetService = new IconAssetService(_treeStore, new IconImageProcessor());
+        _iconLibraryService = new IconLibraryService(_treeStore, _iconImageCache);
         _secretProjectionService = secretProjectionService ?? new SecretBookmarkProjectionService(_secretCryptoService);
         _secretProfileSetupService = new SecretProfileSetupService(
             _secretProfileStore,
@@ -142,6 +144,13 @@ public partial class MainWindowViewModel : ViewModelBase
         BookmarkSearchOptions? options = null)
     {
         return _searchService.Search(query, options);
+    }
+
+    public List<IconLibraryItem> BuildIconLibrary(IconLibraryRequest request)
+    {
+        var projected = _secretProjectionService.Project(_treeStore.Load(), _secretSession);
+        LogProjectionWarnings(projected);
+        return _iconLibraryService.Build(request, projected.Snapshot, _secretSession.AreSecretsVisible);
     }
 
     public BookmarkFolderViewModel? FindFolder(string id)
@@ -324,6 +333,8 @@ public partial class MainWindowViewModel : ViewModelBase
         string url,
         BookmarkIconSelection? iconSelection = null)
     {
+        targetParent = RefreshTargetFolderReference(targetParent, "AddBookmark");
+
         if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
             return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
 
@@ -374,6 +385,8 @@ public partial class MainWindowViewModel : ViewModelBase
         string url,
         BookmarkIconSelection? iconSelection = null)
     {
+        targetParent = RefreshTargetFolderReference(targetParent, "AddSecretBookmark");
+
         if (!TryPrepareSecretIconSelection(iconSelection, currentRecord: null, out var secretIconAssetId, out var shouldSetIcon))
             return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
 
@@ -434,6 +447,8 @@ public partial class MainWindowViewModel : ViewModelBase
         string title,
         BookmarkIconSelection? iconSelection = null)
     {
+        targetParent = RefreshTargetFolderReference(targetParent, "AddFolder");
+
         if (!TryPrepareIconSelection(iconSelection, out var iconAssetId, out var shouldSetIcon))
             return BookmarkTreeAddFolderResult.NotAdded(targetParent);
 
@@ -901,6 +916,18 @@ public partial class MainWindowViewModel : ViewModelBase
             : null;
     }
 
+    private BookmarkFolderViewModel RefreshTargetFolderReference(
+        BookmarkFolderViewModel targetParent,
+        string operationName)
+    {
+        var currentTargetParent = FindFolder(targetParent.Id);
+        if (currentTargetParent is null || ReferenceEquals(currentTargetParent, targetParent))
+            return targetParent;
+
+        Logs.Print($"Bookmark tree operation target folder refreshed after tree reload. Operation={operationName}.");
+        return currentTargetParent;
+    }
+
     private bool TryPrepareIconSelection(
         BookmarkIconSelection? iconSelection,
         out string? iconAssetId,
@@ -916,6 +943,14 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             shouldSetIcon = true;
             return true;
+        }
+
+        if (iconSelection.Kind == BookmarkIconSelectionKind.UseLibraryIcon)
+        {
+            return TryPrepareRegularLibraryIconSelection(
+                iconSelection.LibrarySelection,
+                out iconAssetId,
+                out shouldSetIcon);
         }
 
         try
@@ -978,6 +1013,14 @@ public partial class MainWindowViewModel : ViewModelBase
             return true;
         }
 
+        if (iconSelection.Kind == BookmarkIconSelectionKind.UseLibraryIcon)
+        {
+            return TryPrepareSecretLibraryIconSelection(
+                iconSelection.LibrarySelection,
+                out secretIconAssetId,
+                out shouldSetIcon);
+        }
+
         var profile = _secretProfileStore.LoadActiveProfile();
         var dataKey = _secretSession.BorrowDataKey();
 
@@ -1008,6 +1051,82 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private bool TryPrepareRegularLibraryIconSelection(
+        IconLibrarySelection? librarySelection,
+        out string? iconAssetId,
+        out bool shouldSetIcon)
+    {
+        iconAssetId = null;
+        shouldSetIcon = false;
+
+        if (librarySelection is null)
+            return false;
+
+        if (librarySelection.RegularIconAssetId is not null)
+        {
+            if (_treeStore.GetIconAsset(librarySelection.RegularIconAssetId) is null)
+            {
+                Logs.Print("Regular icon library selection failed: regular asset was not found.");
+                return false;
+            }
+
+            Logs.Print("Regular icon library selection applied directly.");
+            iconAssetId = librarySelection.RegularIconAssetId;
+            shouldSetIcon = true;
+            return true;
+        }
+
+        if (librarySelection.SecretIconAssetId is null)
+        {
+            Logs.Print("Regular icon library selection failed: no compatible asset reference.");
+            return false;
+        }
+
+        Logs.Print("Regular icon library selection requires secret-to-regular icon conversion.");
+        return TryConvertSecretIconToPlain(
+            librarySelection.SecretIconAssetId,
+            out iconAssetId,
+            out shouldSetIcon);
+    }
+
+    private bool TryPrepareSecretLibraryIconSelection(
+        IconLibrarySelection? librarySelection,
+        out string? secretIconAssetId,
+        out bool shouldSetIcon)
+    {
+        secretIconAssetId = null;
+        shouldSetIcon = false;
+
+        if (librarySelection is null)
+            return false;
+
+        if (librarySelection.SecretIconAssetId is not null)
+        {
+            if (_treeStore.GetSecretIconAsset(librarySelection.SecretIconAssetId) is null)
+            {
+                Logs.Print("Secret icon library selection failed: secret asset was not found.");
+                return false;
+            }
+
+            Logs.Print("Secret icon library selection applied directly.");
+            secretIconAssetId = librarySelection.SecretIconAssetId;
+            shouldSetIcon = true;
+            return true;
+        }
+
+        if (librarySelection.RegularIconAssetId is null)
+        {
+            Logs.Print("Secret icon library selection failed: no compatible asset reference.");
+            return false;
+        }
+
+        Logs.Print("Secret icon library selection requires regular-to-secret icon conversion.");
+        return TryConvertPlainIconToSecret(
+            librarySelection.RegularIconAssetId,
+            out secretIconAssetId,
+            out shouldSetIcon);
+    }
+
     private bool TryConvertPlainIconToSecret(
         string iconAssetId,
         out string? secretIconAssetId,
@@ -1019,7 +1138,10 @@ public partial class MainWindowViewModel : ViewModelBase
         var dataKey = _secretSession.BorrowDataKey();
 
         if (profile is null || dataKey is null)
+        {
+            Logs.Print("Regular-to-secret icon conversion failed: secret runtime key unavailable.");
             return false;
+        }
 
         try
         {
@@ -1027,20 +1149,29 @@ public partial class MainWindowViewModel : ViewModelBase
                 iconAssetId,
                 dataKey,
                 profile.SecretGenerationId);
-            secretIconAssetId = iconAsset?.Id;
+            if (iconAsset is null)
+            {
+                Logs.Print("Regular-to-secret icon conversion failed: source asset was not found.");
+                return false;
+            }
+
+            secretIconAssetId = iconAsset.Id;
             shouldSetIcon = true;
             return true;
         }
         catch (ArgumentException)
         {
+            Logs.Print("Regular-to-secret icon conversion failed: invalid asset data.");
             return false;
         }
         catch (InvalidOperationException)
         {
+            Logs.Print("Regular-to-secret icon conversion failed: storage operation rejected.");
             return false;
         }
         catch (SecretPayloadException)
         {
+            Logs.Print("Regular-to-secret icon conversion failed: secret payload error.");
             return false;
         }
     }
@@ -1055,27 +1186,39 @@ public partial class MainWindowViewModel : ViewModelBase
         var dataKey = _secretSession.BorrowDataKey();
 
         if (dataKey is null)
+        {
+            Logs.Print("Secret-to-regular icon conversion failed: secret runtime key unavailable.");
             return false;
+        }
 
         try
         {
             var iconAsset = _secretIconAssetService.GetOrCreateRegularFromSecretIconAsset(
                 secretIconAssetId,
                 dataKey);
-            iconAssetId = iconAsset?.Id;
+            if (iconAsset is null)
+            {
+                Logs.Print("Secret-to-regular icon conversion failed: source asset was not found.");
+                return false;
+            }
+
+            iconAssetId = iconAsset.Id;
             shouldSetIcon = true;
             return true;
         }
         catch (ArgumentException)
         {
+            Logs.Print("Secret-to-regular icon conversion failed: invalid asset data.");
             return false;
         }
         catch (InvalidOperationException)
         {
+            Logs.Print("Secret-to-regular icon conversion failed: storage operation rejected.");
             return false;
         }
         catch (SecretPayloadException)
         {
+            Logs.Print("Secret-to-regular icon conversion failed: secret payload error.");
             return false;
         }
     }

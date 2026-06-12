@@ -97,6 +97,15 @@ Completed broad areas:
   - normal-to-secret and secret-to-normal bookmark conversion preserve icons by copying between regular and secret icon tables;
   - decrypted secret icon bitmaps are cached only in memory and the cache is cleared when the secret session changes;
   - master-password reset physically purges secret icon assets for the reset generation.
+- The icon library is implemented:
+  - bookmark/folder editor dialogs can open a library of already stored icons;
+  - the library shows only icons referenced by visible items, not orphan icon assets;
+  - visible entries are deduplicated by source hash across regular and secret icon tables;
+  - hidden secret icon assets do not appear while secrets are hidden or locked;
+  - when secrets are visible, secret icons can be selected and converted to regular storage for normal bookmarks/folders;
+  - regular icons can be converted to encrypted secret storage when selected for secret bookmarks;
+  - bookmark icon suggestions are sorted by host-label similarity with the URL typed in the editor;
+  - folder icon suggestions put folder-used icons before bookmark-only icons.
 - Bookmark tree context menus are implemented:
   - right-clicking a bookmark opens a custom context menu with go, copy URL, edit, and delete actions;
   - right-clicking a normal folder opens a custom context menu with add bookmark, add folder, edit, and delete actions;
@@ -156,7 +165,7 @@ Current dialogs:
 - `BookmarkEditorDialog` is used for adding/editing bookmarks and folders.
 - For bookmark add/edit, it can suggest a fetched page title below the title field.
 - For bookmark add/edit, it can also offer a discovered favicon as a pending icon choice.
-- For bookmark and folder add/edit, it can reset to the default icon or select a local image file.
+- For bookmark and folder add/edit, it can reset to the default icon, select a local image file, or choose an already stored visible icon from the icon library.
 - `ConfirmDialog` is used for delete confirmations.
 - `LanguageDialog` is used for selecting the UI language.
 - `MessageDialog` is used for one-button error/information messages.
@@ -226,6 +235,7 @@ Bookmarks:
 - URL becomes blue on hover.
 - While adding/editing a bookmark, the app can fetch the page title from the URL and show it as an italic dashed-underlined suggestion.
 - While adding/editing a bookmark, the app can fetch and offer a favicon as an icon option.
+- While adding/editing a bookmark, the app can choose an existing visible stored icon from the icon library.
 - Bookmark action buttons show on row hover:
   - open
   - edit

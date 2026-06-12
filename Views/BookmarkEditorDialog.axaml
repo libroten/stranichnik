@@ -357,6 +357,31 @@
                                        Classes="iconChoiceLabel"/>
                         </StackPanel>
                     </Button>
+                    <Button x:Name="LibraryIconButton"
+                            Classes="iconChoice"
+                            Margin="0,0,8,8"
+                            IsVisible="False"
+                            Click="OnLibraryIconClick">
+                        <StackPanel Spacing="6"
+                                    HorizontalAlignment="Center">
+                            <Border Classes="iconPreview">
+                                <Grid>
+                                    <Image x:Name="LibraryIconImage"
+                                           Width="22"
+                                           Height="22"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsVisible="False"/>
+                                    <TextBlock x:Name="LibraryIconGlyph"
+                                               Classes="iconPreviewGlyph"
+                                               Text="..."/>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="LibraryIconTextBlock"
+                                       Classes="iconChoiceLabel"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="UploadedIconButton"
                             Classes="iconChoice"
                             Margin="0,0,8,8"
