@@ -76,24 +76,28 @@ public sealed class SyncApplicationService : IDisposable
             var finishedAtUtc = _clock();
             var summary = MergeSummaries(startedAtUtc, finishedAtUtc, pullSummary, pushSummary);
 
-            _log(
-                "Sync run finished. " +
-                $"Succeeded={summary.Succeeded}; " +
-                $"Downloaded={summary.DownloadedCount}; " +
-                $"Uploaded={summary.UploadedCount}; " +
-                $"Conflicts={summary.ConflictCount}; " +
-                $"PendingAssets={summary.PendingAssetCount}; " +
-                $"PendingCryptoProfiles={summary.PendingCryptoProfileCount}; " +
-                $"InvalidRemoteObjects={summary.InvalidRemoteObjectCount}; " +
-                $"Errors={summary.ErrorCount}; " +
-                $"BlockingReason={summary.BlockingReason}.");
-
+            LogSyncFinished(summary);
             return summary;
         }
         finally
         {
             LeaveSyncRun();
         }
+    }
+
+    private void LogSyncFinished(SyncRunSummary summary)
+    {
+        _log(
+            "Sync run finished. " +
+            $"Succeeded={summary.Succeeded}; " +
+            $"Downloaded={summary.DownloadedCount}; " +
+            $"Uploaded={summary.UploadedCount}; " +
+            $"Conflicts={summary.ConflictCount}; " +
+            $"PendingAssets={summary.PendingAssetCount}; " +
+            $"PendingCryptoProfiles={summary.PendingCryptoProfileCount}; " +
+            $"InvalidRemoteObjects={summary.InvalidRemoteObjectCount}; " +
+            $"Errors={summary.ErrorCount}; " +
+            $"BlockingReason={summary.BlockingReason}.");
     }
 
     private bool TryEnterSyncRun()

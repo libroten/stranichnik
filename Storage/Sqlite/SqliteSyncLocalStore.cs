@@ -392,8 +392,12 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
 
     private bool HasMissingParent(SyncItemDto item)
     {
-        return item.ParentId is not null &&
-            !_bookmarkTreeStore.ItemExistsForSync(item.ParentId);
+        if (item.ParentId is null)
+            return false;
+
+        return item.DeletedAtUtc is null
+            ? !_bookmarkTreeStore.ItemExistsForSync(item.ParentId)
+            : !_bookmarkTreeStore.ItemExistsIncludingDeletedForSync(item.ParentId);
     }
 
     private string? ResolveRegularIconAssetId(SyncItemDto item)

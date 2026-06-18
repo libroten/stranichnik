@@ -266,6 +266,68 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyRemoteChanges_applies_child_tombstone_after_parent_tombstone()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.InsertFolder("folder");
+        database.InsertBookmark("bookmark", parentId: "folder");
+        var folderTombstone = CreateRemoteFolder("folder") with
+        {
+            DeletedAtUtc = Now.AddDays(1),
+            ContentHash = "sha256:remote-folder-tombstone-content"
+        };
+        var bookmarkTombstone = CreateRemoteBookmark("bookmark", parentId: "folder") with
+        {
+            DeletedAtUtc = Now.AddDays(1),
+            ContentHash = "sha256:remote-bookmark-tombstone-content"
+        };
+        var batch = new SyncApplyBatch(
+            SecretResetEvents: [],
+            CryptoProfiles: [],
+            IconAssets: [],
+            SecretIconAssets: [],
+            Items:
+            [
+                Applied(SyncObjectKind.Item, folderTombstone.Id, folderTombstone),
+                Applied(SyncObjectKind.Item, bookmarkTombstone.Id, bookmarkTombstone)
+            ]);
+
+        database.SyncLocalStore.ApplyRemoteChanges(batch);
+
+        Assert.Empty(database.TreeStore.Load().Items);
+        var snapshot = database.SyncLocalStore.LoadSnapshot();
+        var storedFolder = Assert.Single(snapshot.Items, item => item.Item.Id == "folder");
+        var storedBookmark = Assert.Single(snapshot.Items, item => item.Item.Id == "bookmark");
+        Assert.NotNull(storedFolder.Item.Metadata.DeletedAtUtc);
+        Assert.NotNull(storedBookmark.Item.Metadata.DeletedAtUtc);
+        Assert.Empty(database.SyncMetadataStore.LoadQuarantinedRemoteObjects());
+    }
+
+    [Fact]
+    public void ApplyRemoteChanges_quarantines_tombstone_with_unknown_parent()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var tombstone = CreateRemoteBookmark("bookmark", parentId: "missing-parent") with
+        {
+            DeletedAtUtc = Now.AddDays(1),
+            ContentHash = "sha256:remote-tombstone-content"
+        };
+        var batch = new SyncApplyBatch(
+            SecretResetEvents: [],
+            CryptoProfiles: [],
+            IconAssets: [],
+            SecretIconAssets: [],
+            Items: [Applied(SyncObjectKind.Item, tombstone.Id, tombstone)]);
+
+        database.SyncLocalStore.ApplyRemoteChanges(batch);
+
+        Assert.Empty(database.TreeStore.Load().Items);
+        var quarantine = Assert.Single(database.SyncMetadataStore.LoadQuarantinedRemoteObjects());
+        Assert.Equal("Item:bookmark", quarantine.Id);
+        Assert.Equal("missing-parent", quarantine.ReasonCode);
+    }
+
+    [Fact]
     public void ApplyRemoteChanges_defers_missing_regular_icon_reference()
     {
         using var database = TempSqliteDatabase.Create();
@@ -893,7 +955,7 @@ public sealed class SqliteSyncLocalStoreTests
             return new TempSqliteDatabase(Path.Combine(Path.GetTempPath(), $"stranichnik-tests-{Guid.NewGuid():N}"));
         }
 
-        public void InsertBookmark(string id)
+        public void InsertFolder(string id)
         {
             using var connection = _connectionFactory.OpenConnection();
             using var command = connection.CreateCommand();
@@ -922,6 +984,58 @@ public sealed class SqliteSyncLocalStoreTests
                 VALUES (
                     $id,
                     NULL,
+                    'folder',
+                    1100,
+                    'Folder',
+                    NULL,
+                    0,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    '2026-01-01T00:00:00.0000000Z',
+                    '2026-01-01T00:00:00.0000000Z',
+                    NULL,
+                    1,
+                    'sha256:folder-content',
+                    'dirty',
+                    NULL,
+                    NULL,
+                    'test-device');
+                """;
+            command.Parameters.AddWithValue("$id", id);
+            command.ExecuteNonQuery();
+        }
+
+        public void InsertBookmark(string id, string? parentId = null)
+        {
+            using var connection = _connectionFactory.OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO items (
+                    id,
+                    parent_id,
+                    item_type,
+                    sort_order,
+                    title,
+                    url,
+                    is_secret,
+                    encrypted_payload,
+                    encryption_nonce,
+                    crypto_profile_id,
+                    secret_payload_format_version,
+                    created_at_utc,
+                    updated_at_utc,
+                    deleted_at_utc,
+                    revision,
+                    content_hash,
+                    sync_state,
+                    remote_etag,
+                    last_synced_at_utc,
+                    modified_device_id)
+                VALUES (
+                    $id,
+                    $parentId,
                     'bookmark',
                     1000,
                     'Title',
@@ -942,6 +1056,7 @@ public sealed class SqliteSyncLocalStoreTests
                     'test-device');
                 """;
             command.Parameters.AddWithValue("$id", id);
+            command.Parameters.AddWithValue("$parentId", parentId is null ? DBNull.Value : parentId);
             command.ExecuteNonQuery();
         }
 

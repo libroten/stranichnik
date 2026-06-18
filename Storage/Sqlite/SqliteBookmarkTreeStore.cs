@@ -771,6 +771,19 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         return command.ExecuteScalar() is not null;
     }
 
+    internal bool ItemExistsIncludingDeletedForSync(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM items WHERE id = $itemId;";
+        command.Parameters.AddWithValue("$itemId", itemId);
+
+        return command.ExecuteScalar() is not null;
+    }
+
     internal void MarkSyncMetadata(
         SyncObjectKind kind,
         string objectId,

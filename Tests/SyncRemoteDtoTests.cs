@@ -42,6 +42,48 @@ public sealed class SyncRemoteDtoTests
     }
 
     [Fact]
+    public void Validator_rejects_folder_without_title()
+    {
+        var item = CreateNormalFolder() with
+        {
+            Title = null
+        };
+
+        Assert.Throws<SyncRemoteObjectValidationException>(() =>
+            SyncRemoteObjectValidator.Validate(item));
+    }
+
+    [Fact]
+    public void Validator_rejects_icon_reference_without_asset_id()
+    {
+        var item = CreateNormalBookmark() with
+        {
+            IconAssetRef = new SyncAssetReferenceDto(
+                AssetId: null!,
+                SourceHashAlgorithm: "sha256",
+                SourceHash: "source-hash")
+        };
+
+        Assert.Throws<SyncRemoteObjectValidationException>(() =>
+            SyncRemoteObjectValidator.Validate(item));
+    }
+
+    [Fact]
+    public void Validator_rejects_secret_icon_reference_without_asset_id()
+    {
+        var item = CreateSecretBookmark() with
+        {
+            SecretIconAssetRef = new SyncAssetReferenceDto(
+                AssetId: null!,
+                SourceHashAlgorithm: "sha256",
+                SourceHash: "source-hash")
+        };
+
+        Assert.Throws<SyncRemoteObjectValidationException>(() =>
+            SyncRemoteObjectValidator.Validate(item));
+    }
+
+    [Fact]
     public void Validator_rejects_unsupported_format_version()
     {
         var item = CreateNormalBookmark() with
@@ -119,6 +161,32 @@ public sealed class SyncRemoteDtoTests
             SortOrder: 1000,
             Title: "Example",
             Url: "https://example.com/",
+            IsSecret: false,
+            IconAssetRef: null,
+            SecretIconAssetRef: null,
+            EncryptedPayload: null,
+            EncryptionNonce: null,
+            CryptoProfileSecretGenerationId: null,
+            SecretPayloadFormatVersion: null,
+            CreatedAtUtc: CreatedAt,
+            UpdatedAtUtc: CreatedAt,
+            DeletedAtUtc: null,
+            Revision: 1,
+            ModifiedDeviceId: "device",
+            ContentHash: "sha256:content");
+    }
+
+    private static SyncItemDto CreateNormalFolder()
+    {
+        return new(
+            Schema: SyncRemoteObjectConstants.ItemSchema,
+            FormatVersion: SyncRemoteObjectConstants.FormatVersion,
+            Id: "folder",
+            ParentId: null,
+            Kind: SyncRemoteObjectConstants.FolderKind,
+            SortOrder: 1000,
+            Title: "Folder",
+            Url: null,
             IsSecret: false,
             IconAssetRef: null,
             SecretIconAssetRef: null,

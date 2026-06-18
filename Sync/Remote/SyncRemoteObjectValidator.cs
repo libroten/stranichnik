@@ -156,6 +156,8 @@ public static class SyncRemoteObjectValidator
 
     private static void ValidateNormalItem(SyncItemDto item)
     {
+        ValidateAssetReference(item.IconAssetRef);
+
         if (item.SecretIconAssetRef is not null)
             throw new SyncRemoteObjectValidationException("Normal item cannot reference a secret icon asset.");
 
@@ -167,14 +169,19 @@ public static class SyncRemoteObjectValidator
             throw new SyncRemoteObjectValidationException("Normal item cannot contain secret payload fields.");
         }
 
-        if (item.Kind == SyncRemoteObjectConstants.BookmarkKind && item.DeletedAtUtc is null)
+        if (item.Kind == SyncRemoteObjectConstants.BookmarkKind)
         {
             RequireValue(item.Title, nameof(item.Title));
             RequireValue(item.Url, nameof(item.Url));
         }
 
-        if (item.Kind == SyncRemoteObjectConstants.FolderKind && item.Url is not null)
-            throw new SyncRemoteObjectValidationException("Folder item cannot contain URL.");
+        if (item.Kind == SyncRemoteObjectConstants.FolderKind)
+        {
+            RequireValue(item.Title, nameof(item.Title));
+
+            if (item.Url is not null)
+                throw new SyncRemoteObjectValidationException("Folder item cannot contain URL.");
+        }
     }
 
     private static void ValidateSecretItem(SyncItemDto item)
@@ -187,6 +194,8 @@ public static class SyncRemoteObjectValidator
 
         if (item.IconAssetRef is not null)
             throw new SyncRemoteObjectValidationException("Secret item cannot reference a regular icon asset.");
+
+        ValidateAssetReference(item.SecretIconAssetRef);
 
         RequireBase64Value(item.EncryptedPayload, nameof(item.EncryptedPayload));
         RequireBase64Value(item.EncryptionNonce, nameof(item.EncryptionNonce));
@@ -203,6 +212,14 @@ public static class SyncRemoteObjectValidator
 
         if (processedWidth < 1 || processedHeight < 1)
             throw new SyncRemoteObjectValidationException("Icon dimensions must be positive.");
+    }
+
+    private static void ValidateAssetReference(SyncAssetReferenceDto? assetReference)
+    {
+        if (assetReference is null)
+            return;
+
+        RequireValue(assetReference.AssetId, nameof(assetReference.AssetId));
     }
 
     private static void RequireValue(string? value, string fieldName)

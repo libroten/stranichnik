@@ -223,7 +223,11 @@ Current implementation shape:
 - `Storage/Sqlite/SqliteSyncMetadataStore.cs` owns pending asset refs,
   deferred secret items, and quarantined remote object metadata.
 - `Sync/SyncApplicationService.cs` orchestrates one manual sync run:
-  repository initialization, pull, then push.
+  repository initialization, pull, and push. A completed pull can report
+  conflicts or quarantined invalid remote objects and still be followed by
+  push, so independent local dirty objects are not blocked forever by an
+  unrelated bad remote file. Transport/repository failures still stop the run
+  before push because pull does not complete.
 - `Sync/SyncApplicationServiceFactory.cs` validates sync settings and
   credentials before constructing a sync service.
 - `Views/SettingsDialog.axaml` exposes WebDAV sync settings, connection test,

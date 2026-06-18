@@ -62,6 +62,37 @@ public sealed class SyncApplicationServiceTests
     }
 
     [Fact]
+    public async Task SyncNowAsync_pushes_independent_dirty_objects_after_invalid_remote_object()
+    {
+        var transport = new InMemoryWebDavSyncTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        var localStore = new FakeSyncLocalStore(EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem("local-bookmark")
+            ]
+        });
+        await transport.PutAsync(
+            "items/broken.json",
+            [1, 2, 3],
+            expectedEtag: null,
+            createOnly: true,
+            CancellationToken.None);
+        var service = CreateService(localStore, transport, serializer);
+
+        var summary = await service.SyncNowAsync(CancellationToken.None);
+
+        Assert.False(summary.Succeeded);
+        Assert.Equal(1, summary.UploadedCount);
+        Assert.Equal(1, summary.InvalidRemoteObjectCount);
+        var remoteBytes = await transport.GetAsync(
+            SyncRemoteObjectPath.ToRelativePath(new SyncObjectIdentity(SyncObjectKind.Item, "local-bookmark")),
+            CancellationToken.None);
+        Assert.NotNull(remoteBytes);
+    }
+
+    [Fact]
     public async Task SyncNowAsync_stops_when_repository_version_is_unsupported()
     {
         var transport = new InMemoryWebDavSyncTransport();
