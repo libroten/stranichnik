@@ -10,4 +10,5 @@ public sealed record BookmarkItemMetadata(
     BookmarkSyncState SyncState,
     string? RemoteEtag,
     DateTimeOffset? LastSyncedAtUtc,
+    string? ContentHash,
     string ModifiedDeviceId);

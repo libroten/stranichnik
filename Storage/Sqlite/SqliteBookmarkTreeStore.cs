@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
+using Stranichnik.Sync;
+using Stranichnik.Sync.Local;
 
 namespace Stranichnik.Storage.Sqlite;
 
@@ -50,6 +52,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 updated_at_utc,
                 deleted_at_utc,
                 revision,
+                content_hash,
                 sync_state,
                 remote_etag,
                 last_synced_at_utc,
@@ -66,6 +69,128 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             items.Add(ReadRecord(reader));
 
         return new BookmarkTreeSnapshot(items);
+    }
+
+    public IReadOnlyList<SyncItemSnapshotRecord> LoadAllItemsForSync()
+    {
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                id,
+                parent_id,
+                item_type,
+                sort_order,
+                title,
+                url,
+                icon_asset_id,
+                secret_icon_asset_id,
+                is_secret,
+                encrypted_payload,
+                encryption_nonce,
+                crypto_profile_id,
+                secret_payload_format_version,
+                created_at_utc,
+                updated_at_utc,
+                deleted_at_utc,
+                revision,
+                content_hash,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                modified_device_id
+            FROM items
+            ORDER BY COALESCE(parent_id, ''), sort_order DESC, id ASC;
+            """;
+
+        var items = new List<SyncItemSnapshotRecord>();
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            items.Add(new SyncItemSnapshotRecord(
+                ReadRecord(reader),
+                ReadSyncObjectMetadata(reader)));
+        }
+
+        return items;
+    }
+
+    public IReadOnlyList<SyncIconAssetSnapshotRecord> LoadAllIconAssetsForSync()
+    {
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                content_hash,
+                modified_device_id
+            FROM icon_assets
+            ORDER BY created_at_utc ASC, id ASC;
+            """;
+
+        var iconAssets = new List<SyncIconAssetSnapshotRecord>();
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            iconAssets.Add(new SyncIconAssetSnapshotRecord(
+                ReadIconAssetRecord(reader),
+                ReadSyncObjectMetadata(reader)));
+        }
+
+        return iconAssets;
+    }
+
+    public IReadOnlyList<SyncSecretIconAssetSnapshotRecord> LoadAllSecretIconAssetsForSync()
+    {
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                encrypted_processed_bytes,
+                encryption_nonce,
+                payload_format_version,
+                secret_generation_id,
+                created_at_utc,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                content_hash,
+                modified_device_id
+            FROM secret_icon_assets
+            ORDER BY created_at_utc ASC, id ASC;
+            """;
+
+        var iconAssets = new List<SyncSecretIconAssetSnapshotRecord>();
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            iconAssets.Add(new SyncSecretIconAssetSnapshotRecord(
+                ReadSecretIconAssetRecord(reader),
+                ReadSyncObjectMetadata(reader)));
+        }
+
+        return iconAssets;
     }
 
     public BookmarkIconAssetRecord? GetIconAsset(string iconAssetId)
@@ -122,6 +247,36 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         transaction.Commit();
 
         return iconAsset;
+    }
+
+    internal void UpsertRemoteIconAsset(
+        BookmarkIconAssetRecord iconAsset,
+        SyncObjectMetadata syncMetadata)
+    {
+        ArgumentNullException.ThrowIfNull(iconAsset);
+        ArgumentNullException.ThrowIfNull(syncMetadata);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        UpsertRemoteIconAsset(connection, transaction, iconAsset, syncMetadata);
+
+        transaction.Commit();
+    }
+
+    internal void UpsertRemoteSecretIconAsset(
+        SecretIconAssetRecord iconAsset,
+        SyncObjectMetadata syncMetadata)
+    {
+        ArgumentNullException.ThrowIfNull(iconAsset);
+        ArgumentNullException.ThrowIfNull(syncMetadata);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        UpsertRemoteSecretIconAsset(connection, transaction, iconAsset, syncMetadata);
+
+        transaction.Commit();
     }
 
     public SecretIconAssetRecord? GetSecretIconAsset(string secretIconAssetId)
@@ -552,6 +707,140 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         transaction.Commit();
     }
 
+    internal void UpsertRemoteItem(BookmarkItemRecord item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        UpsertRemoteItem(connection, transaction, item);
+
+        transaction.Commit();
+    }
+
+    internal bool TrySetRemoteResolvedIconAsset(
+        string itemId,
+        SyncPendingAssetKind assetKind,
+        string assetId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ArgumentException("Asset ID cannot be empty.", nameof(assetId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = assetKind switch
+        {
+            SyncPendingAssetKind.RegularIcon => """
+                UPDATE items
+                SET
+                    icon_asset_id = $assetId,
+                    secret_icon_asset_id = NULL
+                WHERE id = $itemId
+                    AND deleted_at_utc IS NULL;
+                """,
+            SyncPendingAssetKind.SecretIcon => """
+                UPDATE items
+                SET
+                    icon_asset_id = NULL,
+                    secret_icon_asset_id = $assetId
+                WHERE id = $itemId
+                    AND deleted_at_utc IS NULL;
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(assetKind), assetKind, "Unsupported pending asset kind.")
+        };
+        command.Parameters.AddWithValue("$itemId", itemId);
+        command.Parameters.AddWithValue("$assetId", assetId);
+
+        return command.ExecuteNonQuery() == 1;
+    }
+
+    internal bool ItemExistsForSync(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT 1 FROM items WHERE id = $itemId AND deleted_at_utc IS NULL;";
+        command.Parameters.AddWithValue("$itemId", itemId);
+
+        return command.ExecuteScalar() is not null;
+    }
+
+    internal void MarkSyncMetadata(
+        SyncObjectKind kind,
+        string objectId,
+        BookmarkSyncState syncState,
+        string? remoteEtag,
+        DateTimeOffset? lastSyncedAtUtc,
+        string? contentHash)
+    {
+        if (string.IsNullOrWhiteSpace(objectId))
+            throw new ArgumentException("Object ID cannot be empty.", nameof(objectId));
+
+        var tableName = kind switch
+        {
+            SyncObjectKind.Item => "items",
+            SyncObjectKind.IconAsset => "icon_assets",
+            SyncObjectKind.SecretIconAsset => "secret_icon_assets",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported bookmark tree sync object kind.")
+        };
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            UPDATE {tableName}
+            SET
+                sync_state = $syncState,
+                remote_etag = $remoteEtag,
+                last_synced_at_utc = $lastSyncedAtUtc,
+                content_hash = $contentHash
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", objectId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncState));
+        command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(remoteEtag));
+        command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(lastSyncedAtUtc));
+        command.Parameters.AddWithValue("$contentHash", SqliteBookmarkItemMapper.ToDatabaseValue(contentHash));
+
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("Sync object was not found.");
+    }
+
+    internal void MarkSyncState(
+        SyncObjectKind kind,
+        string objectId,
+        BookmarkSyncState syncState)
+    {
+        if (string.IsNullOrWhiteSpace(objectId))
+            throw new ArgumentException("Object ID cannot be empty.", nameof(objectId));
+
+        var tableName = kind switch
+        {
+            SyncObjectKind.Item => "items",
+            SyncObjectKind.IconAsset => "icon_assets",
+            SyncObjectKind.SecretIconAsset => "secret_icon_assets",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported bookmark tree sync object kind.")
+        };
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+            UPDATE {tableName}
+            SET sync_state = $syncState
+            WHERE id = $id;
+            """;
+        command.Parameters.AddWithValue("$id", objectId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncState));
+
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("Sync object was not found.");
+    }
+
     internal long CountAllItems()
     {
         using var connection = _connectionFactory.OpenConnection();
@@ -622,6 +911,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 SqliteBookmarkItemMapper.ToBookmarkSyncState(reader.GetString(reader.GetOrdinal("sync_state"))),
                 SqliteBookmarkItemMapper.ReadNullableString(reader, "remote_etag"),
                 SqliteBookmarkItemMapper.ReadNullableDateTime(reader, "last_synced_at_utc"),
+                SqliteBookmarkItemMapper.ReadNullableString(reader, "content_hash"),
                 reader.GetString(reader.GetOrdinal("modified_device_id"))),
             SqliteBookmarkItemMapper.ReadNullableString(reader, "icon_asset_id"),
             SqliteBookmarkItemMapper.ReadNullableString(reader, "secret_icon_asset_id"));
@@ -640,6 +930,27 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             SqliteBookmarkItemMapper.ReadNullableBytes(reader, "processed_bytes")
                 ?? throw new InvalidOperationException("SQLite icon asset payload is missing."),
             SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("created_at_utc"))));
+    }
+
+    private static SyncObjectMetadata ReadSyncObjectMetadata(SqliteDataReader reader)
+    {
+        return new SyncObjectMetadata(
+            SqliteBookmarkItemMapper.ToBookmarkSyncState(reader.GetString(reader.GetOrdinal("sync_state"))),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "remote_etag"),
+            SqliteBookmarkItemMapper.ReadNullableDateTime(reader, "last_synced_at_utc"),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "content_hash"),
+            reader.GetString(reader.GetOrdinal("modified_device_id")));
+    }
+
+    private static void AddSyncMetadataParameters(
+        SqliteCommand command,
+        SyncObjectMetadata syncMetadata)
+    {
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.SyncState));
+        command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.RemoteEtag));
+        command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.LastSyncedAtUtc));
+        command.Parameters.AddWithValue("$contentHash", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.ContentHash));
+        command.Parameters.AddWithValue("$modifiedDeviceId", syncMetadata.ModifiedDeviceId);
     }
 
     private static SecretIconAssetRecord ReadSecretIconAssetRecord(SqliteDataReader reader)
@@ -688,6 +999,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 updated_at_utc,
                 deleted_at_utc,
                 revision,
+                content_hash,
                 sync_state,
                 remote_etag,
                 last_synced_at_utc,
@@ -710,6 +1022,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 $updatedAtUtc,
                 $deletedAtUtc,
                 $revision,
+                $contentHash,
                 $syncState,
                 $remoteEtag,
                 $lastSyncedAtUtc,
@@ -745,6 +1058,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 updated_at_utc = $updatedAtUtc,
                 deleted_at_utc = $deletedAtUtc,
                 revision = $revision,
+                content_hash = $contentHash,
                 sync_state = $syncState,
                 remote_etag = $remoteEtag,
                 last_synced_at_utc = $lastSyncedAtUtc,
@@ -755,6 +1069,87 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
 
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("Bookmark tree item was not found.");
+    }
+
+    private static void UpsertRemoteItem(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        BookmarkItemRecord record)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO items (
+                id,
+                parent_id,
+                item_type,
+                sort_order,
+                title,
+                url,
+                icon_asset_id,
+                secret_icon_asset_id,
+                is_secret,
+                encrypted_payload,
+                encryption_nonce,
+                crypto_profile_id,
+                secret_payload_format_version,
+                created_at_utc,
+                updated_at_utc,
+                deleted_at_utc,
+                revision,
+                content_hash,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                modified_device_id)
+            VALUES (
+                $id,
+                $parentId,
+                $itemType,
+                $sortOrder,
+                $title,
+                $url,
+                $iconAssetId,
+                $secretIconAssetId,
+                $isSecret,
+                $encryptedPayload,
+                $encryptionNonce,
+                $cryptoProfileId,
+                $secretPayloadFormatVersion,
+                $createdAtUtc,
+                $updatedAtUtc,
+                $deletedAtUtc,
+                $revision,
+                $contentHash,
+                $syncState,
+                $remoteEtag,
+                $lastSyncedAtUtc,
+                $modifiedDeviceId)
+            ON CONFLICT(id) DO UPDATE SET
+                parent_id = excluded.parent_id,
+                item_type = excluded.item_type,
+                sort_order = excluded.sort_order,
+                title = excluded.title,
+                url = excluded.url,
+                icon_asset_id = excluded.icon_asset_id,
+                secret_icon_asset_id = excluded.secret_icon_asset_id,
+                is_secret = excluded.is_secret,
+                encrypted_payload = excluded.encrypted_payload,
+                encryption_nonce = excluded.encryption_nonce,
+                crypto_profile_id = excluded.crypto_profile_id,
+                secret_payload_format_version = excluded.secret_payload_format_version,
+                created_at_utc = excluded.created_at_utc,
+                updated_at_utc = excluded.updated_at_utc,
+                deleted_at_utc = excluded.deleted_at_utc,
+                revision = excluded.revision,
+                content_hash = excluded.content_hash,
+                sync_state = excluded.sync_state,
+                remote_etag = excluded.remote_etag,
+                last_synced_at_utc = excluded.last_synced_at_utc,
+                modified_device_id = excluded.modified_device_id;
+            """;
+        AddRecordParameters(command, record);
+        command.ExecuteNonQuery();
     }
 
     private static void AddRecordParameters(SqliteCommand command, BookmarkItemRecord record)
@@ -776,6 +1171,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.Parameters.AddWithValue("$updatedAtUtc", SqliteBookmarkItemMapper.FormatDateTime(record.Metadata.UpdatedAtUtc));
         command.Parameters.AddWithValue("$deletedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.DeletedAtUtc));
         command.Parameters.AddWithValue("$revision", record.Metadata.Revision);
+        command.Parameters.AddWithValue("$contentHash", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.ContentHash));
         command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.SyncState));
         command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.RemoteEtag));
         command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.LastSyncedAtUtc));
@@ -872,6 +1268,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 updated_at_utc,
                 deleted_at_utc,
                 revision,
+                content_hash,
                 sync_state,
                 remote_etag,
                 last_synced_at_utc,
@@ -1067,6 +1464,75 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.ExecuteNonQuery();
     }
 
+    private static void UpsertRemoteIconAsset(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        BookmarkIconAssetRecord iconAsset,
+        SyncObjectMetadata syncMetadata)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                content_hash,
+                modified_device_id)
+            VALUES (
+                $id,
+                $sourceHashAlgorithm,
+                $sourceHash,
+                $sourceSizeBytes,
+                $processedMimeType,
+                $processedWidth,
+                $processedHeight,
+                $processedBytes,
+                $createdAtUtc,
+                $syncState,
+                $remoteEtag,
+                $lastSyncedAtUtc,
+                $contentHash,
+                $modifiedDeviceId)
+            ON CONFLICT(id) DO UPDATE SET
+                source_hash_algorithm = excluded.source_hash_algorithm,
+                source_hash = excluded.source_hash,
+                source_size_bytes = excluded.source_size_bytes,
+                processed_mime_type = excluded.processed_mime_type,
+                processed_width = excluded.processed_width,
+                processed_height = excluded.processed_height,
+                processed_bytes = excluded.processed_bytes,
+                created_at_utc = excluded.created_at_utc,
+                sync_state = excluded.sync_state,
+                remote_etag = excluded.remote_etag,
+                last_synced_at_utc = excluded.last_synced_at_utc,
+                content_hash = excluded.content_hash,
+                modified_device_id = excluded.modified_device_id;
+            """;
+        command.Parameters.AddWithValue("$id", iconAsset.Id);
+        command.Parameters.AddWithValue("$sourceHashAlgorithm", iconAsset.SourceHashAlgorithm);
+        command.Parameters.AddWithValue("$sourceHash", iconAsset.SourceHash);
+        command.Parameters.AddWithValue("$sourceSizeBytes", iconAsset.SourceSizeBytes);
+        command.Parameters.AddWithValue("$processedMimeType", iconAsset.ProcessedMimeType);
+        command.Parameters.AddWithValue("$processedWidth", iconAsset.ProcessedWidth);
+        command.Parameters.AddWithValue("$processedHeight", iconAsset.ProcessedHeight);
+        command.Parameters.AddWithValue("$processedBytes", iconAsset.ProcessedBytes.ToArray());
+        command.Parameters.AddWithValue(
+            "$createdAtUtc",
+            SqliteBookmarkItemMapper.FormatDateTime(iconAsset.CreatedAtUtc));
+        AddSyncMetadataParameters(command, syncMetadata);
+        command.ExecuteNonQuery();
+    }
+
     private static void InsertSecretIconAsset(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1116,6 +1582,87 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.Parameters.AddWithValue(
             "$createdAtUtc",
             SqliteBookmarkItemMapper.FormatDateTime(iconAsset.CreatedAtUtc));
+        command.ExecuteNonQuery();
+    }
+
+    private static void UpsertRemoteSecretIconAsset(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        SecretIconAssetRecord iconAsset,
+        SyncObjectMetadata syncMetadata)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO secret_icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                encrypted_processed_bytes,
+                encryption_nonce,
+                payload_format_version,
+                secret_generation_id,
+                created_at_utc,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                content_hash,
+                modified_device_id)
+            VALUES (
+                $id,
+                $sourceHashAlgorithm,
+                $sourceHash,
+                $sourceSizeBytes,
+                $processedMimeType,
+                $processedWidth,
+                $processedHeight,
+                $encryptedProcessedBytes,
+                $encryptionNonce,
+                $payloadFormatVersion,
+                $secretGenerationId,
+                $createdAtUtc,
+                $syncState,
+                $remoteEtag,
+                $lastSyncedAtUtc,
+                $contentHash,
+                $modifiedDeviceId)
+            ON CONFLICT(id) DO UPDATE SET
+                source_hash_algorithm = excluded.source_hash_algorithm,
+                source_hash = excluded.source_hash,
+                source_size_bytes = excluded.source_size_bytes,
+                processed_mime_type = excluded.processed_mime_type,
+                processed_width = excluded.processed_width,
+                processed_height = excluded.processed_height,
+                encrypted_processed_bytes = excluded.encrypted_processed_bytes,
+                encryption_nonce = excluded.encryption_nonce,
+                payload_format_version = excluded.payload_format_version,
+                secret_generation_id = excluded.secret_generation_id,
+                created_at_utc = excluded.created_at_utc,
+                sync_state = excluded.sync_state,
+                remote_etag = excluded.remote_etag,
+                last_synced_at_utc = excluded.last_synced_at_utc,
+                content_hash = excluded.content_hash,
+                modified_device_id = excluded.modified_device_id;
+            """;
+        command.Parameters.AddWithValue("$id", iconAsset.Id);
+        command.Parameters.AddWithValue("$sourceHashAlgorithm", iconAsset.SourceHashAlgorithm);
+        command.Parameters.AddWithValue("$sourceHash", iconAsset.SourceHash);
+        command.Parameters.AddWithValue("$sourceSizeBytes", iconAsset.SourceSizeBytes);
+        command.Parameters.AddWithValue("$processedMimeType", iconAsset.ProcessedMimeType);
+        command.Parameters.AddWithValue("$processedWidth", iconAsset.ProcessedWidth);
+        command.Parameters.AddWithValue("$processedHeight", iconAsset.ProcessedHeight);
+        command.Parameters.AddWithValue("$encryptedProcessedBytes", iconAsset.EncryptedProcessedBytes.Payload.ToArray());
+        command.Parameters.AddWithValue("$encryptionNonce", iconAsset.EncryptedProcessedBytes.Nonce.ToArray());
+        command.Parameters.AddWithValue("$payloadFormatVersion", iconAsset.EncryptedProcessedBytes.PayloadFormatVersion);
+        command.Parameters.AddWithValue("$secretGenerationId", iconAsset.SecretGenerationId);
+        command.Parameters.AddWithValue(
+            "$createdAtUtc",
+            SqliteBookmarkItemMapper.FormatDateTime(iconAsset.CreatedAtUtc));
+        AddSyncMetadataParameters(command, syncMetadata);
         command.ExecuteNonQuery();
     }
 
@@ -1197,6 +1744,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             BookmarkSyncState.Dirty,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             _modifiedDeviceId);
     }
 

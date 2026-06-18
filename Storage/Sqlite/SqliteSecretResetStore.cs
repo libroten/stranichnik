@@ -82,6 +82,83 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         return events;
     }
 
+    internal void ApplyRemoteResetEventAndPurgeSecrets(
+        SecretResetEventRecord resetEvent)
+    {
+        ArgumentNullException.ThrowIfNull(resetEvent);
+
+        try
+        {
+            using var connection = _connectionFactory.OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            UpsertRemoteResetEvent(connection, transaction, resetEvent);
+            var folderIdsToPurge = SelectSecretOnlyFolderIdsForGeneration(
+                connection,
+                transaction,
+                resetEvent.SecretGenerationId);
+            DeleteSecretBookmarksForGeneration(connection, transaction, resetEvent.SecretGenerationId);
+            DeleteFolders(connection, transaction, folderIdsToPurge);
+            DeleteSecretIconAssets(connection, transaction, resetEvent.SecretGenerationId);
+            DeleteActiveProfileIfGenerationMatches(connection, transaction, resetEvent.SecretGenerationId);
+
+            transaction.Commit();
+        }
+        catch (SqliteException exception)
+        {
+            throw new InvalidOperationException("Remote secret reset storage operation failed.", exception);
+        }
+    }
+
+    internal void MarkSyncMetadata(
+        string secretGenerationId,
+        BookmarkSyncState syncState,
+        string? remoteEtag,
+        DateTimeOffset? lastSyncedAtUtc)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE secret_reset_events
+            SET
+                sync_state = $syncState,
+                remote_etag = $remoteEtag,
+                last_synced_at_utc = $lastSyncedAtUtc
+            WHERE secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncState));
+        command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(remoteEtag));
+        command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(lastSyncedAtUtc));
+
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("Secret reset event was not found.");
+    }
+
+    internal void MarkSyncState(
+        string secretGenerationId,
+        BookmarkSyncState syncState)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE secret_reset_events
+            SET sync_state = $syncState
+            WHERE secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncState));
+
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("Secret reset event was not found.");
+    }
+
     private static void EnsureActiveProfileGenerationExists(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -242,6 +319,111 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         return folderIds;
     }
 
+    private static List<string> SelectSecretOnlyFolderIdsForGeneration(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string secretGenerationId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            WITH RECURSIVE
+                target_secret_bookmarks(id, parent_id) AS (
+                    SELECT item.id, item.parent_id
+                    FROM items item
+                    INNER JOIN crypto_profiles profile
+                        ON profile.id = item.crypto_profile_id
+                    WHERE item.item_type = 'bookmark'
+                        AND item.is_secret = 1
+                        AND profile.secret_generation_id = $secretGenerationId
+                ),
+                visible_folders(id) AS (
+                    SELECT folder.id
+                    FROM items folder
+                    WHERE folder.item_type = 'folder'
+                        AND folder.deleted_at_utc IS NULL
+                        AND (
+                            NOT EXISTS (
+                                SELECT 1
+                                FROM items child
+                                WHERE child.parent_id = folder.id
+                                    AND child.deleted_at_utc IS NULL
+                            )
+                            OR EXISTS (
+                                SELECT 1
+                                FROM items child
+                                WHERE child.parent_id = folder.id
+                                    AND child.deleted_at_utc IS NULL
+                                    AND (
+                                        child.item_type = 'folder'
+                                        OR child.is_secret = 0
+                                        OR child.id NOT IN (SELECT id FROM target_secret_bookmarks)
+                                    )
+                            )
+                        )
+
+                    UNION
+
+                    SELECT parent.id
+                    FROM items parent
+                    INNER JOIN items child
+                        ON child.parent_id = parent.id
+                        AND child.deleted_at_utc IS NULL
+                        AND child.item_type = 'folder'
+                    INNER JOIN visible_folders visible_child
+                        ON visible_child.id = child.id
+                    WHERE parent.item_type = 'folder'
+                        AND parent.deleted_at_utc IS NULL
+                ),
+                folder_depths(id, depth) AS (
+                    SELECT id, 0
+                    FROM items
+                    WHERE item_type = 'folder'
+                        AND parent_id IS NULL
+
+                    UNION ALL
+
+                    SELECT child.id, parent.depth + 1
+                    FROM items child
+                    INNER JOIN folder_depths parent
+                        ON parent.id = child.parent_id
+                    WHERE child.item_type = 'folder'
+                ),
+                secret_ancestor_folders(id) AS (
+                    SELECT parent_id
+                    FROM target_secret_bookmarks
+                    WHERE parent_id IS NOT NULL
+
+                    UNION
+
+                    SELECT parent.parent_id
+                    FROM items parent
+                    INNER JOIN secret_ancestor_folders child_folder
+                        ON parent.id = child_folder.id
+                    WHERE parent.parent_id IS NOT NULL
+                ),
+                folders_to_purge(id) AS (
+                    SELECT id
+                    FROM secret_ancestor_folders
+                    WHERE id NOT IN (SELECT id FROM visible_folders)
+                )
+            SELECT folder.id
+            FROM folders_to_purge folder
+            INNER JOIN folder_depths depth
+                ON depth.id = folder.id
+            ORDER BY depth.depth DESC;
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+
+        using var reader = command.ExecuteReader();
+        var folderIds = new List<string>();
+
+        while (reader.Read())
+            folderIds.Add(reader.GetString(0));
+
+        return folderIds;
+    }
+
     private static void DeleteSecretBookmarks(
         SqliteConnection connection,
         SqliteTransaction transaction)
@@ -253,6 +435,27 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             WHERE item_type = 'bookmark'
                 AND is_secret = 1;
             """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteSecretBookmarksForGeneration(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string secretGenerationId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM items
+            WHERE item_type = 'bookmark'
+                AND is_secret = 1
+                AND crypto_profile_id IN (
+                    SELECT id
+                    FROM crypto_profiles
+                    WHERE secret_generation_id = $secretGenerationId
+                );
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
         command.ExecuteNonQuery();
     }
 
@@ -312,6 +515,65 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
 
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("Secret crypto profile was not found.");
+    }
+
+    private static void DeleteActiveProfileIfGenerationMatches(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string secretGenerationId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM crypto_profiles
+            WHERE id = $id
+                AND secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$id", SecretCryptoProfileIds.ActiveProfileId);
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+        command.ExecuteNonQuery();
+    }
+
+    private static void UpsertRemoteResetEvent(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        SecretResetEventRecord resetEvent)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO secret_reset_events (
+                id,
+                secret_generation_id,
+                reset_at_utc,
+                reset_device_id,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc)
+            VALUES (
+                $id,
+                $secretGenerationId,
+                $resetAtUtc,
+                $resetDeviceId,
+                $syncState,
+                $remoteEtag,
+                $lastSyncedAtUtc)
+            ON CONFLICT(secret_generation_id) DO UPDATE SET
+                id = excluded.id,
+                reset_at_utc = excluded.reset_at_utc,
+                reset_device_id = excluded.reset_device_id,
+                sync_state = excluded.sync_state,
+                remote_etag = excluded.remote_etag,
+                last_synced_at_utc = excluded.last_synced_at_utc;
+            """;
+        command.Parameters.AddWithValue("$id", resetEvent.Id);
+        command.Parameters.AddWithValue("$secretGenerationId", resetEvent.SecretGenerationId);
+        command.Parameters.AddWithValue("$resetAtUtc", SqliteBookmarkItemMapper.FormatDateTime(resetEvent.ResetAtUtc));
+        command.Parameters.AddWithValue("$resetDeviceId", resetEvent.ResetDeviceId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.SyncState));
+        command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.RemoteEtag));
+        command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.LastSyncedAtUtc));
+        command.ExecuteNonQuery();
     }
 
     private static SecretResetEventRecord ReadResetEvent(SqliteDataReader reader)

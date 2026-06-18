@@ -300,6 +300,84 @@
   <data name="Settings_SecretUnlockRequired" xml:space="preserve">
     <value>Сначала разблокируйте секретные закладки, затем попробуйте еще раз.</value>
   </data>
+  <data name="Settings_SyncDescription" xml:space="preserve">
+    <value>Настройте синхронизацию через WebDAV. Пароль хранится только в текущей сессии приложения.</value>
+  </data>
+  <data name="Settings_SyncConnectionFailed" xml:space="preserve">
+    <value>Не удалось проверить соединение с WebDAV.</value>
+  </data>
+  <data name="Settings_SyncConnectionSucceeded" xml:space="preserve">
+    <value>Соединение с WebDAV доступно.</value>
+  </data>
+  <data name="Settings_SyncDisabled" xml:space="preserve">
+    <value>Сначала включите синхронизацию.</value>
+  </data>
+  <data name="Settings_SyncEnabledLabel" xml:space="preserve">
+    <value>Включить синхронизацию</value>
+  </data>
+  <data name="Settings_SyncInvalidRepository" xml:space="preserve">
+    <value>Удаленный репозиторий синхронизации выглядит некорректно. Проверьте папку WebDAV или выберите другую.</value>
+  </data>
+  <data name="Settings_SyncLocalOperationActive" xml:space="preserve">
+    <value>Завершите текущее редактирование перед синхронизацией.</value>
+  </data>
+  <data name="Settings_SyncNowAction" xml:space="preserve">
+    <value>Синхронизировать сейчас</value>
+  </data>
+  <data name="Settings_SyncNowCompletedWithIssues" xml:space="preserve">
+    <value>Синхронизация завершилась с проблемами. Подробности записаны в лог.</value>
+  </data>
+  <data name="Settings_SyncNowFailed" xml:space="preserve">
+    <value>Не удалось выполнить синхронизацию.</value>
+  </data>
+  <data name="Settings_SyncNowSucceeded" xml:space="preserve">
+    <value>Синхронизация завершена.</value>
+  </data>
+  <data name="Settings_SyncNowUnavailable" xml:space="preserve">
+    <value>Синхронизация недоступна в этой сессии приложения.</value>
+  </data>
+  <data name="Settings_SyncPasswordLabel" xml:space="preserve">
+    <value>Пароль WebDAV для этой сессии</value>
+  </data>
+  <data name="Settings_SyncPasswordRequired" xml:space="preserve">
+    <value>Введите пароль WebDAV для этой сессии.</value>
+  </data>
+  <data name="Settings_SyncRemoteUnavailable" xml:space="preserve">
+    <value>Не удалось подключиться к серверу WebDAV. Проверьте адрес и соединение с сетью.</value>
+  </data>
+  <data name="Settings_SyncSaveAction" xml:space="preserve">
+    <value>Сохранить настройки синхронизации</value>
+  </data>
+  <data name="Settings_SyncSaved" xml:space="preserve">
+    <value>Настройки синхронизации сохранены.</value>
+  </data>
+  <data name="Settings_SyncSectionTitle" xml:space="preserve">
+    <value>Синхронизация</value>
+  </data>
+  <data name="Settings_SyncTestConnectionAction" xml:space="preserve">
+    <value>Проверить соединение</value>
+  </data>
+  <data name="Settings_SyncUnsupportedRepositoryVersion" xml:space="preserve">
+    <value>Удаленный репозиторий синхронизации создан неподдерживаемой версией приложения.</value>
+  </data>
+  <data name="Settings_SyncUsernameLabel" xml:space="preserve">
+    <value>Имя пользователя WebDAV</value>
+  </data>
+  <data name="Settings_SyncUsernameRequired" xml:space="preserve">
+    <value>Введите имя пользователя WebDAV.</value>
+  </data>
+  <data name="Settings_SyncWebDavUrlLabel" xml:space="preserve">
+    <value>URL WebDAV</value>
+  </data>
+  <data name="Settings_SyncWebDavUrlInvalid" xml:space="preserve">
+    <value>Введите корректный HTTP или HTTPS URL WebDAV.</value>
+  </data>
+  <data name="Settings_SyncWebDavUrlRequired" xml:space="preserve">
+    <value>Введите URL WebDAV.</value>
+  </data>
+  <data name="Settings_SyncWrongCredentials" xml:space="preserve">
+    <value>Сервер WebDAV отклонил имя пользователя или пароль.</value>
+  </data>
   <data name="Settings_Title" xml:space="preserve">
     <value>Настройки</value>
   </data>

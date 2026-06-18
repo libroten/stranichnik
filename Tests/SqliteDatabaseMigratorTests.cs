@@ -24,12 +24,18 @@ public sealed class SqliteDatabaseMigratorTests
         Assert.True(TableExists(connection, "secret_icon_assets"));
         Assert.True(TableExists(connection, "items"));
         Assert.True(TableExists(connection, "secret_reset_events"));
+        Assert.True(TableExists(connection, "sync_pending_asset_refs"));
+        Assert.True(TableExists(connection, "sync_deferred_secret_items"));
+        Assert.True(TableExists(connection, "sync_quarantined_remote_objects"));
         Assert.True(ColumnExists(connection, "items", "icon_asset_id"));
         Assert.True(ColumnExists(connection, "items", "secret_icon_asset_id"));
         Assert.True(ColumnExists(connection, "items", "secret_payload_format_version"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "wrapped_data_key"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "kdf_hash_algorithm"));
         Assert.True(ColumnExists(connection, "crypto_profiles", "secret_generation_id"));
+        AssertSyncColumnsExist(connection, "icon_assets");
+        AssertSyncColumnsExist(connection, "secret_icon_assets");
+        AssertSyncColumnsExist(connection, "crypto_profiles");
     }
 
     [Fact]
@@ -134,6 +140,41 @@ public sealed class SqliteDatabaseMigratorTests
     }
 
     [Fact]
+    public void Migrate_upgrades_version_5_schema_to_current_version_with_sync_metadata()
+    {
+        using var database = TempSqliteDatabase.Create();
+        using (var connection = database.OpenConnection())
+        {
+            CreateLegacyVersion5Schema(connection);
+        }
+
+        var migrator = database.CreateMigrator();
+
+        var result = migrator.Migrate();
+
+        using var upgradedConnection = database.OpenConnection();
+
+        Assert.True(result.MigrationApplied);
+        Assert.Equal(5, result.PreviousVersion);
+        Assert.Equal(SqliteDatabaseMigrator.CurrentVersion, GetUserVersion(upgradedConnection));
+        AssertSyncColumnsExist(upgradedConnection, "icon_assets");
+        AssertSyncColumnsExist(upgradedConnection, "secret_icon_assets");
+        AssertSyncColumnsExist(upgradedConnection, "crypto_profiles");
+        Assert.True(TableExists(upgradedConnection, "sync_pending_asset_refs"));
+        Assert.True(TableExists(upgradedConnection, "sync_deferred_secret_items"));
+        Assert.True(TableExists(upgradedConnection, "sync_quarantined_remote_objects"));
+        Assert.Equal("dirty", GetStringValue(upgradedConnection, "icon_assets", "sync_state", "icon"));
+        Assert.Equal("id-2", GetStringValue(upgradedConnection, "icon_assets", "modified_device_id", "icon"));
+        Assert.Equal("dirty", GetStringValue(upgradedConnection, "secret_icon_assets", "sync_state", "secret-icon"));
+        Assert.Equal("id-2", GetStringValue(upgradedConnection, "secret_icon_assets", "modified_device_id", "secret-icon"));
+        Assert.Equal("dirty", GetStringValue(upgradedConnection, "crypto_profiles", "sync_state", "1"));
+        Assert.Equal("id-2", GetStringValue(upgradedConnection, "crypto_profiles", "modified_device_id", "1"));
+        Assert.Equal(0, CountRows(upgradedConnection, "sync_pending_asset_refs"));
+        Assert.Equal(0, CountRows(upgradedConnection, "sync_deferred_secret_items"));
+        Assert.Equal(0, CountRows(upgradedConnection, "sync_quarantined_remote_objects"));
+    }
+
+    [Fact]
     public void Icon_assets_source_hash_is_unique()
     {
         using var database = TempSqliteDatabase.Create();
@@ -191,6 +232,15 @@ public sealed class SqliteDatabaseMigratorTests
         }
 
         return false;
+    }
+
+    private static void AssertSyncColumnsExist(SqliteConnection connection, string tableName)
+    {
+        Assert.True(ColumnExists(connection, tableName, "sync_state"));
+        Assert.True(ColumnExists(connection, tableName, "remote_etag"));
+        Assert.True(ColumnExists(connection, tableName, "last_synced_at_utc"));
+        Assert.True(ColumnExists(connection, tableName, "content_hash"));
+        Assert.True(ColumnExists(connection, tableName, "modified_device_id"));
     }
 
     private static void CreateLegacyVersion1Schema(SqliteConnection connection)
@@ -405,6 +455,191 @@ public sealed class SqliteDatabaseMigratorTests
         command.ExecuteNonQuery();
     }
 
+    private static void CreateLegacyVersion5Schema(SqliteConnection connection)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            CREATE TABLE app_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            CREATE TABLE crypto_profiles (
+                id INTEGER PRIMARY KEY,
+                profile_version INTEGER NOT NULL,
+                kdf_name TEXT NOT NULL,
+                kdf_hash_algorithm TEXT NOT NULL,
+                kdf_iterations INTEGER NOT NULL,
+                kdf_salt BLOB NOT NULL,
+                kek_length_bytes INTEGER NOT NULL,
+                data_key_algorithm TEXT NOT NULL,
+                wrapped_data_key BLOB NOT NULL,
+                wrapped_data_key_nonce BLOB NOT NULL,
+                encryption_algorithm TEXT NOT NULL,
+                payload_format TEXT NOT NULL,
+                password_check_payload BLOB NOT NULL,
+                password_check_nonce BLOB NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                secret_generation_id TEXT NOT NULL
+            );
+
+            CREATE TABLE icon_assets (
+                id TEXT PRIMARY KEY,
+                source_hash_algorithm TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_size_bytes INTEGER NOT NULL,
+                processed_mime_type TEXT NOT NULL,
+                processed_width INTEGER NOT NULL,
+                processed_height INTEGER NOT NULL,
+                processed_bytes BLOB NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                UNIQUE (source_hash_algorithm, source_hash)
+            );
+
+            CREATE TABLE secret_icon_assets (
+                id TEXT PRIMARY KEY,
+                source_hash_algorithm TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_size_bytes INTEGER NOT NULL,
+                processed_mime_type TEXT NOT NULL,
+                processed_width INTEGER NOT NULL,
+                processed_height INTEGER NOT NULL,
+                encrypted_processed_bytes BLOB NOT NULL,
+                encryption_nonce BLOB NOT NULL,
+                payload_format_version INTEGER NOT NULL,
+                secret_generation_id TEXT NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                UNIQUE (source_hash_algorithm, source_hash)
+            );
+
+            CREATE TABLE items (
+                id TEXT PRIMARY KEY,
+                parent_id TEXT NULL REFERENCES items(id) ON DELETE RESTRICT,
+                item_type TEXT NOT NULL CHECK (item_type IN ('folder', 'bookmark')),
+                sort_order INTEGER NOT NULL,
+                title TEXT NULL,
+                url TEXT NULL,
+                icon_asset_id TEXT NULL REFERENCES icon_assets(id),
+                secret_icon_asset_id TEXT NULL REFERENCES secret_icon_assets(id),
+                is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
+                encrypted_payload BLOB NULL,
+                encryption_nonce BLOB NULL,
+                crypto_profile_id INTEGER NULL REFERENCES crypto_profiles(id),
+                secret_payload_format_version INTEGER NULL,
+                created_at_utc TEXT NOT NULL,
+                updated_at_utc TEXT NOT NULL,
+                deleted_at_utc TEXT NULL,
+                revision INTEGER NOT NULL DEFAULT 1,
+                content_hash TEXT NULL,
+                sync_state TEXT NOT NULL DEFAULT 'dirty'
+                    CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
+                remote_etag TEXT NULL,
+                last_synced_at_utc TEXT NULL,
+                modified_device_id TEXT NOT NULL
+            );
+
+            CREATE TABLE secret_reset_events (
+                id TEXT PRIMARY KEY,
+                secret_generation_id TEXT NOT NULL UNIQUE,
+                reset_at_utc TEXT NOT NULL,
+                reset_device_id TEXT NOT NULL,
+                sync_state TEXT NOT NULL DEFAULT 'dirty'
+                    CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
+                remote_etag TEXT NULL,
+                last_synced_at_utc TEXT NULL
+            );
+
+            INSERT INTO crypto_profiles (
+                id,
+                profile_version,
+                kdf_name,
+                kdf_hash_algorithm,
+                kdf_iterations,
+                kdf_salt,
+                kek_length_bytes,
+                data_key_algorithm,
+                wrapped_data_key,
+                wrapped_data_key_nonce,
+                encryption_algorithm,
+                payload_format,
+                password_check_payload,
+                password_check_nonce,
+                created_at_utc,
+                updated_at_utc,
+                secret_generation_id)
+            VALUES (
+                1,
+                1,
+                'PBKDF2',
+                'SHA256',
+                1,
+                X'010203',
+                32,
+                'AES-GCM',
+                X'040506',
+                X'070809',
+                'AES-GCM',
+                'v1',
+                X'0A0B0C',
+                X'0D0E0F',
+                '2026-01-01T00:00:00.0000000Z',
+                '2026-01-01T00:00:00.0000000Z',
+                'generation');
+
+            INSERT INTO icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                processed_bytes,
+                created_at_utc)
+            VALUES (
+                'icon',
+                'sha256',
+                'icon-hash',
+                12,
+                'image/png',
+                64,
+                64,
+                X'010203',
+                '2026-01-01T00:00:00.0000000Z');
+
+            INSERT INTO secret_icon_assets (
+                id,
+                source_hash_algorithm,
+                source_hash,
+                source_size_bytes,
+                processed_mime_type,
+                processed_width,
+                processed_height,
+                encrypted_processed_bytes,
+                encryption_nonce,
+                payload_format_version,
+                secret_generation_id,
+                created_at_utc)
+            VALUES (
+                'secret-icon',
+                'sha256',
+                'secret-icon-hash',
+                12,
+                'image/png',
+                64,
+                64,
+                X'010203',
+                X'040506',
+                1,
+                'generation',
+                '2026-01-01T00:00:00.0000000Z');
+
+            PRAGMA user_version = 5;
+            """;
+        command.ExecuteNonQuery();
+    }
+
     private static void InsertIconAsset(SqliteConnection connection, string id, string sourceHash)
     {
         using var command = connection.CreateCommand();
@@ -494,6 +729,27 @@ public sealed class SqliteDatabaseMigratorTests
         command.Parameters.AddWithValue("$itemId", itemId);
 
         return Assert.IsType<string>(command.ExecuteScalar());
+    }
+
+    private static string GetStringValue(
+        SqliteConnection connection,
+        string tableName,
+        string columnName,
+        string id)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT {columnName} FROM {tableName} WHERE id = $id;";
+        command.Parameters.AddWithValue("$id", id);
+
+        return Assert.IsType<string>(command.ExecuteScalar());
+    }
+
+    private static int CountRows(SqliteConnection connection, string tableName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM {tableName};";
+
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private sealed class TempSqliteDatabase : IDisposable

@@ -178,6 +178,26 @@ public partial class MainWindowViewModel : ViewModelBase
         ReloadVisibleTreeAndSearch(captureExpandedFolderIds: true);
     }
 
+    public void RefreshSecretSessionConfigurationFromStorage()
+    {
+        var hasSecretProfile = _secretProfileStore.LoadActiveProfile() is not null;
+
+        if (hasSecretProfile && !_secretSession.IsConfigured)
+        {
+            _secretSession.MarkConfiguredLocked();
+            Logs.Print("Secret session marked configured after sync storage refresh.");
+        }
+        else if (!hasSecretProfile && _secretSession.IsConfigured)
+        {
+            _secretSession.MarkNotConfigured();
+            Logs.Print("Secret session marked not configured after sync storage refresh.");
+        }
+
+        OnPropertyChanged(nameof(IsSecretProfileConfigured));
+        OnPropertyChanged(nameof(IsSecretSessionUnlocked));
+        OnPropertyChanged(nameof(AreSecretsVisible));
+    }
+
     public void ClearSearch()
     {
         SearchQuery = string.Empty;

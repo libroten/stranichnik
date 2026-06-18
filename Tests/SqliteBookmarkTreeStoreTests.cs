@@ -790,6 +790,7 @@ public sealed class SqliteBookmarkTreeStoreTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             "seed-device");
     }
 

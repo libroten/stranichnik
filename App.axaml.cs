@@ -11,6 +11,9 @@ using Stranichnik.Searching;
 using Stranichnik.Security;
 using Stranichnik.Settings;
 using Stranichnik.Storage.Sqlite;
+using Stranichnik.Sync;
+using Stranichnik.Sync.Credentials;
+using Stranichnik.Sync.Serialization;
 using Stranichnik.Theming;
 using Stranichnik.ViewModels;
 using Stranichnik.Views;
@@ -40,15 +43,24 @@ public partial class App : Application
             var secretResetStore = new SqliteSecretResetStore(
                 secretConnectionFactory,
                 resetDeviceId: new SqliteDatabaseMigrator(secretConnectionFactory).GetMetadataValue("device_id"));
+            var syncMetadataStore = new SqliteSyncMetadataStore(secretConnectionFactory);
+            var syncLocalStore = new SqliteSyncLocalStore(
+                treeStore,
+                secretProfileStore,
+                secretResetStore,
+                syncMetadataStore,
+                new SystemTextSyncJsonSerializer());
+            var syncOperationGate = new SyncOperationGate();
             var secretCryptoService = new SecretCryptoService();
             var secretSession = new SecretSessionService();
+            var syncCredentialStore = new InMemorySyncCredentialStore();
 
             if (secretProfileStore.LoadActiveProfile() is null)
                 secretSession.MarkNotConfigured();
             else
                 secretSession.MarkConfiguredLocked();
 
-            desktop.MainWindow = new MainWindow
+            desktop.MainWindow = new MainWindow(syncCredentialStore, syncLocalStore, syncOperationGate)
             {
                 DataContext = new MainWindowViewModel(
                     treeStore,

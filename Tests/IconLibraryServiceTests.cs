@@ -238,6 +238,7 @@ public sealed class IconLibraryServiceTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             ModifiedDeviceId: "test");
     }
 

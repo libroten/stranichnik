@@ -148,6 +148,7 @@ Bookmark metadata fetching:
 Icons:
 
 - Default icon visuals are drawn in XAML/vector UI and are selected by item kind and current theme.
+- Action icons, folder expansion chevrons, the search clear icon, and editor icon-choice placeholders are project vector resources, not Unicode/text glyphs. Keep new UI icons in `Assets/Icons/ActionIcons.axaml` as reusable geometry resources and keep matching source/reference SVG files in `icons/` when appropriate.
 - Custom and favicon icons are stored as immutable processed PNG blobs in SQLite table `icon_assets`.
 - Bookmark/folder rows reference custom icons through nullable `items.icon_asset_id`.
 - `items.icon_asset_id = NULL` means "use the default icon".
@@ -192,6 +193,69 @@ Current app data files:
 - `stranichnik.sqlite`
 
 `Settings/AppSettingsService.cs` stores user settings in `settings.json`.
+`Settings/AppSettings.cs` includes `SyncSettings` for non-secret WebDAV sync
+configuration:
+
+- `IsEnabled`
+- `WebDavUrl`
+- `Username`
+- `LastSuccessfulSyncAtUtc`
+
+Do not add WebDAV passwords or other sync credentials to `AppSettings`.
+Credentials must stay behind a separate credential-store abstraction.
+
+## WebDAV Sync
+
+The detailed sync design lives in:
+
+- `Notes/WEBDAV_SYNC_ARCHITECTURE.md`
+- `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`
+
+Current implementation shape:
+
+- `Sync/` contains sync domain models, orchestration, pull/push planning,
+  remote DTOs, canonical serialization, content hashing, credential
+  abstractions, repository initialization, and WebDAV transport abstractions.
+- `Sync/WebDav/HttpWebDavSyncTransport.cs` is the production WebDAV transport.
+- `Sync/WebDav/InMemoryWebDavSyncTransport.cs` is the test transport.
+- `Storage/Sqlite/SqliteSyncLocalStore.cs` bridges SQLite data to sync
+  snapshots and applies remote changes in transactions.
+- `Storage/Sqlite/SqliteSyncMetadataStore.cs` owns pending asset refs,
+  deferred secret items, and quarantined remote object metadata.
+- `Sync/SyncApplicationService.cs` orchestrates one manual sync run:
+  repository initialization, pull, then push.
+- `Sync/SyncApplicationServiceFactory.cs` validates sync settings and
+  credentials before constructing a sync service.
+- `Views/SettingsDialog.axaml` exposes WebDAV sync settings, connection test,
+  and manual sync.
+
+Important rules:
+
+- Do not sync the SQLite database file.
+- Sync logical JSON objects under the WebDAV repository layout.
+- Remote secret bookmark objects must not contain plaintext title or URL.
+- Remote secret icon objects must not contain plaintext processed PNG bytes.
+- Search indexes are local/in-memory and must not be uploaded.
+- Remote object content hashes are recomputed and verified before apply.
+- Malformed remote JSON, invalid schema/format, invalid base64, and content-hash
+  mismatches are quarantined instead of being applied.
+- If a pulled item references an icon asset that is not available yet, keep a
+  pending asset reference and show the default icon until a later sync resolves
+  it.
+- If a pulled secret item references a missing crypto profile, store it as a
+  deferred secret item and do not insert an invalid live bookmark row.
+- Secret reset events win over old secret objects from the same generation.
+- Existing rows that predate sync metadata are marked dirty during migration so
+  the first sync uploads the full local dataset.
+- After sync changes profile availability, `MainWindowViewModel` refreshes the
+  runtime secret-session state from storage.
+
+Current credential behavior:
+
+- WebDAV URL and username are saved in `settings.json`.
+- WebDAV password is kept in `ISyncCredentialStore`.
+- The current implementation uses `InMemorySyncCredentialStore`, so the password
+  is available only during the current app session.
 
 Logging is implemented in:
 
@@ -214,7 +278,7 @@ Current logging behavior:
 
 Startup logging includes the SQLite database path, whether sample data was requested, and whether migrations/sample seeding ran. Metadata fetching logs success/failure states and fallback usage. Do not log bookmark titles, discovered page titles, or URLs.
 
-Do not treat the current logger as a complete telemetry system. It is intentionally small and local, useful for diagnostics during development and future sync work.
+Do not treat the current logger as a complete telemetry system. It is intentionally small and local, useful for diagnostics during development and sync troubleshooting.
 
 ## UI Styling Direction
 
@@ -319,7 +383,6 @@ Important types:
 
 - `Children`
 - `IsExpanded`
-- `ExpansionGlyph`
 - root/action visibility flags.
 - DnD placeholder and hover state flags.
 
@@ -364,10 +427,12 @@ Current session behavior:
 
 - Secret bookmarks are hidden after app startup.
 - `Cmd+P` on macOS and `Ctrl+P` on Windows/Linux toggles secret visibility.
+- `Service -> Show secrets` / `Service -> Показывать секреты` is a menu toggle for the same secret visibility flow. Its ON/OFF indicator reflects the actual session state and should not be treated as the source of truth.
 - If a crypto profile exists but the session is locked, showing secrets opens `UnlockSecretsDialog`.
 - After a successful unlock, the runtime data key stays in memory for the current app session.
 - Hiding secrets after unlock does not forget the runtime key.
 - After one minute without tracked UI activity, visible secret bookmarks are hidden automatically.
+- Bookmark/folder editor dialogs pause the inactivity timer while open. When such an editor closes, the timer restarts from a fresh minute if secrets are visible.
 - Passive pointer hover does not count as activity; pointer presses/releases, wheel, key input, menu actions, and context actions do.
 
 Projection behavior:

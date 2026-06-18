@@ -5,7 +5,7 @@ namespace Stranichnik.Storage.Sqlite;
 
 public sealed class SqliteDatabaseMigrator
 {
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
     private const string LegacySecretGenerationId = "legacy-generation";
 
     private readonly SqliteConnectionFactory _connectionFactory;
@@ -59,6 +59,15 @@ public sealed class SqliteDatabaseMigrator
             ApplyVersion5(connection);
             migrationApplied = true;
             currentVersion = 5;
+        }
+
+        if (currentVersion == 5)
+        {
+            EnsureMetadata(connection, "database_id", _idFactory());
+            EnsureMetadata(connection, "device_id", _idFactory());
+            ApplyVersion6(connection, GetMetadataValue(connection, "device_id"));
+            migrationApplied = true;
+            currentVersion = 6;
         }
 
         if (currentVersion > CurrentVersion)
@@ -434,6 +443,96 @@ public sealed class SqliteDatabaseMigrator
         ExecuteNonQuery(connection, "PRAGMA foreign_keys = ON;");
     }
 
+    private static void ApplyVersion6(SqliteConnection connection, string deviceId)
+    {
+        using var transaction = connection.BeginTransaction();
+
+        AddSyncMetadataColumns(connection, transaction, "icon_assets", deviceId);
+        AddSyncMetadataColumns(connection, transaction, "secret_icon_assets", deviceId);
+        AddSyncMetadataColumns(connection, transaction, "crypto_profiles", deviceId);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE TABLE sync_pending_asset_refs (
+                id TEXT PRIMARY KEY,
+                item_id TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+                asset_kind TEXT NOT NULL CHECK (asset_kind IN ('regular-icon', 'secret-icon')),
+                remote_asset_id TEXT NOT NULL,
+                source_hash_algorithm TEXT NULL,
+                source_hash TEXT NULL,
+                created_at_utc TEXT NOT NULL,
+                last_attempt_at_utc TEXT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                last_error_code TEXT NULL,
+                UNIQUE (item_id, asset_kind)
+            );
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE TABLE sync_deferred_secret_items (
+                remote_item_id TEXT PRIMARY KEY,
+                secret_generation_id TEXT NOT NULL,
+                remote_etag TEXT NULL,
+                content_hash TEXT NOT NULL,
+                canonical_json BLOB NOT NULL,
+                created_at_utc TEXT NOT NULL,
+                last_attempt_at_utc TEXT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                last_error_code TEXT NULL
+            );
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE TABLE sync_quarantined_remote_objects (
+                id TEXT PRIMARY KEY,
+                object_kind TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                remote_etag TEXT NULL,
+                content_hash TEXT NULL,
+                reason_code TEXT NOT NULL,
+                first_seen_at_utc TEXT NOT NULL,
+                last_seen_at_utc TEXT NOT NULL,
+                seen_count INTEGER NOT NULL DEFAULT 1
+            );
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE INDEX idx_sync_pending_asset_refs_remote_asset
+                ON sync_pending_asset_refs(asset_kind, remote_asset_id);
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE INDEX idx_sync_deferred_secret_items_generation
+                ON sync_deferred_secret_items(secret_generation_id);
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE INDEX idx_sync_quarantined_remote_objects_kind
+                ON sync_quarantined_remote_objects(object_kind, reason_code);
+            """);
+
+        ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 6;");
+
+        transaction.Commit();
+    }
+
     private static void EnsureMetadata(SqliteConnection connection, string key, string value)
     {
         using var command = connection.CreateCommand();
@@ -444,6 +543,16 @@ public sealed class SqliteDatabaseMigrator
         command.Parameters.AddWithValue("$key", key);
         command.Parameters.AddWithValue("$value", value);
         command.ExecuteNonQuery();
+    }
+
+    private static string GetMetadataValue(SqliteConnection connection, string key)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT value FROM app_meta WHERE key = $key;";
+        command.Parameters.AddWithValue("$key", key);
+
+        return command.ExecuteScalar() as string
+            ?? throw new InvalidOperationException("SQLite database metadata is missing.");
     }
 
     private static int GetUserVersion(SqliteConnection connection)
@@ -469,6 +578,55 @@ public sealed class SqliteDatabaseMigrator
         using var command = connection.CreateCommand();
         command.CommandText = commandText;
         command.ExecuteNonQuery();
+    }
+
+    private static void AddSyncMetadataColumns(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string tableName,
+        string deviceId)
+    {
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"""
+            ALTER TABLE {tableName}
+                ADD COLUMN sync_state TEXT NOT NULL DEFAULT 'dirty'
+                    CHECK (sync_state IN ('clean', 'dirty', 'conflict'));
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"ALTER TABLE {tableName} ADD COLUMN remote_etag TEXT NULL;");
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"ALTER TABLE {tableName} ADD COLUMN last_synced_at_utc TEXT NULL;");
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"ALTER TABLE {tableName} ADD COLUMN content_hash TEXT NULL;");
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"ALTER TABLE {tableName} ADD COLUMN modified_device_id TEXT NOT NULL DEFAULT '{EscapeSqlLiteral(deviceId)}';");
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            $"""
+            CREATE INDEX idx_{tableName}_sync_state
+                ON {tableName}(sync_state);
+            """);
+    }
+
+    private static string EscapeSqlLiteral(string value)
+    {
+        return value.Replace("'", "''", StringComparison.Ordinal);
     }
 
     private static void CreateCryptoProfilesTable(

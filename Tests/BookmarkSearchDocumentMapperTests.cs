@@ -100,6 +100,7 @@ public sealed class BookmarkSearchDocumentMapperTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             "test-device");
     }
 

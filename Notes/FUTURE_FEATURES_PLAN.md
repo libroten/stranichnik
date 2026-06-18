@@ -270,19 +270,27 @@ Direct SQLite file sync is risky:
 
 ### Proposed WebDAV Shape
 
-Rough remote layout:
+The detailed current WebDAV sync design is documented in:
+
+- `Notes/WEBDAV_SYNC_ARCHITECTURE.md`
+- `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`
+
+Current planned remote layout:
 
 ```text
-/stranichnik/
-  info.json
+/stranichnik-sync-v1/
+  manifest.json
+  devices/
   items/
-    <bookmark-id>.json
-    <folder-id>.json
-    <tombstone-id>.json
-  locks/
+  icon-assets/
+  secret-icon-assets/
+  crypto-profiles/
+  secret-reset-events/
 ```
 
-Exact shape may change.
+Exact shape may still change during implementation, but the current design uses
+separate remote object categories for tree items, regular icons, encrypted
+secret icons, crypto profile metadata, and compact secret reset events.
 
 Each sync item should contain enough metadata for conflict detection and merge:
 
@@ -295,6 +303,10 @@ Each sync item should contain enough metadata for conflict detection and merge:
 - `device_id`
 - version/revision metadata
 - payload or encrypted payload
+
+Secret bookmark item objects must not contain plaintext title or URL. Secret
+icon asset objects must not contain plaintext processed PNG bytes. Search index
+data must not be uploaded.
 
 ### Conflict Direction
 

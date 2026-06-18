@@ -120,6 +120,7 @@ public sealed class SqliteSecretResetStoreTests
                 BookmarkSyncState.Dirty,
                 RemoteEtag: null,
                 LastSyncedAtUtc: null,
+                ContentHash: null,
                 ModifiedDeviceId: "test-device"));
     }
 
@@ -142,6 +143,7 @@ public sealed class SqliteSecretResetStoreTests
                 BookmarkSyncState.Dirty,
                 RemoteEtag: null,
                 LastSyncedAtUtc: null,
+                ContentHash: null,
                 ModifiedDeviceId: "test-device"));
     }
 

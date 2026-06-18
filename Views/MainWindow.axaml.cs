@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,12 +16,16 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Stranichnik.Diagnostics;
 using Stranichnik.Icons;
 using Stranichnik.Localization;
 using Stranichnik.Opening;
 using Stranichnik.Searching;
 using Stranichnik.Security;
 using Stranichnik.Settings;
+using Stranichnik.Sync;
+using Stranichnik.Sync.Credentials;
+using Stranichnik.Sync.Local;
 using Stranichnik.Theming;
 using Stranichnik.ViewModels;
 
@@ -57,6 +65,21 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _dragAutoScrollTimer;
     private readonly DispatcherTimer _dragGhostAnimationTimer;
     private readonly SecretInactivityController _secretInactivityController;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The window intentionally depends on the credential abstraction so tests and future credential stores can share the same UI wiring.")]
+    private readonly ISyncCredentialStore _syncCredentialStore;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The window intentionally depends on the sync storage abstraction so the UI does not know the persistence implementation.")]
+    private readonly ISyncLocalStore? _syncLocalStore;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The window intentionally depends on the operation gate abstraction so sync coordination remains replaceable.")]
+    private readonly ISyncOperationGate _syncOperationGate;
     private readonly ScaleTransform _dragGhostScaleTransform = new()
     {
         ScaleX = 1,
@@ -66,7 +89,22 @@ public partial class MainWindow : Window
     private MainWindowViewModel? _observedViewModel;
 
     public MainWindow()
+        : this(new InMemorySyncCredentialStore(), syncLocalStore: null, new SyncOperationGate())
     {
+    }
+
+    public MainWindow(
+        ISyncCredentialStore syncCredentialStore,
+        ISyncLocalStore? syncLocalStore,
+        ISyncOperationGate syncOperationGate)
+    {
+        ArgumentNullException.ThrowIfNull(syncCredentialStore);
+        ArgumentNullException.ThrowIfNull(syncOperationGate);
+
+        _syncCredentialStore = syncCredentialStore;
+        _syncLocalStore = syncLocalStore;
+        _syncOperationGate = syncOperationGate;
+
         InitializeComponent();
 
         _folderAutoExpandTimer = new DispatcherTimer
@@ -208,7 +246,10 @@ public partial class MainWindow : Window
             this,
             (owner, newMasterPassword) =>
                 SaveSecretMasterPasswordFromSettingsAsync(owner, viewModel, newMasterPassword),
-            _ => ResetSecretMasterPasswordFromSettingsAsync(viewModel));
+            _ => ResetSecretMasterPasswordFromSettingsAsync(viewModel),
+            _ => TestSyncConnectionFromSettingsAsync(_syncCredentialStore),
+            _ => SyncNowFromSettingsAsync(viewModel),
+            _syncCredentialStore);
     }
 
     private async void OnToggleSecretsMenuClick(object? sender, RoutedEventArgs e)
@@ -261,6 +302,105 @@ public partial class MainWindow : Window
         };
 
         return Task.FromResult(SettingsDialogResult.Failed(message));
+    }
+
+    private static async Task<SettingsDialogResult> TestSyncConnectionFromSettingsAsync(
+        ISyncCredentialStore syncCredentialStore)
+    {
+        var service = new SyncConnectionTestService();
+        var result = await service.TestAsync(
+            AppSettingsService.Load(),
+            syncCredentialStore,
+            CancellationToken.None);
+
+        return result.Status switch
+        {
+            SyncConnectionTestStatus.Succeeded => SettingsDialogResult.Changed(),
+            SyncConnectionTestStatus.Disabled => SettingsDialogResult.Failed(UiStrings.SettingsSyncDisabled),
+            SyncConnectionTestStatus.MissingWebDavUrl => SettingsDialogResult.Failed(UiStrings.SettingsSyncWebDavUrlRequired),
+            SyncConnectionTestStatus.InvalidWebDavUrl => SettingsDialogResult.Failed(UiStrings.SettingsSyncWebDavUrlInvalid),
+            SyncConnectionTestStatus.MissingUsername => SettingsDialogResult.Failed(UiStrings.SettingsSyncUsernameRequired),
+            SyncConnectionTestStatus.MissingCredentials => SettingsDialogResult.Failed(UiStrings.SettingsSyncPasswordRequired),
+            SyncConnectionTestStatus.WrongCredentials => SettingsDialogResult.Failed(UiStrings.SettingsSyncWrongCredentials),
+            SyncConnectionTestStatus.RemoteUnavailable => SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable),
+            _ => SettingsDialogResult.Failed(UiStrings.SettingsSyncConnectionFailed)
+        };
+    }
+
+    private async Task<SettingsDialogResult> SyncNowFromSettingsAsync(MainWindowViewModel viewModel)
+    {
+        if (_syncLocalStore is null)
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncNowUnavailable);
+
+        var settings = AppSettingsService.Load();
+        var factoryResult = new SyncApplicationServiceFactory().Create(
+            settings,
+            _syncCredentialStore,
+            _syncLocalStore,
+            _syncOperationGate);
+
+        if (factoryResult.Status != SyncApplicationServiceFactoryStatus.Ready ||
+            factoryResult.Service is null)
+        {
+            return SettingsDialogResult.Failed(ToSyncSettingsErrorMessage(factoryResult.Status));
+        }
+
+        using var syncService = factoryResult.Service;
+        SyncRunSummary summary;
+        try
+        {
+            summary = await syncService.SyncNowAsync(CancellationToken.None);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            Logs.Print("Manual sync failed: credentials rejected.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncWrongCredentials);
+        }
+        catch (HttpRequestException)
+        {
+            Logs.Print("Manual sync failed: remote unavailable.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
+        }
+        catch (TaskCanceledException)
+        {
+            Logs.Print("Manual sync failed: request timed out.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
+        }
+
+        viewModel.RefreshSecretSessionConfigurationFromStorage();
+
+        if (!summary.Succeeded)
+            return SettingsDialogResult.Failed(ToSyncSummaryErrorMessage(summary));
+
+        var updatedSettings = AppSettingsService.Load();
+        updatedSettings.Sync.LastSuccessfulSyncAtUtc = summary.FinishedAtUtc;
+        AppSettingsService.Save(updatedSettings);
+        viewModel.ReloadVisibleTreeAndSearch();
+        return SettingsDialogResult.Changed();
+    }
+
+    private static string ToSyncSettingsErrorMessage(SyncApplicationServiceFactoryStatus status)
+    {
+        return status switch
+        {
+            SyncApplicationServiceFactoryStatus.Disabled => UiStrings.SettingsSyncDisabled,
+            SyncApplicationServiceFactoryStatus.MissingWebDavUrl => UiStrings.SettingsSyncWebDavUrlRequired,
+            SyncApplicationServiceFactoryStatus.InvalidWebDavUrl => UiStrings.SettingsSyncWebDavUrlInvalid,
+            SyncApplicationServiceFactoryStatus.MissingUsername => UiStrings.SettingsSyncUsernameRequired,
+            SyncApplicationServiceFactoryStatus.MissingCredentials => UiStrings.SettingsSyncPasswordRequired,
+            _ => UiStrings.SettingsSyncNowFailed
+        };
+    }
+
+    private static string ToSyncSummaryErrorMessage(SyncRunSummary summary)
+    {
+        return summary.BlockingReason switch
+        {
+            SyncBlockingReason.LocalOperationActive => UiStrings.SettingsSyncLocalOperationActive,
+            SyncBlockingReason.UnsupportedRepositoryVersion => UiStrings.SettingsSyncUnsupportedRepositoryVersion,
+            SyncBlockingReason.InvalidRepository => UiStrings.SettingsSyncInvalidRepository,
+            _ => UiStrings.SettingsSyncNowCompletedWithIssues
+        };
     }
 
     private void OnMenuPopupClosed(object? sender, EventArgs e)

@@ -4,9 +4,9 @@ This note records the current development state for future agents.
 
 ## Current Phase
 
-The project has moved beyond the in-memory UI phase into local SQLite persistence, search integration, icon support, and selective encryption for secret bookmarks.
+The project has moved beyond the in-memory UI phase into local SQLite persistence, search integration, icon support, selective encryption for secret bookmarks, and first-pass manual WebDAV synchronization.
 
-SQLite-backed bookmark storage is implemented and manually verified. The standalone search library is implemented and integrated into the main app. Selective secret bookmark encryption is implemented as the current major feature area. The next large feature area after cleanup is expected to be WebDAV sync, unless the user chooses to tune search or continue encryption polish first.
+SQLite-backed bookmark storage is implemented and manually verified. The standalone search library is implemented and integrated into the main app. Selective secret bookmark encryption is implemented. First-pass manual WebDAV sync is implemented in the current branch and is being stabilized through focused automated and manual regression checks.
 
 Completed broad areas:
 
@@ -80,6 +80,7 @@ Completed broad areas:
   - logs record fetch states and fallback outcomes without logging URLs or discovered titles.
 - Bookmark and folder icon support is implemented:
   - main tree rows and search result rows show default or custom icons;
+  - action buttons, folder expansion chevrons, search clear, and editor icon-choice placeholders use project vector resources instead of text/Unicode glyphs;
   - SQLite stores immutable custom/favicon icon assets in `icon_assets`;
   - items reference icon assets through nullable `items.icon_asset_id`;
   - default icons remain app resources/vector UI and are not stored in SQLite;
@@ -120,9 +121,11 @@ Completed broad areas:
   - changing the master password rewraps the data key instead of re-encrypting all bookmark payloads;
   - secrets are hidden after startup;
   - `Cmd+P` on macOS and `Ctrl+P` on Windows/Linux toggles secret visibility;
+  - `Service -> Show secrets` / `Service -> Показывать секреты` provides the same toggle through the top menu with an ON/OFF indicator;
   - the master password is required once per app session to unlock secrets;
   - after unlock, hiding secrets keeps the runtime data key in memory for the session;
   - visible secrets auto-hide after one minute without tracked UI activity;
+  - bookmark/folder editor dialogs pause auto-hide while open and restart the inactivity timer after closing;
   - folders containing only hidden secret bookmarks are hidden too;
   - hidden secret bookmarks are absent from the tree and in-memory search index;
   - visible unlocked secret bookmarks are projected in memory and may be searched during that unlocked-visible state;
@@ -141,10 +144,25 @@ Completed broad areas:
   - the first section is `Secret bookmarks`;
   - the section supports setting/changing the master password;
   - changing the master password from a locked configured state asks for the current password first without forcing secrets to become visible.
+- First-pass manual WebDAV sync is implemented:
+  - sync architecture and implementation plan are documented in `Notes/WEBDAV_SYNC_ARCHITECTURE.md` and `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`;
+  - the app syncs logical JSON objects through WebDAV instead of uploading the SQLite database file;
+  - the remote repository uses `manifest.json` plus category directories for items, regular icon assets, encrypted secret icon assets, crypto profiles, secret reset events, and device metadata;
+  - sync supports pull, push, repository initialization, remote object validation, canonical content hashing, quarantine of invalid remote objects, pending icon references, deferred secret items, and reset-generation filtering;
+  - local SQLite rows carry sync metadata such as state, remote ETag, last synced timestamp, content hash, and modified device ID;
+  - existing local objects are marked dirty during sync metadata migration so a first sync uploads the whole local dataset instead of only post-migration edits;
+  - sync settings live in `settings.json`, but WebDAV passwords are kept behind `ISyncCredentialStore` and are not persisted by the current in-memory credential store;
+  - `Stranichnik -> Settings -> Sync` exposes enablement, WebDAV URL, username, password for the current session, connection test, sync now, and last successful sync status;
+  - after sync pulls a crypto profile into an initially empty local database, `MainWindowViewModel` refreshes the runtime secret-session configuration so `Cmd+P` can unlock the downloaded secret bookmarks without restarting the app;
+  - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 
 Not implemented yet:
 
-- WebDAV sync.
+- persistent OS keychain-backed WebDAV credential storage;
+- automatic/background sync;
+- advanced user-facing sync conflict resolution UI;
+- remote garbage collection for orphaned old sync objects;
+- full cross-platform release packaging polish.
 
 Implemented in storage/view-model layer:
 
@@ -172,7 +190,7 @@ Current dialogs:
 - `AppearanceDialog` is used for selecting the application theme.
 - `SetMasterPasswordDialog` is used for first-time secret master password setup.
 - `UnlockSecretsDialog` is used for unlocking secret bookmarks.
-- `SettingsDialog` is used for app settings and currently contains the secret bookmark password section.
+- `SettingsDialog` is used for app settings and currently contains the secret bookmark password section and WebDAV sync section.
 - Dialogs can be closed with `Esc` where that makes sense.
 - Inline form errors and success states use `Views/StatusBanner.axaml`.
 - `StatusBanner` should be reused for future dialog-local validation/status messages instead of adding raw error `TextBlock`s.
@@ -277,7 +295,10 @@ Menus:
   - `Service`
 - `Service -> Appearance` opens the appearance selector.
 - `Service -> Language` opens the language selector.
+- `Service -> Show secrets` toggles secret visibility and displays an ON/OFF state indicator.
 - `Stranichnik -> Settings` opens the settings window.
+- `Stranichnik -> About` opens the about/license window.
+- `Stranichnik -> Exit` closes the application.
 - Top popup menus and tree context menus share custom menu styling.
 - Menu shadows are drawn inside transparent padded popup hosts. Clicking the padded shadow area closes the popup.
 
@@ -320,7 +341,15 @@ Known design choice:
 
 ## Current Validation State
 
-The user last confirmed successful build, tests, formatting verification, normal app launch, sample-data launch, existing-database launch, and missing-database launch for the main app.
+The user last confirmed successful build, tests, formatting verification, and manual WebDAV regression checks for the current sync branch.
+
+Recently verified sync scenarios include:
+
+- pushing local data to an empty WebDAV folder;
+- deleting the local SQLite database and pulling data back into a fresh empty database;
+- ensuring existing sample-data rows are uploaded during first sync after sync metadata migration;
+- pulling secret bookmarks, crypto profile data, and encrypted secret icons into an empty database;
+- unlocking downloaded secret bookmarks with `Cmd+P` after pull without restarting the app.
 
 The user confirmed the first search integration works in the app. The current search quality is acceptable as a first pass, with possible future tuning.
 
@@ -353,19 +382,21 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad implementation area is likely WebDAV sync, unless the user chooses to continue polishing encryption, icons, or search first.
+The next broad area is likely stabilization and manual regression of the first-pass WebDAV sync implementation, unless the user chooses to pause sync and polish search, encryption, icons, or UI first.
 
 Likely order:
 
-1. Revisit search quality tuning if the user wants better ranking/tokenization.
-2. Design WebDAV sync using the current item-level SQLite schema, tombstones, encrypted payload shape, and encrypted secret icon shape.
-3. Implement sync conservatively with stable IDs, conflict copies, and no custom backend.
+1. Continue manual WebDAV sync regression on macOS, then Windows and Linux.
+2. Review sync conflict handling and any remaining edge cases found during two-device testing.
+3. Decide whether v1 should persist WebDAV credentials through an OS keychain-backed store or keep session-only credentials.
+4. Add automatic/background sync only after manual sync is stable.
+5. Revisit search quality tuning if the user wants better ranking/tokenization.
 
 SQLite schema direction:
 
 - Use one `items` table for folders and bookmarks.
 - Keep the visible root folder synthetic; top-level database rows have `parent_id = NULL`.
-- Include metadata for future secret bookmark encryption, in-memory search, tombstone deletes, and item-level WebDAV sync.
+- Include metadata for selective secret bookmark encryption, in-memory search rebuilds, tombstone deletes, and item-level WebDAV sync.
 - See `Notes/DATA_SCHEMA.md` for the current draft.
 
 Storage architecture direction:

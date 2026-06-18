@@ -141,6 +141,7 @@ public sealed class BookmarkTreeViewModelMapperTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             "test");
     }
 

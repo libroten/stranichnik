@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Stranichnik.Security;
+using Stranichnik.Sync.Local;
 
 namespace Stranichnik.Storage.Sqlite;
 
@@ -22,6 +24,51 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
         return reader.Read()
             ? ReadProfile(reader)
             : null;
+    }
+
+    public IReadOnlyList<SyncCryptoProfileSnapshotRecord> LoadAllProfilesForSync()
+    {
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                id,
+                profile_version,
+                kdf_name,
+                kdf_hash_algorithm,
+                kdf_iterations,
+                kdf_salt,
+                kek_length_bytes,
+                data_key_algorithm,
+                wrapped_data_key,
+                wrapped_data_key_nonce,
+                encryption_algorithm,
+                payload_format,
+                password_check_payload,
+                password_check_nonce,
+                created_at_utc,
+                updated_at_utc,
+                secret_generation_id,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                content_hash,
+                modified_device_id
+            FROM crypto_profiles
+            ORDER BY updated_at_utc ASC, id ASC;
+            """;
+
+        var profiles = new List<SyncCryptoProfileSnapshotRecord>();
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            profiles.Add(new SyncCryptoProfileSnapshotRecord(
+                ReadProfile(reader),
+                ReadSyncObjectMetadata(reader)));
+        }
+
+        return profiles;
     }
 
     public CryptoProfileRecord SaveNewProfile(CryptoProfileRecord profile)
@@ -76,6 +123,73 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
 
         transaction.Commit();
         return profile;
+    }
+
+    internal void UpsertRemoteProfile(
+        CryptoProfileRecord profile,
+        SyncObjectMetadata syncMetadata)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(syncMetadata);
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        UpsertRemoteProfile(connection, transaction, profile, syncMetadata);
+
+        transaction.Commit();
+    }
+
+    internal void MarkSyncMetadata(
+        string secretGenerationId,
+        BookmarkSyncState syncState,
+        string? remoteEtag,
+        DateTimeOffset? lastSyncedAtUtc,
+        string? contentHash)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE crypto_profiles
+            SET
+                sync_state = $syncState,
+                remote_etag = $remoteEtag,
+                last_synced_at_utc = $lastSyncedAtUtc,
+                content_hash = $contentHash
+            WHERE secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncState));
+        command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(remoteEtag));
+        command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(lastSyncedAtUtc));
+        command.Parameters.AddWithValue("$contentHash", SqliteBookmarkItemMapper.ToDatabaseValue(contentHash));
+
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("Secret crypto profile was not found.");
+    }
+
+    internal void MarkSyncState(
+        string secretGenerationId,
+        BookmarkSyncState syncState)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE crypto_profiles
+            SET sync_state = $syncState
+            WHERE secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncState));
+
+        if (command.ExecuteNonQuery() != 1)
+            throw new InvalidOperationException("Secret crypto profile was not found.");
     }
 
     private static SqliteCommand CreateSelectByIdCommand(SqliteConnection connection, long profileId)
@@ -168,6 +282,89 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
         command.ExecuteNonQuery();
     }
 
+    private static void UpsertRemoteProfile(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CryptoProfileRecord profile,
+        SyncObjectMetadata syncMetadata)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO crypto_profiles (
+                id,
+                profile_version,
+                kdf_name,
+                kdf_hash_algorithm,
+                kdf_iterations,
+                kdf_salt,
+                kek_length_bytes,
+                data_key_algorithm,
+                wrapped_data_key,
+                wrapped_data_key_nonce,
+                encryption_algorithm,
+                payload_format,
+                password_check_payload,
+                password_check_nonce,
+                created_at_utc,
+                updated_at_utc,
+                secret_generation_id,
+                sync_state,
+                remote_etag,
+                last_synced_at_utc,
+                content_hash,
+                modified_device_id)
+            VALUES (
+                $id,
+                $profileVersion,
+                $kdfName,
+                $kdfHashAlgorithm,
+                $kdfIterations,
+                $kdfSalt,
+                $kekLengthBytes,
+                $dataKeyAlgorithm,
+                $wrappedDataKey,
+                $wrappedDataKeyNonce,
+                $encryptionAlgorithm,
+                $payloadFormat,
+                $passwordCheckPayload,
+                $passwordCheckNonce,
+                $createdAtUtc,
+                $updatedAtUtc,
+                $secretGenerationId,
+                $syncState,
+                $remoteEtag,
+                $lastSyncedAtUtc,
+                $contentHash,
+                $modifiedDeviceId)
+            ON CONFLICT(id) DO UPDATE SET
+                profile_version = excluded.profile_version,
+                kdf_name = excluded.kdf_name,
+                kdf_hash_algorithm = excluded.kdf_hash_algorithm,
+                kdf_iterations = excluded.kdf_iterations,
+                kdf_salt = excluded.kdf_salt,
+                kek_length_bytes = excluded.kek_length_bytes,
+                data_key_algorithm = excluded.data_key_algorithm,
+                wrapped_data_key = excluded.wrapped_data_key,
+                wrapped_data_key_nonce = excluded.wrapped_data_key_nonce,
+                encryption_algorithm = excluded.encryption_algorithm,
+                payload_format = excluded.payload_format,
+                password_check_payload = excluded.password_check_payload,
+                password_check_nonce = excluded.password_check_nonce,
+                created_at_utc = excluded.created_at_utc,
+                updated_at_utc = excluded.updated_at_utc,
+                secret_generation_id = excluded.secret_generation_id,
+                sync_state = excluded.sync_state,
+                remote_etag = excluded.remote_etag,
+                last_synced_at_utc = excluded.last_synced_at_utc,
+                content_hash = excluded.content_hash,
+                modified_device_id = excluded.modified_device_id;
+            """;
+        AddProfileParameters(command, profile);
+        AddSyncMetadataParameters(command, syncMetadata);
+        command.ExecuteNonQuery();
+    }
+
     private static void AddProfileParameters(SqliteCommand command, CryptoProfileRecord profile)
     {
         command.Parameters.AddWithValue("$id", profile.Id);
@@ -187,6 +384,17 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
         command.Parameters.AddWithValue("$createdAtUtc", SqliteBookmarkItemMapper.FormatDateTime(profile.CreatedAtUtc));
         command.Parameters.AddWithValue("$updatedAtUtc", SqliteBookmarkItemMapper.FormatDateTime(profile.UpdatedAtUtc));
         command.Parameters.AddWithValue("$secretGenerationId", profile.SecretGenerationId);
+    }
+
+    private static void AddSyncMetadataParameters(
+        SqliteCommand command,
+        SyncObjectMetadata syncMetadata)
+    {
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.SyncState));
+        command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.RemoteEtag));
+        command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.LastSyncedAtUtc));
+        command.Parameters.AddWithValue("$contentHash", SqliteBookmarkItemMapper.ToDatabaseValue(syncMetadata.ContentHash));
+        command.Parameters.AddWithValue("$modifiedDeviceId", syncMetadata.ModifiedDeviceId);
     }
 
     private static CryptoProfileRecord ReadProfile(SqliteDataReader reader)
@@ -209,6 +417,16 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
             SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("created_at_utc"))),
             SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("updated_at_utc"))),
             reader.GetString(reader.GetOrdinal("secret_generation_id")));
+    }
+
+    private static SyncObjectMetadata ReadSyncObjectMetadata(SqliteDataReader reader)
+    {
+        return new SyncObjectMetadata(
+            SqliteBookmarkItemMapper.ToBookmarkSyncState(reader.GetString(reader.GetOrdinal("sync_state"))),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "remote_etag"),
+            SqliteBookmarkItemMapper.ReadNullableDateTime(reader, "last_synced_at_utc"),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "content_hash"),
+            reader.GetString(reader.GetOrdinal("modified_device_id")));
     }
 
     private static byte[] ReadRequiredBytes(SqliteDataReader reader, string name)

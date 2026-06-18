@@ -104,6 +104,7 @@ public sealed class BookmarkSearchServiceTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             "test-device");
     }
 

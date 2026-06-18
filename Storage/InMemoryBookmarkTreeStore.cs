@@ -566,6 +566,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             BookmarkSyncState.Dirty,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             _modifiedDeviceId);
     }
 

@@ -96,6 +96,48 @@
             <Setter Property="Foreground" Value="{DynamicResource TextOnAccentBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DialogDangerButtonHoverBackgroundBrush}"/>
         </Style>
+        <Style Selector="CheckBox.syncToggle">
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+            <Setter Property="FocusAdorner" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Border x:Name="Box"
+                                Width="18"
+                                Height="18"
+                                Background="Transparent"
+                                BorderBrush="{DynamicResource FocusBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <Path x:Name="CheckMark"
+                                  Data="M4 9L8 13L14 5"
+                                  Stroke="{DynamicResource TextOnAccentBrush}"
+                                  StrokeThickness="2"
+                                  StrokeLineCap="Round"
+                                  IsVisible="False"/>
+                        </Border>
+                        <ContentPresenter Grid.Column="1"
+                                          Content="{TemplateBinding Content}"
+                                          Margin="8,0,0,0"
+                                          VerticalAlignment="Center"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="CheckBox.syncToggle:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource DialogTextPrimaryBrush}"/>
+        </Style>
+        <Style Selector="CheckBox.syncToggle:pointerover /template/ Border#Box">
+            <Setter Property="Background" Value="{DynamicResource DialogAccentButtonFocusBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="CheckBox.syncToggle:checked /template/ Border#Box">
+            <Setter Property="Background" Value="{DynamicResource FocusBorderBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource FocusBorderBrush}"/>
+        </Style>
+        <Style Selector="CheckBox.syncToggle:checked /template/ Path#CheckMark">
+            <Setter Property="IsVisible" Value="True"/>
+        </Style>
     </Window.Styles>
 
     <Border Background="{DynamicResource DialogBackgroundBrush}">
@@ -160,6 +202,78 @@
                                                    TextWrapping="Wrap"/>
                                     </Button>
                                 </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncSectionTitle}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+                        <Border Height="1"
+                                Background="{DynamicResource DialogInputBorderBrush}"/>
+
+                        <StackPanel Spacing="14">
+                            <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncDescription}"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+
+                            <CheckBox x:Name="SyncEnabledCheckBox"
+                                      Classes="syncToggle"
+                                      Content="{x:Static localization:UiStrings.SettingsSyncEnabledLabel}"
+                                      Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncWebDavUrlLabel}"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                                <TextBox x:Name="SyncWebDavUrlTextBox"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncUsernameLabel}"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                                <TextBox x:Name="SyncUsernameTextBox"/>
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncPasswordLabel}"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+                                <TextBox x:Name="SyncPasswordTextBox"
+                                         PasswordChar="*"/>
+                            </StackPanel>
+
+                            <views:StatusBanner x:Name="SyncStatusBanner"/>
+
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right"
+                                        Spacing="10">
+                                <Button Classes="dialogButton"
+                                        Width="220"
+                                        Height="44"
+                                        Click="OnTestSyncConnectionClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncTestConnectionAction}"
+                                               TextWrapping="Wrap"/>
+                                </Button>
+                                <Button Classes="dialogButton"
+                                        Width="220"
+                                        Height="44"
+                                        Click="OnSaveSyncSettingsClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncSaveAction}"
+                                               TextWrapping="Wrap"/>
+                                </Button>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Classes="dialogButton"
+                                        Width="220"
+                                        Height="44"
+                                        Click="OnSyncNowClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncNowAction}"
+                                               TextWrapping="Wrap"/>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

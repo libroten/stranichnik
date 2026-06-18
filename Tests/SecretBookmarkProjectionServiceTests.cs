@@ -300,6 +300,7 @@ public sealed class SecretBookmarkProjectionServiceTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             ModifiedDeviceId: "test");
     }
 }

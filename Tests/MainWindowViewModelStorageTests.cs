@@ -795,6 +795,34 @@ public sealed class MainWindowViewModelStorageTests
         Assert.Equal(SecretPasswordSaveFailureReason.UnlockRequired, result.FailureReason);
     }
 
+    [Fact]
+    public void RefreshSecretSessionConfigurationFromStorage_marks_session_configured_after_profile_arrives()
+    {
+        var store = new InMemoryBookmarkTreeStore([]);
+        var profileStore = new InMemorySecretProfileStore();
+        using var session = new SecretSessionService();
+        var crypto = new SecretCryptoService(TestPbkdf2Iterations);
+        var viewModel = new MainWindowViewModel(
+            store,
+            new BookmarkSearchService(new InMemoryBookmarkSearchIndex()),
+            secretProfileStore: profileStore,
+            secretCryptoService: crypto,
+            secretSession: session,
+            secretProjectionService: new SecretBookmarkProjectionService(crypto));
+        var created = crypto.CreateProfile("password", Now);
+        using var unusedCreationKey = created.DataKey;
+        profileStore.SaveNewProfile(created.Profile);
+
+        viewModel.RefreshSecretSessionConfigurationFromStorage();
+        var unlockResult = viewModel.UnlockSecrets("password", showSecrets: true);
+
+        Assert.Equal(SecretSessionStatus.ConfiguredUnlockedVisible, session.Status);
+        Assert.True(viewModel.IsSecretProfileConfigured);
+        Assert.True(unlockResult.WasUnlocked);
+        Assert.True(viewModel.IsSecretSessionUnlocked);
+        Assert.True(viewModel.AreSecretsVisible);
+    }
+
     private static MainWindowViewModel CreateViewModel()
     {
         return CreateViewModel(
@@ -941,6 +969,7 @@ public sealed class MainWindowViewModelStorageTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             ModifiedDeviceId: "test");
     }
 

@@ -106,6 +106,28 @@ stranichnik.log
 
 The exact application data directory depends on the operating system and current user profile.
 
+## WebDAV Sync
+
+Stranichnik includes first-pass manual WebDAV synchronization. Configure it from:
+
+```text
+Stranichnik -> Settings -> Sync
+```
+
+The settings UI currently stores the WebDAV URL and username in `settings.json`.
+The WebDAV password is kept only for the current application session through the
+sync credential abstraction and is not persisted to disk.
+
+Sync stores portable JSON objects on the WebDAV server instead of uploading the
+local SQLite database file. Secret bookmark payloads and secret icon bytes remain
+encrypted in the remote sync data.
+
+Recommended manual run with logs while testing sync:
+
+```bash
+dotnet run -- --print-logs-to-console
+```
+
 ## Run Tests
 
 Run the test project explicitly:

@@ -127,6 +127,7 @@ public static class SampleBookmarkRecordsFactory
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             "sample-data");
     }
 }

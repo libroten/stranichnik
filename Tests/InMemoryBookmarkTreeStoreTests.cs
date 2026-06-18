@@ -454,6 +454,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
             BookmarkSyncState.Clean,
             RemoteEtag: null,
             LastSyncedAtUtc: null,
+            ContentHash: null,
             "seed-device");
     }
 

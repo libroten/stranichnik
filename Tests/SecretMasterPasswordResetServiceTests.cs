@@ -119,6 +119,7 @@ public sealed class SecretMasterPasswordResetServiceTests
                 BookmarkSyncState.Dirty,
                 RemoteEtag: null,
                 LastSyncedAtUtc: null,
+                ContentHash: null,
                 ModifiedDeviceId: "test-device"));
     }
 
@@ -141,6 +142,7 @@ public sealed class SecretMasterPasswordResetServiceTests
                 BookmarkSyncState.Dirty,
                 RemoteEtag: null,
                 LastSyncedAtUtc: null,
+                ContentHash: null,
                 ModifiedDeviceId: "test-device"));
     }
 
