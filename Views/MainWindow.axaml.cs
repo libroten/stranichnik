@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -26,6 +27,7 @@ using Stranichnik.Settings;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Credentials;
 using Stranichnik.Sync.Local;
+using Stranichnik.Sync.RemoteProblems;
 using Stranichnik.Theming;
 using Stranichnik.ViewModels;
 
@@ -249,6 +251,9 @@ public partial class MainWindow : Window
             _ => ResetSecretMasterPasswordFromSettingsAsync(viewModel),
             _ => TestSyncConnectionFromSettingsAsync(_syncCredentialStore),
             _ => SyncNowFromSettingsAsync(viewModel),
+            LoadSyncRemoteProblemsForSettings,
+            (_, problemId) => ClearSyncRemoteProblemFromSettingsAsync(problemId),
+            (_, problemId) => DeleteSyncRemoteProblemFromSettingsAsync(problemId),
             _syncCredentialStore);
     }
 
@@ -377,6 +382,83 @@ public partial class MainWindow : Window
         AppSettingsService.Save(updatedSettings);
         viewModel.ReloadVisibleTreeAndSearch();
         return SettingsDialogResult.Changed();
+    }
+
+    private List<SettingsSyncRemoteProblemViewModel> LoadSyncRemoteProblemsForSettings()
+    {
+        if (_syncLocalStore is null)
+            return [];
+
+        return _syncLocalStore
+            .LoadSnapshot()
+            .QuarantinedRemoteObjects
+            .Select(problem => new SettingsSyncRemoteProblemViewModel(
+                problem.Id,
+                problem.RelativePath,
+                problem.ReasonCode,
+                problem.SeenCount))
+            .ToList();
+    }
+
+    private Task<SettingsDialogResult> ClearSyncRemoteProblemFromSettingsAsync(string problemId)
+    {
+        if (_syncLocalStore is null)
+            return Task.FromResult(SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteProblemClearFailed));
+
+        _syncLocalStore.ClearQuarantinedRemoteObject(problemId);
+        Logs.Print("Sync remote problem cleared from settings.");
+        return Task.FromResult(SettingsDialogResult.Changed());
+    }
+
+    private async Task<SettingsDialogResult> DeleteSyncRemoteProblemFromSettingsAsync(string problemId)
+    {
+        if (_syncLocalStore is null)
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteProblemDeleteFailed);
+
+        var problem = _syncLocalStore
+            .LoadSnapshot()
+            .QuarantinedRemoteObjects
+            .FirstOrDefault(candidate => string.Equals(candidate.Id, problemId, StringComparison.Ordinal));
+        if (problem is null)
+            return SettingsDialogResult.Changed();
+
+        var service = SyncRemoteProblemService.TryCreate(
+            AppSettingsService.Load(),
+            _syncCredentialStore,
+            _syncLocalStore);
+        if (service is null)
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteProblemDeleteUnavailable);
+
+        using (service)
+        {
+            try
+            {
+                var result = await service
+                    .DeleteRemoteProblemAsync(problem, CancellationToken.None);
+
+                return result.Status switch
+                {
+                    SyncRemoteProblemDeleteStatus.DeletedOrMissing => SettingsDialogResult.Changed(),
+                    SyncRemoteProblemDeleteStatus.RemoteChanged => SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteProblemDeleteChanged),
+                    _ => SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteProblemDeleteFailed)
+                };
+            }
+            catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                Logs.Print("Sync remote problem delete failed: credentials rejected.");
+                return SettingsDialogResult.Failed(UiStrings.SettingsSyncWrongCredentials);
+            }
+            catch (HttpRequestException)
+            {
+                Logs.Print("Sync remote problem delete failed: remote unavailable.");
+                return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
+            }
+            catch (TaskCanceledException)
+            {
+                Logs.Print("Sync remote problem delete failed: request timed out.");
+                return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
+            }
+        }
     }
 
     private static string ToSyncSettingsErrorMessage(SyncApplicationServiceFactoryStatus status)

@@ -168,6 +168,12 @@
   <data name="Confirm_ResetSecretMasterPasswordTitle" xml:space="preserve">
     <value>Сбросить мастер-пароль?</value>
   </data>
+  <data name="Confirm_DeleteSyncRemoteProblemMessage" xml:space="preserve">
+    <value>Это удалит один проблемный файл синхронизации из папки WebDAV. Если этот файл на самом деле принадлежит другому устройству, более новой версии приложения или еще не синхронизированному изменению, удаление может навсегда потерять эти удаленные данные. Страничник не сможет отменить эту операцию. Используйте ее только если уверены, что удаленный файл поврежден или больше не нужен.</value>
+  </data>
+  <data name="Confirm_DeleteSyncRemoteProblemTitle" xml:space="preserve">
+    <value>Удалить удаленный файл синхронизации?</value>
+  </data>
   <data name="Confirm_Title" xml:space="preserve">
     <value>Подтверждение</value>
   </data>
@@ -344,6 +350,48 @@
   </data>
   <data name="Settings_SyncRemoteUnavailable" xml:space="preserve">
     <value>Не удалось подключиться к серверу WebDAV. Проверьте адрес и соединение с сетью.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemClearAction" xml:space="preserve">
+    <value>Очистить эту проблему</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemClearFailed" xml:space="preserve">
+    <value>Не удалось очистить проблему синхронизации.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemCleared" xml:space="preserve">
+    <value>Проблема синхронизации очищена локально.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemClearShortAction" xml:space="preserve">
+    <value>Очистить</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDeleteAction" xml:space="preserve">
+    <value>Удалить этот remote-файл</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDeleteShortAction" xml:space="preserve">
+    <value>Удалить файл</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDeleteChanged" xml:space="preserve">
+    <value>Удаленный файл изменился с момента записи проблемы. Запустите синхронизацию еще раз перед удалением.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDeleteFailed" xml:space="preserve">
+    <value>Не удалось удалить удаленный файл синхронизации.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDeleted" xml:space="preserve">
+    <value>Удаленный файл синхронизации удален.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDeleteUnavailable" xml:space="preserve">
+    <value>Удаление remote-файла недоступно. Проверьте настройки синхронизации и введите пароль WebDAV для этой сессии.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemFileLabel" xml:space="preserve">
+    <value>Файл синхронизации:</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemDetails" xml:space="preserve">
+    <value>Причина: {0}. Встречено раз: {1}.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemsDescription" xml:space="preserve">
+    <value>Эти удаленные файлы не удалось прочитать или проверить. Известные неизменившиеся проблемы не блокируют обычную синхронизацию, но остаются здесь, пока файл на сервере не будет исправлен, очищен локально или удален из WebDAV.</value>
+  </data>
+  <data name="Settings_SyncRemoteProblemsTitle" xml:space="preserve">
+    <value>Проблемы удаленной синхронизации</value>
   </data>
   <data name="Settings_SyncSaveAction" xml:space="preserve">
     <value>Сохранить настройки синхронизации</value>

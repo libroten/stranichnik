@@ -99,6 +99,28 @@ public sealed class HttpWebDavSyncTransport : IWebDavSyncTransport
         return SyncPutResult.CreatedOrUpdated(etag);
     }
 
+    public async Task<SyncDeleteResult> DeleteAsync(
+        string relativePath,
+        string? expectedEtag,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, CreateRemoteUri(relativePath));
+        if (!string.IsNullOrWhiteSpace(expectedEtag))
+            request.Headers.TryAddWithoutValidation("If-Match", expectedEtag);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var etag = response.Headers.ETag?.ToString();
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return SyncDeleteResult.DeletedOrMissing();
+
+        if (response.StatusCode is HttpStatusCode.PreconditionFailed or HttpStatusCode.Conflict)
+            return SyncDeleteResult.PreconditionFailed(etag);
+
+        response.EnsureSuccessStatusCode();
+        return SyncDeleteResult.DeletedOrMissing();
+    }
+
     private async Task EnsureDirectoryAsync(string relativeDirectory, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(MkColMethod, CreateRemoteUri(relativeDirectory));

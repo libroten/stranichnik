@@ -323,6 +323,10 @@ public sealed class SyncPushServiceTests
             DateTimeOffset seenAtUtc)
         {
         }
+
+        public void ClearQuarantinedRemoteObject(string id)
+        {
+        }
     }
 
     private sealed class RecordingWebDavSyncTransport : InMemoryWebDavSyncTransport

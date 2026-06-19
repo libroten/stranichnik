@@ -23,4 +23,9 @@ public interface IWebDavSyncTransport
         string? expectedEtag,
         bool createOnly,
         CancellationToken cancellationToken);
+
+    Task<SyncDeleteResult> DeleteAsync(
+        string relativePath,
+        string? expectedEtag,
+        CancellationToken cancellationToken);
 }

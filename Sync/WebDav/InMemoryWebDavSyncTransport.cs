@@ -91,6 +91,24 @@ public class InMemoryWebDavSyncTransport : IWebDavSyncTransport
         return Task.FromResult(SyncPutResult.CreatedOrUpdated(etag));
     }
 
+    public virtual Task<SyncDeleteResult> DeleteAsync(
+        string relativePath,
+        string? expectedEtag,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var normalizedPath = NormalizePath(relativePath);
+        if (!_files.TryGetValue(normalizedPath, out var existing))
+            return Task.FromResult(SyncDeleteResult.DeletedOrMissing());
+
+        if (expectedEtag is not null && existing.ETag != expectedEtag)
+            return Task.FromResult(SyncDeleteResult.PreconditionFailed(existing.ETag));
+
+        _files.Remove(normalizedPath);
+        return Task.FromResult(SyncDeleteResult.DeletedOrMissing());
+    }
+
     public bool DirectoryExists(string relativeDirectory)
     {
         return _directories.Contains(NormalizeDirectory(relativeDirectory));

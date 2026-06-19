@@ -27,7 +27,7 @@ public sealed class SyncPullPlanner
         ArgumentNullException.ThrowIfNull(secretIconAssets);
         ArgumentNullException.ThrowIfNull(items);
 
-        var context = new PlanningContext();
+        var context = new PlanningContext(snapshot.QuarantinedRemoteObjects);
 
         var resetsToApply = PlanResetEvents(snapshot, secretResetEvents, context);
         var resetGenerationIds = snapshot.SecretResetEvents
@@ -90,7 +90,9 @@ public sealed class SyncPullPlanner
                 itemsToApply),
             context.Conflicts.ToArray(),
             context.MatchedDirtyObjects.ToArray(),
-            context.QuarantinedRemoteObjects.ToArray());
+            context.QuarantinedRemoteObjects.ToArray(),
+            context.KnownQuarantinedRemoteObjects.ToArray(),
+            context.ResolvedQuarantinedRemoteObjectIds.ToArray());
     }
 
     private static List<SyncAppliedRemoteObject<SyncSecretResetEventDto>> PlanResetEvents(
@@ -226,7 +228,7 @@ public sealed class SyncPullPlanner
             result.Value is null ||
             result.Identity is null)
         {
-            context.QuarantinedRemoteObjects.Add(ToQuarantineCandidate(
+            context.MarkQuarantined(ToQuarantineCandidate(
                 result,
                 ToReasonCode(result.Status),
                 contentHash: null));
@@ -236,13 +238,14 @@ public sealed class SyncPullPlanner
         if (result.Identity.Kind != expectedKind ||
             !string.Equals(result.Identity.Id, getId(result.Value), StringComparison.Ordinal))
         {
-            context.QuarantinedRemoteObjects.Add(ToQuarantineCandidate(
+            context.MarkQuarantined(ToQuarantineCandidate(
                 result,
                 IdentityMismatchReason,
                 getContentHash(result.Value)));
             return false;
         }
 
+        context.MarkResolved(result);
         value = result.Value;
         return true;
     }
@@ -275,10 +278,72 @@ public sealed class SyncPullPlanner
 
     private sealed class PlanningContext
     {
+        private readonly Dictionary<string, SyncQuarantinedRemoteObjectRecord> _quarantinedObjectsById;
+
+        public PlanningContext(IReadOnlyList<SyncQuarantinedRemoteObjectRecord> quarantinedObjects)
+        {
+            _quarantinedObjectsById = quarantinedObjects.ToDictionary(
+                quarantine => quarantine.Id,
+                StringComparer.Ordinal);
+        }
+
         public List<SyncPullConflict> Conflicts { get; } = [];
 
         public List<SyncPullMatchedDirtyObject> MatchedDirtyObjects { get; } = [];
 
         public List<SyncPullQuarantineCandidate> QuarantinedRemoteObjects { get; } = [];
+
+        public List<SyncPullQuarantineCandidate> KnownQuarantinedRemoteObjects { get; } = [];
+
+        public List<string> ResolvedQuarantinedRemoteObjectIds { get; } = [];
+
+        public void MarkQuarantined(SyncPullQuarantineCandidate candidate)
+        {
+            var id = SyncQuarantinedRemoteObjectId.FromRemotePath(candidate.RelativePath);
+            if (_quarantinedObjectsById.TryGetValue(id, out var existing) &&
+                IsSameRemoteRevision(existing, candidate))
+            {
+                KnownQuarantinedRemoteObjects.Add(candidate);
+                return;
+            }
+
+            QuarantinedRemoteObjects.Add(candidate);
+        }
+
+        public void MarkResolved<T>(SyncRemoteReadResult<T> result)
+        {
+            var pathId = SyncQuarantinedRemoteObjectId.FromRemotePath(result.RemoteInfo.RelativePath);
+            if (_quarantinedObjectsById.ContainsKey(pathId))
+                ResolvedQuarantinedRemoteObjectIds.Add(pathId);
+
+            if (result.Identity is null)
+                return;
+
+            var identityId = SyncQuarantinedRemoteObjectId.FromIdentity(result.Identity);
+            if (_quarantinedObjectsById.ContainsKey(identityId))
+                ResolvedQuarantinedRemoteObjectIds.Add(identityId);
+        }
+
+        private static bool IsSameRemoteRevision(
+            SyncQuarantinedRemoteObjectRecord existing,
+            SyncPullQuarantineCandidate candidate)
+        {
+            if (!string.Equals(existing.ReasonCode, candidate.ReasonCode, StringComparison.Ordinal))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(existing.ContentHash) ||
+                !string.IsNullOrWhiteSpace(candidate.ContentHash))
+            {
+                return string.Equals(existing.ContentHash, candidate.ContentHash, StringComparison.Ordinal);
+            }
+
+            if (!string.IsNullOrWhiteSpace(existing.RemoteEtag) ||
+                !string.IsNullOrWhiteSpace(candidate.RemoteEtag))
+            {
+                return string.Equals(existing.RemoteEtag, candidate.RemoteEtag, StringComparison.Ordinal);
+            }
+
+            return false;
+        }
     }
 }

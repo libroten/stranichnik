@@ -1139,8 +1139,27 @@ Do not store raw payload JSON in this table for v1. Keeping non-sensitive
 metadata is enough to avoid retrying the same broken object silently forever and
 to show a count in the UI.
 
-If a quarantined object later becomes valid remotely, remove the quarantine row
-and apply it normally.
+Quarantine rows are also used to distinguish a new or changed problem from an
+old unchanged problem:
+
+- if the same remote path fails again with the same reason and same ETag or
+  same content hash, treat it as a known unchanged problem;
+- known unchanged problems should update `last_seen_at_utc` / `seen_count`, but
+  should not make the sync run fail or block push of unrelated dirty local
+  objects;
+- if the same remote path fails again with a different ETag or content hash,
+  treat it as a fresh problem and surface it as a sync issue;
+- if a quarantined object later becomes valid remotely, remove the quarantine
+  row and apply it normally.
+
+The settings UI should expose quarantined remote problems separately from the
+generic sync status. For each problem, users can:
+
+- clear the local problem row only, leaving the WebDAV file untouched;
+- delete the problematic remote file from WebDAV after a strong warning about
+  possible data loss. Remote deletion should use the stored ETag as an
+  optimistic precondition when available. If the file changed since quarantine,
+  refuse deletion and ask the user to run sync again.
 
 ## Failure Mode Review
 

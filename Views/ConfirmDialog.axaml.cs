@@ -57,6 +57,15 @@ public sealed partial class ConfirmDialog : Window
         return dialog.ShowDialog<bool>(owner);
     }
 
+    public static Task<bool> ShowDeleteSyncRemoteProblem(Window owner)
+    {
+        var dialog = new ConfirmDialog(
+            UiStrings.ConfirmDeleteSyncRemoteProblemTitle,
+            UiStrings.ConfirmDeleteSyncRemoteProblemMessage);
+
+        return dialog.ShowDialog<bool>(owner);
+    }
+
     private void OnConfirmClick(object? sender, RoutedEventArgs e)
     {
         Close(true);

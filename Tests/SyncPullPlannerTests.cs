@@ -133,6 +133,99 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
+    public void Plan_treats_unchanged_quarantine_as_known_problem()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            QuarantinedRemoteObjects =
+            [
+                CreateQuarantine(
+                    "items/broken.json",
+                    "etag",
+                    "invalid-json")
+            ]
+        };
+        var remoteInfo = new SyncRemoteObjectInfo("items/broken.json", "etag", null, null);
+        var failedRead = SyncRemoteReadResult.Failed<SyncItemDto>(
+            SyncRemoteReadStatus.InvalidJson,
+            remoteInfo,
+            new SyncObjectIdentity(SyncObjectKind.Item, "broken"));
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [failedRead]);
+
+        Assert.Empty(plan.QuarantinedRemoteObjects);
+        var knownProblem = Assert.Single(plan.KnownQuarantinedRemoteObjects);
+        Assert.Equal("items/broken.json", knownProblem.RelativePath);
+        Assert.Empty(plan.ResolvedQuarantinedRemoteObjectIds);
+    }
+
+    [Fact]
+    public void Plan_treats_changed_quarantine_as_new_problem()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            QuarantinedRemoteObjects =
+            [
+                CreateQuarantine(
+                    "items/broken.json",
+                    "old-etag",
+                    "invalid-json")
+            ]
+        };
+        var remoteInfo = new SyncRemoteObjectInfo("items/broken.json", "new-etag", null, null);
+        var failedRead = SyncRemoteReadResult.Failed<SyncItemDto>(
+            SyncRemoteReadStatus.InvalidJson,
+            remoteInfo,
+            new SyncObjectIdentity(SyncObjectKind.Item, "broken"));
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [failedRead]);
+
+        Assert.Empty(plan.KnownQuarantinedRemoteObjects);
+        var quarantine = Assert.Single(plan.QuarantinedRemoteObjects);
+        Assert.Equal("items/broken.json", quarantine.RelativePath);
+    }
+
+    [Fact]
+    public void Plan_resolves_quarantine_when_remote_object_becomes_valid()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            QuarantinedRemoteObjects =
+            [
+                CreateQuarantine(
+                    "items/bookmark.json",
+                    "old-etag",
+                    "invalid-json")
+            ]
+        };
+        var remoteItem = CreateRemoteItem("bookmark", "sha256:remote");
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [Success(SyncObjectKind.Item, "bookmark", remoteItem)]);
+
+        Assert.Empty(plan.QuarantinedRemoteObjects);
+        Assert.Empty(plan.KnownQuarantinedRemoteObjects);
+        Assert.Contains("items/bookmark.json", plan.ResolvedQuarantinedRemoteObjectIds);
+    }
+
+    [Fact]
     public void Plan_quarantines_remote_object_when_path_identity_does_not_match_payload()
     {
         var remoteItem = CreateRemoteItem("payload-id", "sha256:remote");
@@ -285,7 +378,24 @@ public sealed class SyncPullPlannerTests
                 RemoteEtag: null,
                 LastSyncedAtUtc: null,
                 contentHash,
-                ModifiedDeviceId: "device"));
+            ModifiedDeviceId: "device"));
+    }
+
+    private static SyncQuarantinedRemoteObjectRecord CreateQuarantine(
+        string relativePath,
+        string remoteEtag,
+        string reasonCode)
+    {
+        return new SyncQuarantinedRemoteObjectRecord(
+            relativePath,
+            SyncObjectKind.Item.ToString(),
+            relativePath,
+            remoteEtag,
+            ContentHash: null,
+            ReasonCode: reasonCode,
+            FirstSeenAtUtc: Now,
+            LastSeenAtUtc: Now,
+            SeenCount: 1);
     }
 
     private static SyncRemoteReadResult<T> Success<T>(

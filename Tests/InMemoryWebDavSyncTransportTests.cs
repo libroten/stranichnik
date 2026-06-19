@@ -110,6 +110,55 @@ public sealed class InMemoryWebDavSyncTransportTests
     }
 
     [Fact]
+    public async Task DeleteAsync_removes_existing_file()
+    {
+        var transport = new InMemoryWebDavSyncTransport();
+        var put = await transport.PutAsync(
+            "items/item.json",
+            FirstBytes,
+            expectedEtag: null,
+            createOnly: false,
+            cancellationToken: CancellationToken.None);
+
+        var delete = await transport.DeleteAsync(
+            "items/item.json",
+            put.ETag,
+            CancellationToken.None);
+        var loaded = await transport.GetAsync("items/item.json", CancellationToken.None);
+
+        Assert.Equal(SyncDeleteStatus.DeletedOrMissing, delete.Status);
+        Assert.Null(loaded);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_expected_etag_fails_when_etag_changed()
+    {
+        var transport = new InMemoryWebDavSyncTransport();
+        var first = await transport.PutAsync(
+            "items/item.json",
+            FirstBytes,
+            expectedEtag: null,
+            createOnly: false,
+            cancellationToken: CancellationToken.None);
+        var second = await transport.PutAsync(
+            "items/item.json",
+            SecondBytes,
+            first.ETag,
+            createOnly: false,
+            cancellationToken: CancellationToken.None);
+
+        var delete = await transport.DeleteAsync(
+            "items/item.json",
+            first.ETag,
+            CancellationToken.None);
+        var loaded = await transport.GetAsync("items/item.json", CancellationToken.None);
+
+        Assert.Equal(SyncDeleteStatus.PreconditionFailed, delete.Status);
+        Assert.Equal(second.ETag, delete.ETag);
+        Assert.Equal(SecondBytes, loaded);
+    }
+
+    [Fact]
     public async Task ListAsync_returns_only_direct_children()
     {
         var transport = new InMemoryWebDavSyncTransport();

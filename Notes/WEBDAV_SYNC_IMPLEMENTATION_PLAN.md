@@ -475,6 +475,10 @@ Invalid remote object handling:
 - validate schema, format version, kind, required fields, content hash, secret
   plaintext rules, and parent graph before applying;
 - write/update a quarantine row with a reason code for invalid objects;
+- treat an unchanged already-quarantined remote object as a known problem rather
+  than a fresh sync failure;
+- clear the quarantine row automatically if the remote object later becomes
+  valid and can be applied;
 - never log payload JSON or sensitive identifiers.
 
 Tests:
@@ -494,6 +498,10 @@ Tests:
 - missing parent goes to recovery/conflict behavior;
 - parent cycle is quarantined/recovered and never applied as a cycle;
 - invalid JSON/schema/content hash creates quarantine row;
+- unchanged invalid remote object is kept as a known problem and does not fail
+  the run;
+- changed invalid remote object is reported as a fresh problem;
+- fixed remote object clears its old quarantine row;
 - local dirty vs remote changed marks conflict.
 
 ## Phase 8: Push Pipeline

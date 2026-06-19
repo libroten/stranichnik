@@ -113,7 +113,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(reasonCode);
 
         _syncMetadataStore.UpsertQuarantinedRemoteObject(new SyncQuarantinedRemoteObjectRecord(
-            Id: relativePath,
+            Id: SyncQuarantinedRemoteObjectId.FromRemotePath(relativePath),
             ObjectKind: objectKind,
             RelativePath: relativePath,
             RemoteEtag: remoteEtag,
@@ -122,6 +122,11 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             FirstSeenAtUtc: seenAtUtc,
             LastSeenAtUtc: seenAtUtc,
             SeenCount: 1));
+    }
+
+    public void ClearQuarantinedRemoteObject(string id)
+    {
+        _syncMetadataStore.DeleteQuarantinedRemoteObject(id);
     }
 
     private void MarkSyncMetadata(
@@ -574,7 +579,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         DateTimeOffset seenAtUtc)
     {
         _syncMetadataStore.UpsertQuarantinedRemoteObject(new SyncQuarantinedRemoteObjectRecord(
-            Id: $"{identity.Kind}:{identity.Id}",
+            Id: SyncQuarantinedRemoteObjectId.FromIdentity(identity),
             ObjectKind: identity.Kind.ToString(),
             RelativePath: remoteInfo.RelativePath,
             RemoteEtag: remoteInfo.ETag,

@@ -91,6 +91,44 @@ public sealed class SyncPullServiceTests
     }
 
     [Fact]
+    public async Task PullAsync_does_not_fail_for_known_unchanged_invalid_remote_object()
+    {
+        var localStore = new FakeSyncLocalStore(EmptySnapshot() with
+        {
+            QuarantinedRemoteObjects =
+            [
+                new SyncQuarantinedRemoteObjectRecord(
+                    "items/broken.json",
+                    SyncObjectKind.Item.ToString(),
+                    "items/broken.json",
+                    "\"memory-1\"",
+                    ContentHash: null,
+                    ReasonCode: "invalid-json",
+                    FirstSeenAtUtc: Now,
+                    LastSeenAtUtc: Now,
+                    SeenCount: 1)
+            ]
+        });
+        var transport = new InMemoryWebDavSyncTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        await transport.PutAsync(
+            "items/broken.json",
+            [1, 2, 3],
+            expectedEtag: null,
+            createOnly: true,
+            CancellationToken.None);
+        var service = CreateService(localStore, transport, serializer);
+
+        var summary = await service.PullAsync(CancellationToken.None);
+
+        Assert.True(summary.Succeeded);
+        Assert.Equal(1, summary.InvalidRemoteObjectCount);
+        var quarantine = Assert.Single(localStore.QuarantinedObjects);
+        Assert.Equal("items/broken.json", quarantine.RelativePath);
+        Assert.Empty(localStore.ClearedQuarantinedObjectIds);
+    }
+
+    [Fact]
     public async Task PullAsync_marks_dirty_changed_object_as_conflict()
     {
         var localStore = new FakeSyncLocalStore(EmptySnapshot() with
@@ -239,6 +277,8 @@ public sealed class SyncPullServiceTests
 
         public List<QuarantineMark> QuarantinedObjects { get; } = [];
 
+        public List<string> ClearedQuarantinedObjectIds { get; } = [];
+
         public SyncLocalSnapshot LoadSnapshot()
         {
             return _snapshot;
@@ -278,6 +318,11 @@ public sealed class SyncPullServiceTests
                 contentHash,
                 reasonCode,
                 seenAtUtc));
+        }
+
+        public void ClearQuarantinedRemoteObject(string id)
+        {
+            ClearedQuarantinedObjectIds.Add(id);
         }
     }
 

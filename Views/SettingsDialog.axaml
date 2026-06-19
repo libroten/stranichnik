@@ -206,7 +206,8 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Spacing="10">
+                    <StackPanel Spacing="10"
+                                Margin="0,42,0,0">
                         <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncSectionTitle}"
                                    FontSize="18"
                                    FontWeight="SemiBold"
@@ -274,6 +275,35 @@
                                     <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncNowAction}"
                                                TextWrapping="Wrap"/>
                                 </Button>
+                            </StackPanel>
+
+                            <StackPanel x:Name="SyncRemoteProblemsSection"
+                                        IsVisible="False"
+                                        Spacing="10">
+                                <Border Height="1"
+                                        Background="{DynamicResource DialogInputBorderBrush}"/>
+
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncRemoteProblemsTitle}"
+                                           FontSize="16"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+
+                                <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncRemoteProblemsDescription}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
+
+                                <Border MaxHeight="190"
+                                        Padding="4"
+                                        CornerRadius="6"
+                                        BorderBrush="{DynamicResource DialogInputBorderBrush}"
+                                        BorderThickness="1"
+                                        Background="{DynamicResource DialogInputBackgroundBrush}">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel x:Name="SyncRemoteProblemsList"
+                                                    Spacing="4"/>
+                                    </ScrollViewer>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>

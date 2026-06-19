@@ -149,10 +149,11 @@ Completed broad areas:
   - the app syncs logical JSON objects through WebDAV instead of uploading the SQLite database file;
   - the remote repository uses `manifest.json` plus category directories for items, regular icon assets, encrypted secret icon assets, crypto profiles, secret reset events, and device metadata;
   - sync supports pull, push, repository initialization, remote object validation, canonical content hashing, quarantine of invalid remote objects, pending icon references, deferred secret items, and reset-generation filtering;
+  - unchanged already-quarantined remote objects are treated as known problems rather than fresh sync failures, while changed invalid objects are surfaced again;
   - local SQLite rows carry sync metadata such as state, remote ETag, last synced timestamp, content hash, and modified device ID;
   - existing local objects are marked dirty during sync metadata migration so a first sync uploads the whole local dataset instead of only post-migration edits;
   - sync settings live in `settings.json`, but WebDAV passwords are kept behind `ISyncCredentialStore` and are not persisted by the current in-memory credential store;
-  - `Stranichnik -> Settings -> Sync` exposes enablement, WebDAV URL, username, password for the current session, connection test, sync now, and last successful sync status;
+  - `Stranichnik -> Settings -> Sync` exposes enablement, WebDAV URL, username, password for the current session, connection test, sync now, last successful sync status, and quarantined remote problem management;
   - after sync pulls a crypto profile into an initially empty local database, `MainWindowViewModel` refreshes the runtime secret-session configuration so `Cmd+P` can unlock the downloaded secret bookmarks without restarting the app;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 

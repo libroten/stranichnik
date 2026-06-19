@@ -310,6 +310,10 @@ public sealed class SyncApplicationServiceTests
             DateTimeOffset seenAtUtc)
         {
         }
+
+        public void ClearQuarantinedRemoteObject(string id)
+        {
+        }
     }
 
     private static readonly DateTimeOffset Now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);

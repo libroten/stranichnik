@@ -86,8 +86,25 @@ public sealed class SyncPullService
                 syncedAtUtc);
         }
 
+        foreach (var quarantineCandidate in plan.KnownQuarantinedRemoteObjects)
+        {
+            _localStore.MarkQuarantinedRemoteObject(
+                quarantineCandidate.ObjectKind,
+                quarantineCandidate.RelativePath,
+                quarantineCandidate.RemoteEtag,
+                quarantineCandidate.ContentHash,
+                quarantineCandidate.ReasonCode,
+                syncedAtUtc);
+        }
+
+        foreach (var resolvedQuarantineId in plan.ResolvedQuarantinedRemoteObjectIds.Distinct(StringComparer.Ordinal))
+            _localStore.ClearQuarantinedRemoteObject(resolvedQuarantineId);
+
         var finishedSnapshot = _localStore.LoadSnapshot();
         var finishedAtUtc = _clock();
+        var invalidRemoteObjectCount = Math.Max(
+            finishedSnapshot.QuarantinedRemoteObjects.Count,
+            plan.QuarantinedRemoteObjects.Count + plan.KnownQuarantinedRemoteObjects.Count);
         var summary = new SyncRunSummary(
             Succeeded: plan.Conflicts.Count == 0 && plan.QuarantinedRemoteObjects.Count == 0,
             DownloadedCount:
@@ -100,7 +117,7 @@ public sealed class SyncPullService
             ConflictCount: plan.Conflicts.Count,
             PendingAssetCount: finishedSnapshot.PendingAssetRefs.Count,
             PendingCryptoProfileCount: finishedSnapshot.DeferredSecretItems.Count,
-            InvalidRemoteObjectCount: plan.QuarantinedRemoteObjects.Count,
+            InvalidRemoteObjectCount: invalidRemoteObjectCount,
             ErrorCount: 0,
             BlockingReason: SyncBlockingReason.None,
             StartedAtUtc: startedAtUtc,
@@ -114,6 +131,9 @@ public sealed class SyncPullService
             $"PendingAssets={summary.PendingAssetCount}; " +
             $"PendingCryptoProfiles={summary.PendingCryptoProfileCount}; " +
             $"InvalidRemoteObjects={summary.InvalidRemoteObjectCount}; " +
+            $"FreshInvalidRemoteObjects={plan.QuarantinedRemoteObjects.Count}; " +
+            $"KnownInvalidRemoteObjects={plan.KnownQuarantinedRemoteObjects.Count}; " +
+            $"ResolvedInvalidRemoteObjects={plan.ResolvedQuarantinedRemoteObjectIds.Count}; " +
             $"Errors={summary.ErrorCount}.");
 
         return summary;

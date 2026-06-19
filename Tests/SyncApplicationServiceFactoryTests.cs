@@ -128,6 +128,10 @@ public sealed class SyncApplicationServiceFactoryTests
             DateTimeOffset seenAtUtc)
         {
         }
+
+        public void ClearQuarantinedRemoteObject(string id)
+        {
+        }
     }
 
     private sealed class RecordingHttpMessageHandler : HttpMessageHandler

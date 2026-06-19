@@ -192,6 +192,45 @@ public sealed class HttpWebDavSyncTransportTests
         Assert.Equal("\"current\"", result.ETag);
     }
 
+    [Fact]
+    public async Task DeleteAsync_expected_etag_sends_if_match()
+    {
+        CapturedHttpRequest? capturedRequest = null;
+        using var httpClient = CreateClient(request =>
+        {
+            capturedRequest = CaptureRequest(request);
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+        });
+        var transport = CreateTransport(httpClient);
+
+        var result = await transport.DeleteAsync(
+            "items/item.json",
+            expectedEtag: "\"old\"",
+            cancellationToken: CancellationToken.None);
+
+        Assert.NotNull(capturedRequest);
+        Assert.Equal(HttpMethod.Delete, capturedRequest.Method);
+        Assert.Equal("\"old\"", capturedRequest.GetHeader("If-Match").Single());
+        Assert.Equal(SyncDeleteStatus.DeletedOrMissing, result.Status);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.PreconditionFailed)]
+    [InlineData(HttpStatusCode.Conflict)]
+    public async Task DeleteAsync_returns_precondition_failed_for_conflict_statuses(HttpStatusCode statusCode)
+    {
+        using var httpClient = CreateClient(_ => CreatePutResponse(statusCode, "\"current\""));
+        var transport = CreateTransport(httpClient);
+
+        var result = await transport.DeleteAsync(
+            "items/item.json",
+            expectedEtag: "\"old\"",
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(SyncDeleteStatus.PreconditionFailed, result.Status);
+        Assert.Equal("\"current\"", result.ETag);
+    }
+
     private static HttpWebDavSyncTransport CreateTransport(HttpClient httpClient)
     {
         return new HttpWebDavSyncTransport(httpClient, new Uri("https://example.test/sync/"));

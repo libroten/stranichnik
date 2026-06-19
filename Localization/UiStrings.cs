@@ -52,6 +52,8 @@ public static class UiStrings
     public static string ConfirmResetSecretMasterPasswordFinalTitle => TextResources.Get("Confirm_ResetSecretMasterPasswordFinalTitle");
     public static string ConfirmResetSecretMasterPasswordMessage => TextResources.Get("Confirm_ResetSecretMasterPasswordMessage");
     public static string ConfirmResetSecretMasterPasswordTitle => TextResources.Get("Confirm_ResetSecretMasterPasswordTitle");
+    public static string ConfirmDeleteSyncRemoteProblemMessage => TextResources.Get("Confirm_DeleteSyncRemoteProblemMessage");
+    public static string ConfirmDeleteSyncRemoteProblemTitle => TextResources.Get("Confirm_DeleteSyncRemoteProblemTitle");
     public static string ConfirmTitle => TextResources.Get("Confirm_Title");
     public static string ErrorCannotLaunchBrowser => TextResources.Get("Error_CannotLaunchBrowser");
     public static string ErrorInvalidBookmarkUrl => TextResources.Get("Error_InvalidBookmarkUrl");
@@ -115,6 +117,19 @@ public static class UiStrings
     public static string SettingsSyncSaved => TextResources.Get("Settings_SyncSaved");
     public static string SettingsSyncSectionTitle => TextResources.Get("Settings_SyncSectionTitle");
     public static string SettingsSyncRemoteUnavailable => TextResources.Get("Settings_SyncRemoteUnavailable");
+    public static string SettingsSyncRemoteProblemClearAction => TextResources.Get("Settings_SyncRemoteProblemClearAction");
+    public static string SettingsSyncRemoteProblemClearFailed => TextResources.Get("Settings_SyncRemoteProblemClearFailed");
+    public static string SettingsSyncRemoteProblemCleared => TextResources.Get("Settings_SyncRemoteProblemCleared");
+    public static string SettingsSyncRemoteProblemDeleteAction => TextResources.Get("Settings_SyncRemoteProblemDeleteAction");
+    public static string SettingsSyncRemoteProblemDeleteChanged => TextResources.Get("Settings_SyncRemoteProblemDeleteChanged");
+    public static string SettingsSyncRemoteProblemDeleteFailed => TextResources.Get("Settings_SyncRemoteProblemDeleteFailed");
+    public static string SettingsSyncRemoteProblemDeleted => TextResources.Get("Settings_SyncRemoteProblemDeleted");
+    public static string SettingsSyncRemoteProblemDeleteUnavailable => TextResources.Get("Settings_SyncRemoteProblemDeleteUnavailable");
+    public static string SettingsSyncRemoteProblemFileLabel => TextResources.Get("Settings_SyncRemoteProblemFileLabel");
+    public static string SettingsSyncRemoteProblemClearShortAction => TextResources.Get("Settings_SyncRemoteProblemClearShortAction");
+    public static string SettingsSyncRemoteProblemDeleteShortAction => TextResources.Get("Settings_SyncRemoteProblemDeleteShortAction");
+    public static string SettingsSyncRemoteProblemsDescription => TextResources.Get("Settings_SyncRemoteProblemsDescription");
+    public static string SettingsSyncRemoteProblemsTitle => TextResources.Get("Settings_SyncRemoteProblemsTitle");
     public static string SettingsSyncTestConnectionAction => TextResources.Get("Settings_SyncTestConnectionAction");
     public static string SettingsSyncUnsupportedRepositoryVersion => TextResources.Get("Settings_SyncUnsupportedRepositoryVersion");
     public static string SettingsSyncUsernameLabel => TextResources.Get("Settings_SyncUsernameLabel");
@@ -151,5 +166,10 @@ public static class UiStrings
     public static string ConfirmDeleteFolderMessage(string title)
     {
         return TextResources.Format("Confirm_DeleteFolderMessage", title);
+    }
+
+    public static string SettingsSyncRemoteProblemDetails(string reasonCode, int seenCount)
+    {
+        return TextResources.Format("Settings_SyncRemoteProblemDetails", reasonCode, seenCount);
     }
 }

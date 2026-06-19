@@ -222,6 +222,9 @@ Current implementation shape:
   snapshots and applies remote changes in transactions.
 - `Storage/Sqlite/SqliteSyncMetadataStore.cs` owns pending asset refs,
   deferred secret items, and quarantined remote object metadata.
+- `Sync/RemoteProblems/SyncRemoteProblemService.cs` provides explicit user
+  actions for quarantined remote objects: clear the local problem row or delete
+  the problematic WebDAV file after confirmation.
 - `Sync/SyncApplicationService.cs` orchestrates one manual sync run:
   repository initialization, pull, and push. A completed pull can report
   conflicts or quarantined invalid remote objects and still be followed by
@@ -231,7 +234,7 @@ Current implementation shape:
 - `Sync/SyncApplicationServiceFactory.cs` validates sync settings and
   credentials before constructing a sync service.
 - `Views/SettingsDialog.axaml` exposes WebDAV sync settings, connection test,
-  and manual sync.
+  manual sync, and user-facing quarantined remote problem management.
 
 Important rules:
 
@@ -243,6 +246,9 @@ Important rules:
 - Remote object content hashes are recomputed and verified before apply.
 - Malformed remote JSON, invalid schema/format, invalid base64, and content-hash
   mismatches are quarantined instead of being applied.
+- An unchanged already-quarantined remote object is treated as a known problem,
+  not a fresh sync failure. It remains visible in settings until the remote file
+  is fixed, cleared locally, or explicitly deleted from WebDAV.
 - If a pulled item references an icon asset that is not available yet, keep a
   pending asset reference and show the default icon until a later sync resolves
   it.

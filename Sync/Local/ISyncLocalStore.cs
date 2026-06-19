@@ -24,4 +24,6 @@ public interface ISyncLocalStore
         string? contentHash,
         string reasonCode,
         DateTimeOffset seenAtUtc);
+
+    void ClearQuarantinedRemoteObject(string id);
 }
