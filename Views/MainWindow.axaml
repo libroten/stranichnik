@@ -1193,7 +1193,37 @@
                 </StackPanel>
             </Border>
         </Canvas>
+
         </Grid>
+
+        <Border x:Name="SyncProgressBarHost"
+                Grid.RowSpan="2"
+                Height="18"
+                VerticalAlignment="Bottom"
+                Background="{DynamicResource FolderRowBackgroundBrush}"
+                ClipToBounds="True"
+                IsHitTestVisible="False"
+                IsVisible="False">
+            <Grid ColumnDefinitions="Auto,*"
+                  ColumnSpacing="8">
+                <TextBlock Text="{x:Static localization:UiStrings.SyncActivityBarLabel}"
+                           Margin="6,0,0,0"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                <Grid x:Name="SyncProgressBarTrack"
+                      Grid.Column="1"
+                      ClipToBounds="True">
+                    <Border x:Name="SyncProgressBarFill"
+                            Height="3"
+                            Width="0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Background="{DynamicResource FocusBorderBrush}"/>
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
 
 </Window>

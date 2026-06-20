@@ -39,6 +39,44 @@ public sealed class SyncConnectionTestServiceTests
     }
 
     [Fact]
+    public async Task TestAsync_does_not_report_activity_for_configuration_errors()
+    {
+        var activityService = new SyncActivityService();
+        var states = new List<bool>();
+        activityService.ActivityChanged += (_, e) => states.Add(e.IsActive);
+        var service = new SyncConnectionTestService(log: _ => { }, syncActivityService: activityService);
+
+        var result = await service.TestAsync(
+            CreateSettings(isEnabled: true, webDavUrl: "", username: "user"),
+            CreateCredentialStore(hasCredentials: true),
+            CancellationToken.None);
+
+        Assert.Equal(SyncConnectionTestStatus.MissingWebDavUrl, result.Status);
+        Assert.Empty(states);
+    }
+
+    [Fact]
+    public async Task TestAsync_reports_activity_around_webdav_request()
+    {
+        using var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage((HttpStatusCode)207));
+        var activityService = new SyncActivityService();
+        var states = new List<bool>();
+        activityService.ActivityChanged += (_, e) => states.Add(e.IsActive);
+        var service = CreateService(handler, activityService);
+
+        var result = await service.TestAsync(
+            CreateSettings(isEnabled: true, webDavUrl: "https://example.invalid/sync/", username: "user"),
+            CreateCredentialStore(hasCredentials: true),
+            CancellationToken.None);
+
+        Assert.Equal(SyncConnectionTestStatus.Succeeded, result.Status);
+        Assert.Collection(
+            states,
+            state => Assert.True(state),
+            state => Assert.False(state));
+    }
+
+    [Fact]
     public async Task TestAsync_succeeds_and_sends_basic_auth_header()
     {
         using var handler = new RecordingHttpMessageHandler(_ => new HttpResponseMessage((HttpStatusCode)207));
@@ -85,9 +123,14 @@ public sealed class SyncConnectionTestServiceTests
         Assert.Equal(SyncConnectionTestStatus.RemoteUnavailable, result.Status);
     }
 
-    private static SyncConnectionTestService CreateService(RecordingHttpMessageHandler handler)
+    private static SyncConnectionTestService CreateService(
+        RecordingHttpMessageHandler handler,
+        ISyncActivityService? syncActivityService = null)
     {
-        return new SyncConnectionTestService(() => handler, log: _ => { });
+        return new SyncConnectionTestService(
+            () => handler,
+            log: _ => { },
+            syncActivityService: syncActivityService);
     }
 
     private static InMemorySyncCredentialStore CreateCredentialStore(bool hasCredentials)

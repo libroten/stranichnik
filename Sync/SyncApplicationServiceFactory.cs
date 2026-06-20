@@ -18,15 +18,18 @@ public sealed class SyncApplicationServiceFactory
     private readonly Func<HttpMessageHandler>? _httpMessageHandlerFactory;
     private readonly Func<DateTimeOffset>? _clock;
     private readonly Action<string>? _log;
+    private readonly ISyncActivityService? _syncActivityService;
 
     public SyncApplicationServiceFactory(
         Func<HttpMessageHandler>? httpMessageHandlerFactory = null,
         Func<DateTimeOffset>? clock = null,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        ISyncActivityService? syncActivityService = null)
     {
         _httpMessageHandlerFactory = httpMessageHandlerFactory;
         _clock = clock;
         _log = log;
+        _syncActivityService = syncActivityService;
     }
 
     public SyncApplicationServiceFactoryResult Create(
@@ -90,7 +93,8 @@ public sealed class SyncApplicationServiceFactory
             operationGate,
             ownedResource: httpClient,
             clock: _clock,
-            log: _log));
+            log: _log,
+            syncActivityService: _syncActivityService));
     }
 
     private HttpClient CreateHttpClient(string username, string password)

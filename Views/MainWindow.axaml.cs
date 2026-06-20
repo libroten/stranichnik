@@ -46,6 +46,8 @@ public partial class MainWindow : Window
     private static readonly TimeSpan FolderAutoExpandDelay = TimeSpan.FromMilliseconds(700);
     private static readonly TimeSpan DragAutoScrollInterval = TimeSpan.FromMilliseconds(16);
     private static readonly TimeSpan DragGhostAnimationDuration = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan SyncProgressAnimationInterval = TimeSpan.FromMilliseconds(16);
+    private static readonly TimeSpan SyncProgressAnimationHalfCycle = TimeSpan.FromMilliseconds(850);
     private static readonly TimeSpan SecretInactivityTimeout = TimeSpan.FromMinutes(1);
 
     private bool _isMiddleButtonPanning;
@@ -66,6 +68,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _folderAutoExpandTimer;
     private readonly DispatcherTimer _dragAutoScrollTimer;
     private readonly DispatcherTimer _dragGhostAnimationTimer;
+    private readonly DispatcherTimer _syncProgressAnimationTimer;
     private readonly SecretInactivityController _secretInactivityController;
     [SuppressMessage(
         "Performance",
@@ -82,30 +85,39 @@ public partial class MainWindow : Window
         "CA1859:Use concrete types when possible for improved performance",
         Justification = "The window intentionally depends on the operation gate abstraction so sync coordination remains replaceable.")]
     private readonly ISyncOperationGate _syncOperationGate;
+    [SuppressMessage(
+        "Performance",
+        "CA1859:Use concrete types when possible for improved performance",
+        Justification = "The window intentionally depends on the sync activity abstraction so UI activity reporting stays decoupled from sync implementation details.")]
+    private readonly ISyncActivityService _syncActivityService;
     private readonly ScaleTransform _dragGhostScaleTransform = new()
     {
         ScaleX = 1,
         ScaleY = 1
     };
     private DateTimeOffset _dragGhostAnimationStartedAt;
+    private DateTimeOffset _syncProgressAnimationStartedAt;
     private MainWindowViewModel? _observedViewModel;
 
     public MainWindow()
-        : this(new InMemorySyncCredentialStore(), syncLocalStore: null, new SyncOperationGate())
+        : this(new InMemorySyncCredentialStore(), syncLocalStore: null, new SyncOperationGate(), new SyncActivityService())
     {
     }
 
     public MainWindow(
         ISyncCredentialStore syncCredentialStore,
         ISyncLocalStore? syncLocalStore,
-        ISyncOperationGate syncOperationGate)
+        ISyncOperationGate syncOperationGate,
+        ISyncActivityService syncActivityService)
     {
         ArgumentNullException.ThrowIfNull(syncCredentialStore);
         ArgumentNullException.ThrowIfNull(syncOperationGate);
+        ArgumentNullException.ThrowIfNull(syncActivityService);
 
         _syncCredentialStore = syncCredentialStore;
         _syncLocalStore = syncLocalStore;
         _syncOperationGate = syncOperationGate;
+        _syncActivityService = syncActivityService;
 
         InitializeComponent();
 
@@ -129,6 +141,12 @@ public partial class MainWindow : Window
         DragGhost.RenderTransform = _dragGhostScaleTransform;
         DragGhost.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
 
+        _syncProgressAnimationTimer = new DispatcherTimer
+        {
+            Interval = SyncProgressAnimationInterval
+        };
+        _syncProgressAnimationTimer.Tick += OnSyncProgressAnimationTimerTick;
+
         var secretInactivityTimer = new DispatcherTimer
         {
             Interval = SecretInactivityTimeout
@@ -142,7 +160,10 @@ public partial class MainWindow : Window
         AddHandler(PointerWheelChangedEvent, OnWindowActivityPointerWheelChanged, RoutingStrategies.Tunnel, handledEventsToo: true);
 
         DataContextChanged += OnDataContextChanged;
+        Closed += OnClosed;
         BookmarksScrollViewer.SizeChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
+        _syncActivityService.ActivityChanged += OnSyncActivityChanged;
+        SetSyncProgressActive(_syncActivityService.IsActive);
         UpdateBookmarksHorizontalOverflow();
     }
 
@@ -254,7 +275,8 @@ public partial class MainWindow : Window
             LoadSyncRemoteProblemsForSettings,
             (_, problemId) => ClearSyncRemoteProblemFromSettingsAsync(problemId),
             (_, problemId) => DeleteSyncRemoteProblemFromSettingsAsync(problemId),
-            _syncCredentialStore);
+            _syncCredentialStore,
+            _syncActivityService);
     }
 
     private async void OnToggleSecretsMenuClick(object? sender, RoutedEventArgs e)
@@ -309,10 +331,10 @@ public partial class MainWindow : Window
         return Task.FromResult(SettingsDialogResult.Failed(message));
     }
 
-    private static async Task<SettingsDialogResult> TestSyncConnectionFromSettingsAsync(
+    private async Task<SettingsDialogResult> TestSyncConnectionFromSettingsAsync(
         ISyncCredentialStore syncCredentialStore)
     {
-        var service = new SyncConnectionTestService();
+        var service = new SyncConnectionTestService(syncActivityService: _syncActivityService);
         var result = await service.TestAsync(
             AppSettingsService.Load(),
             syncCredentialStore,
@@ -338,7 +360,7 @@ public partial class MainWindow : Window
             return SettingsDialogResult.Failed(UiStrings.SettingsSyncNowUnavailable);
 
         var settings = AppSettingsService.Load();
-        var factoryResult = new SyncApplicationServiceFactory().Create(
+        var factoryResult = new SyncApplicationServiceFactory(syncActivityService: _syncActivityService).Create(
             settings,
             _syncCredentialStore,
             _syncLocalStore,
@@ -425,7 +447,8 @@ public partial class MainWindow : Window
         var service = SyncRemoteProblemService.TryCreate(
             AppSettingsService.Load(),
             _syncCredentialStore,
-            _syncLocalStore);
+            _syncLocalStore,
+            _syncActivityService);
         if (service is null)
             return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteProblemDeleteUnavailable);
 
@@ -735,6 +758,62 @@ public partial class MainWindow : Window
         UpdateBookmarksHorizontalOverflow();
         UpdateSecretInactivityTimer();
         UpdateSecretVisibilityMenuState();
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        _syncActivityService.ActivityChanged -= OnSyncActivityChanged;
+        _syncProgressAnimationTimer.Stop();
+    }
+
+    private void OnSyncActivityChanged(object? sender, SyncActivityChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() => SetSyncProgressActive(e.IsActive));
+    }
+
+    private void SetSyncProgressActive(bool isActive)
+    {
+        if (!isActive)
+        {
+            _syncProgressAnimationTimer.Stop();
+            SyncProgressBarHost.IsVisible = false;
+            SyncProgressBarFill.Width = 0;
+            SyncProgressBarFill.Margin = new Avalonia.Thickness(0);
+            return;
+        }
+
+        _syncProgressAnimationStartedAt = DateTimeOffset.UtcNow;
+        SyncProgressBarHost.IsVisible = true;
+        _syncProgressAnimationTimer.Start();
+        UpdateSyncProgressBar();
+    }
+
+    private void OnSyncProgressAnimationTimerTick(object? sender, EventArgs e)
+    {
+        UpdateSyncProgressBar();
+    }
+
+    private void UpdateSyncProgressBar()
+    {
+        var availableWidth = SyncProgressBarTrack.Bounds.Width;
+        if (availableWidth <= 0)
+            return;
+
+        var halfCycleMilliseconds = SyncProgressAnimationHalfCycle.TotalMilliseconds;
+        var elapsedMilliseconds = (DateTimeOffset.UtcNow - _syncProgressAnimationStartedAt).TotalMilliseconds;
+        var cyclePosition = elapsedMilliseconds % (halfCycleMilliseconds * 2);
+
+        if (cyclePosition <= halfCycleMilliseconds)
+        {
+            var progress = cyclePosition / halfCycleMilliseconds;
+            SyncProgressBarFill.Margin = new Avalonia.Thickness(0);
+            SyncProgressBarFill.Width = Math.Max(1, availableWidth * progress);
+            return;
+        }
+
+        var shrinkProgress = (cyclePosition - halfCycleMilliseconds) / halfCycleMilliseconds;
+        SyncProgressBarFill.Margin = new Avalonia.Thickness(availableWidth * shrinkProgress, 0, 0, 0);
+        SyncProgressBarFill.Width = Math.Max(1, availableWidth * (1 - shrinkProgress));
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

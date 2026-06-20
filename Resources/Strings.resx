@@ -348,6 +348,9 @@
   <data name="Settings_SyncPasswordRequired" xml:space="preserve">
     <value>Enter the WebDAV password for this session.</value>
   </data>
+  <data name="Settings_SyncInProgress" xml:space="preserve">
+    <value>Sync in progress</value>
+  </data>
   <data name="Settings_SyncRemoteUnavailable" xml:space="preserve">
     <value>Could not reach the WebDAV server. Check the address and network connection.</value>
   </data>
@@ -401,6 +404,9 @@
   </data>
   <data name="Settings_SyncSectionTitle" xml:space="preserve">
     <value>Synchronization</value>
+  </data>
+  <data name="Sync_ActivityBarLabel" xml:space="preserve">
+    <value>Sync:</value>
   </data>
   <data name="Settings_SyncTestConnectionAction" xml:space="preserve">
     <value>Test connection</value>

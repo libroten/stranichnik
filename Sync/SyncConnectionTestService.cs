@@ -17,13 +17,16 @@ public sealed class SyncConnectionTestService
 
     private readonly Func<HttpMessageHandler>? _httpMessageHandlerFactory;
     private readonly Action<string> _log;
+    private readonly ISyncActivityService? _syncActivityService;
 
     public SyncConnectionTestService(
         Func<HttpMessageHandler>? httpMessageHandlerFactory = null,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        ISyncActivityService? syncActivityService = null)
     {
         _httpMessageHandlerFactory = httpMessageHandlerFactory;
         _log = log ?? Logs.Print;
+        _syncActivityService = syncActivityService;
     }
 
     public async Task<SyncConnectionTestResult> TestAsync(
@@ -40,6 +43,7 @@ public sealed class SyncConnectionTestService
 
         try
         {
+            using var syncActivity = _syncActivityService?.BeginOperation();
             _log("Sync connection test started.");
             using var httpClient = CreateHttpClient(settings.Sync.Username, credentials!.Password);
             using var request = new HttpRequestMessage(PropFindMethod, repositoryUri);

@@ -15,6 +15,7 @@ public sealed class SyncApplicationService : IDisposable
     private readonly ISyncOperationGate _operationGate;
     private readonly Func<DateTimeOffset> _clock;
     private readonly Action<string> _log;
+    private readonly ISyncActivityService? _syncActivityService;
     private readonly IDisposable? _ownedResource;
     private readonly object _syncRunGate = new();
     private bool _isSyncRunning;
@@ -26,7 +27,8 @@ public sealed class SyncApplicationService : IDisposable
         ISyncOperationGate operationGate,
         IDisposable? ownedResource = null,
         Func<DateTimeOffset>? clock = null,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        ISyncActivityService? syncActivityService = null)
     {
         ArgumentNullException.ThrowIfNull(repositoryInitializer);
         ArgumentNullException.ThrowIfNull(pullService);
@@ -40,6 +42,7 @@ public sealed class SyncApplicationService : IDisposable
         _ownedResource = ownedResource;
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
         _log = log ?? Logs.Print;
+        _syncActivityService = syncActivityService;
     }
 
     public async Task<SyncRunSummary> SyncNowAsync(CancellationToken cancellationToken)
@@ -59,6 +62,7 @@ public sealed class SyncApplicationService : IDisposable
 
         try
         {
+            using var syncActivity = _syncActivityService?.BeginOperation();
             _log("Sync run started.");
             var initializationResult = await _repositoryInitializer
                 .EnsureInitializedAsync(cancellationToken)

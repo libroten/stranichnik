@@ -18,12 +18,14 @@ public sealed class SyncRemoteProblemService : IDisposable
     private readonly IWebDavSyncTransport _transport;
     private readonly IDisposable? _ownedResource;
     private readonly Action<string> _log;
+    private readonly ISyncActivityService? _syncActivityService;
 
     public SyncRemoteProblemService(
         ISyncLocalStore localStore,
         IWebDavSyncTransport transport,
         IDisposable? ownedResource = null,
-        Action<string>? log = null)
+        Action<string>? log = null,
+        ISyncActivityService? syncActivityService = null)
     {
         ArgumentNullException.ThrowIfNull(localStore);
         ArgumentNullException.ThrowIfNull(transport);
@@ -32,6 +34,7 @@ public sealed class SyncRemoteProblemService : IDisposable
         _transport = transport;
         _ownedResource = ownedResource;
         _log = log ?? Logs.Print;
+        _syncActivityService = syncActivityService;
     }
 
     public async Task<SyncRemoteProblemDeleteResult> DeleteRemoteProblemAsync(
@@ -41,6 +44,7 @@ public sealed class SyncRemoteProblemService : IDisposable
         ArgumentNullException.ThrowIfNull(problem);
 
         _log("Sync remote problem delete started.");
+        using var syncActivity = _syncActivityService?.BeginOperation();
         var result = await _transport
             .DeleteAsync(problem.RelativePath, problem.RemoteEtag, cancellationToken)
             .ConfigureAwait(false);
@@ -64,7 +68,8 @@ public sealed class SyncRemoteProblemService : IDisposable
     public static SyncRemoteProblemService? TryCreate(
         AppSettings settings,
         ISyncCredentialStore credentialStore,
-        ISyncLocalStore? localStore)
+        ISyncLocalStore? localStore,
+        ISyncActivityService? syncActivityService = null)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(credentialStore);
@@ -87,7 +92,8 @@ public sealed class SyncRemoteProblemService : IDisposable
         return new SyncRemoteProblemService(
             localStore,
             new HttpWebDavSyncTransport(httpClient, repositoryUri),
-            ownedResource: httpClient);
+            ownedResource: httpClient,
+            syncActivityService: syncActivityService);
     }
 
     private static HttpClient CreateHttpClient(string username, string password)

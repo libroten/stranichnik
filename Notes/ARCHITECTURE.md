@@ -95,8 +95,8 @@ Dialogs:
 
 Inline dialog status messages:
 
-- `Views/StatusBanner.axaml` is the shared component for inline validation errors, operation errors, and success messages inside dialogs.
-- Use `StatusBanner.ShowError(...)`, `StatusBanner.ShowSuccess(...)`, and `StatusBanner.Hide()` from dialog code-behind.
+- `Views/StatusBanner.axaml` is the shared component for inline validation errors, operation errors, success messages, and neutral in-progress messages inside dialogs.
+- Use `StatusBanner.ShowError(...)`, `StatusBanner.ShowSuccess(...)`, `StatusBanner.ShowInfo(...)`, and `StatusBanner.Hide()` from dialog code-behind.
 - Prefer `StatusBanner` over raw `TextBlock` error/status labels in form dialogs.
 - The banner wraps long localized text, uses project theme brushes, and keeps message styling consistent.
 - Keep `MessageDialog` for separate modal messages that are not part of an existing form.
@@ -225,6 +225,9 @@ Current implementation shape:
 - `Sync/RemoteProblems/SyncRemoteProblemService.cs` provides explicit user
   actions for quarantined remote objects: clear the local problem row or delete
   the problematic WebDAV file after confirmation.
+- `Sync/SyncActivityService.cs` reports whether a WebDAV-backed sync operation
+  is currently active. `MainWindow` uses it for the bottom sync activity bar,
+  and `SettingsDialog` uses it for the animated in-progress status banner.
 - `Sync/SyncApplicationService.cs` orchestrates one manual sync run:
   repository initialization, pull, and push. A completed pull can report
   conflicts or quarantined invalid remote objects and still be followed by

@@ -26,5 +26,17 @@
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
         </Border>
+
+        <Border x:Name="InfoBorder"
+                IsVisible="False"
+                Padding="10,8"
+                CornerRadius="6"
+                Background="{DynamicResource ActionOpenHoverBackgroundBrush}"
+                BorderBrush="{DynamicResource FocusBorderBrush}"
+                BorderThickness="1">
+            <TextBlock x:Name="InfoTextBlock"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+        </Border>
     </Grid>
 </UserControl>

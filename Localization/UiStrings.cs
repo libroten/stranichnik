@@ -113,9 +113,11 @@ public static class UiStrings
     public static string SettingsSyncNowUnavailable => TextResources.Get("Settings_SyncNowUnavailable");
     public static string SettingsSyncPasswordLabel => TextResources.Get("Settings_SyncPasswordLabel");
     public static string SettingsSyncPasswordRequired => TextResources.Get("Settings_SyncPasswordRequired");
+    public static string SettingsSyncInProgress => TextResources.Get("Settings_SyncInProgress");
     public static string SettingsSyncSaveAction => TextResources.Get("Settings_SyncSaveAction");
     public static string SettingsSyncSaved => TextResources.Get("Settings_SyncSaved");
     public static string SettingsSyncSectionTitle => TextResources.Get("Settings_SyncSectionTitle");
+    public static string SyncActivityBarLabel => TextResources.Get("Sync_ActivityBarLabel");
     public static string SettingsSyncRemoteUnavailable => TextResources.Get("Settings_SyncRemoteUnavailable");
     public static string SettingsSyncRemoteProblemClearAction => TextResources.Get("Settings_SyncRemoteProblemClearAction");
     public static string SettingsSyncRemoteProblemClearFailed => TextResources.Get("Settings_SyncRemoteProblemClearFailed");

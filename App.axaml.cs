@@ -51,6 +51,7 @@ public partial class App : Application
                 syncMetadataStore,
                 new SystemTextSyncJsonSerializer());
             var syncOperationGate = new SyncOperationGate();
+            var syncActivityService = new SyncActivityService();
             var secretCryptoService = new SecretCryptoService();
             var secretSession = new SecretSessionService();
             var syncCredentialStore = new InMemorySyncCredentialStore();
@@ -60,7 +61,7 @@ public partial class App : Application
             else
                 secretSession.MarkConfiguredLocked();
 
-            desktop.MainWindow = new MainWindow(syncCredentialStore, syncLocalStore, syncOperationGate)
+            desktop.MainWindow = new MainWindow(syncCredentialStore, syncLocalStore, syncOperationGate, syncActivityService)
             {
                 DataContext = new MainWindowViewModel(
                     treeStore,

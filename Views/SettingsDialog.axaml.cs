@@ -11,12 +11,15 @@ using Avalonia.Threading;
 using Stranichnik.Diagnostics;
 using Stranichnik.Localization;
 using Stranichnik.Settings;
+using Stranichnik.Sync;
 using Stranichnik.Sync.Credentials;
 
 namespace Stranichnik.Views;
 
 public sealed partial class SettingsDialog : Window
 {
+    private static readonly TimeSpan SyncActivityStatusAnimationInterval = TimeSpan.FromMilliseconds(450);
+
     private readonly Func<Window, string, Task<SettingsDialogResult>> _saveSecretPassword;
     private readonly Func<Window, Task<SettingsDialogResult>> _resetSecretMasterPassword;
     private readonly Func<Window, Task<SettingsDialogResult>> _testSyncConnection;
@@ -25,7 +28,10 @@ public sealed partial class SettingsDialog : Window
     private readonly Func<Window, string, Task<SettingsDialogResult>> _clearSyncRemoteProblem;
     private readonly Func<Window, string, Task<SettingsDialogResult>> _deleteSyncRemoteProblem;
     private readonly ISyncCredentialStore _syncCredentialStore;
+    private readonly ISyncActivityService _syncActivityService;
+    private readonly DispatcherTimer _syncActivityStatusTimer;
     private bool _isSyncActionRunning;
+    private int _syncActivityStatusDotCount;
 
     public SettingsDialog()
         : this(
@@ -36,7 +42,8 @@ public sealed partial class SettingsDialog : Window
             () => [],
             (_, _) => Task.FromResult(SettingsDialogResult.Failed(string.Empty)),
             (_, _) => Task.FromResult(SettingsDialogResult.Failed(string.Empty)),
-            new InMemorySyncCredentialStore())
+            new InMemorySyncCredentialStore(),
+            new SyncActivityService())
     {
     }
 
@@ -48,7 +55,8 @@ public sealed partial class SettingsDialog : Window
         Func<IReadOnlyList<SettingsSyncRemoteProblemViewModel>> loadSyncRemoteProblems,
         Func<Window, string, Task<SettingsDialogResult>> clearSyncRemoteProblem,
         Func<Window, string, Task<SettingsDialogResult>> deleteSyncRemoteProblem,
-        ISyncCredentialStore syncCredentialStore)
+        ISyncCredentialStore syncCredentialStore,
+        ISyncActivityService syncActivityService)
     {
         ArgumentNullException.ThrowIfNull(saveSecretPassword);
         ArgumentNullException.ThrowIfNull(resetSecretMasterPassword);
@@ -58,6 +66,7 @@ public sealed partial class SettingsDialog : Window
         ArgumentNullException.ThrowIfNull(clearSyncRemoteProblem);
         ArgumentNullException.ThrowIfNull(deleteSyncRemoteProblem);
         ArgumentNullException.ThrowIfNull(syncCredentialStore);
+        ArgumentNullException.ThrowIfNull(syncActivityService);
 
         InitializeComponent();
         _saveSecretPassword = saveSecretPassword;
@@ -68,9 +77,18 @@ public sealed partial class SettingsDialog : Window
         _clearSyncRemoteProblem = clearSyncRemoteProblem;
         _deleteSyncRemoteProblem = deleteSyncRemoteProblem;
         _syncCredentialStore = syncCredentialStore;
+        _syncActivityService = syncActivityService;
+        _syncActivityStatusTimer = new DispatcherTimer
+        {
+            Interval = SyncActivityStatusAnimationInterval
+        };
+        _syncActivityStatusTimer.Tick += OnSyncActivityStatusTimerTick;
         Opened += OnOpened;
+        Closed += OnClosed;
+        _syncActivityService.ActivityChanged += OnSyncActivityChanged;
         LoadSyncSettings();
         RefreshSyncRemoteProblems();
+        SetSyncActivityStatus(_syncActivityService.IsActive);
     }
 
     public static void Open(
@@ -82,7 +100,8 @@ public sealed partial class SettingsDialog : Window
         Func<IReadOnlyList<SettingsSyncRemoteProblemViewModel>> loadSyncRemoteProblems,
         Func<Window, string, Task<SettingsDialogResult>> clearSyncRemoteProblem,
         Func<Window, string, Task<SettingsDialogResult>> deleteSyncRemoteProblem,
-        ISyncCredentialStore syncCredentialStore)
+        ISyncCredentialStore syncCredentialStore,
+        ISyncActivityService syncActivityService)
     {
         var dialog = new SettingsDialog(
             saveSecretPassword,
@@ -92,7 +111,8 @@ public sealed partial class SettingsDialog : Window
             loadSyncRemoteProblems,
             clearSyncRemoteProblem,
             deleteSyncRemoteProblem,
-            syncCredentialStore);
+            syncCredentialStore,
+            syncActivityService);
         dialog.Show(owner);
     }
 
@@ -104,6 +124,45 @@ public sealed partial class SettingsDialog : Window
     private void OnOpened(object? sender, EventArgs e)
     {
         Dispatcher.UIThread.Post(() => NewMasterPasswordTextBox.Focus());
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        _syncActivityService.ActivityChanged -= OnSyncActivityChanged;
+        _syncActivityStatusTimer.Stop();
+    }
+
+    private void OnSyncActivityChanged(object? sender, SyncActivityChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() => SetSyncActivityStatus(e.IsActive));
+    }
+
+    private void SetSyncActivityStatus(bool isActive)
+    {
+        if (!isActive)
+        {
+            _syncActivityStatusTimer.Stop();
+            if (SyncStatusBanner.IsShowingInfo())
+                SyncStatusBanner.Hide();
+
+            return;
+        }
+
+        _syncActivityStatusDotCount = 1;
+        ShowSyncActivityStatus();
+        _syncActivityStatusTimer.Start();
+    }
+
+    private void OnSyncActivityStatusTimerTick(object? sender, EventArgs e)
+    {
+        _syncActivityStatusDotCount = (_syncActivityStatusDotCount + 1) % 4;
+        ShowSyncActivityStatus();
+    }
+
+    private void ShowSyncActivityStatus()
+    {
+        SyncStatusBanner.ShowInfo(
+            UiStrings.SettingsSyncInProgress + new string('.', _syncActivityStatusDotCount));
     }
 
     private async void OnSaveSecretPasswordClick(object? sender, RoutedEventArgs e)
@@ -133,6 +192,7 @@ public sealed partial class SettingsDialog : Window
 
     private void OnSaveSyncSettingsClick(object? sender, RoutedEventArgs e)
     {
+        ClearSyncStatus();
         SaveSyncSettings();
         SyncStatusBanner.ShowSuccess(UiStrings.SettingsSyncSaved);
     }
@@ -142,6 +202,7 @@ public sealed partial class SettingsDialog : Window
         if (_isSyncActionRunning)
             return;
 
+        ClearSyncStatus();
         SaveSyncSettings();
 
         try
@@ -172,6 +233,7 @@ public sealed partial class SettingsDialog : Window
         if (_isSyncActionRunning)
             return;
 
+        ClearSyncStatus();
         SaveSyncSettings();
 
         try
@@ -204,6 +266,8 @@ public sealed partial class SettingsDialog : Window
         if (sender is not Button { Tag: string problemId } || _isSyncActionRunning)
             return;
 
+        ClearSyncStatus();
+
         try
         {
             _isSyncActionRunning = true;
@@ -228,6 +292,7 @@ public sealed partial class SettingsDialog : Window
         if (!await ConfirmDialog.ShowDeleteSyncRemoteProblem(this))
             return;
 
+        ClearSyncStatus();
         SaveSyncSettings();
 
         try
@@ -300,6 +365,11 @@ public sealed partial class SettingsDialog : Window
         SyncWebDavUrlTextBox.Text = settings.Sync.WebDavUrl;
         SyncUsernameTextBox.Text = settings.Sync.Username;
         SyncPasswordTextBox.Clear();
+    }
+
+    private void ClearSyncStatus()
+    {
+        SyncStatusBanner.Hide();
     }
 
     private void RefreshSyncRemoteProblems()
