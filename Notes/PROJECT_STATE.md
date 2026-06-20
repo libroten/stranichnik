@@ -157,6 +157,7 @@ Completed broad areas:
   - if the OS credential store is unavailable, the user must explicitly confirm an obfuscated local fallback file, and the settings window shows a persistent red warning banner while that fallback is active;
   - `--simulate-unavailable-system-credential-store` forces the OS credential backend to be unavailable for manual fallback testing;
   - `Stranichnik -> Settings -> Sync` exposes WebDAV URL, username, password, connection test, sync now, sync-settings reset, last successful sync status, and quarantined remote problem management;
+  - `Cmd+S` on macOS and `Ctrl+S` on Windows/Linux starts manual sync from the main window; repeated presses while sync is active are ignored, and the last manual sync result is shown in the settings sync status area when settings are opened later;
   - after sync pulls a crypto profile into an initially empty local database, `MainWindowViewModel` refreshes the runtime secret-session configuration so `Cmd+P` can unlock the downloaded secret bookmarks without restarting the app;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 
@@ -201,6 +202,8 @@ Current dialogs:
   Full sync runs also report final success/failure. The main window shows a bottom
   activity bar while sync is active, briefly holds a full green/red completion bar after
   sync finishes, and the settings window shows an animated in-progress status message.
+  Manual sync can be started from the main window with `Cmd+S` on macOS or
+  `Ctrl+S` on Windows/Linux. Repeated shortcut presses are ignored while sync is active.
 
 ## Current UI Behavior
 

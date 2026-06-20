@@ -108,10 +108,13 @@ public static class UiStrings
     public static string SettingsSyncNowAction => TextResources.Get("Settings_SyncNowAction");
     public static string SettingsSyncNowCompletedWithIssues => TextResources.Get("Settings_SyncNowCompletedWithIssues");
     public static string SettingsSyncNowFailed => TextResources.Get("Settings_SyncNowFailed");
+    public static string SettingsSyncShortcutNotConfiguredMessage => TextResources.Get("Settings_SyncShortcutNotConfiguredMessage");
+    public static string SettingsSyncShortcutNotConfiguredTitle => TextResources.Get("Settings_SyncShortcutNotConfiguredTitle");
     public static string SettingsSyncNowSucceeded => TextResources.Get("Settings_SyncNowSucceeded");
     public static string SettingsSyncNowUnavailable => TextResources.Get("Settings_SyncNowUnavailable");
     public static string SettingsSyncPasswordLabel => TextResources.Get("Settings_SyncPasswordLabel");
     public static string SettingsSyncPasswordRequired => TextResources.Get("Settings_SyncPasswordRequired");
+    public static string SettingsSyncRequiredFieldsMissing => TextResources.Get("Settings_SyncRequiredFieldsMissing");
     public static string SettingsSyncInsecureCredentialWarning => TextResources.Get("Settings_SyncInsecureCredentialWarning");
     public static string SettingsSyncCredentialSystemStoreUnavailableTitle => TextResources.Get("Settings_SyncCredentialSystemStoreUnavailableTitle");
     public static string SettingsSyncCredentialSystemStoreUnavailableMessage => TextResources.Get("Settings_SyncCredentialSystemStoreUnavailableMessage");

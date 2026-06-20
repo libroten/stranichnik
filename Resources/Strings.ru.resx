@@ -333,6 +333,12 @@
   <data name="Settings_SyncNowFailed" xml:space="preserve">
     <value>Не удалось выполнить синхронизацию.</value>
   </data>
+  <data name="Settings_SyncShortcutNotConfiguredMessage" xml:space="preserve">
+    <value>Откройте настройки и укажите URL WebDAV, имя пользователя и пароль перед синхронизацией.</value>
+  </data>
+  <data name="Settings_SyncShortcutNotConfiguredTitle" xml:space="preserve">
+    <value>Синхронизация не настроена</value>
+  </data>
   <data name="Settings_SyncNowSucceeded" xml:space="preserve">
     <value>Синхронизация завершена.</value>
   </data>
@@ -344,6 +350,9 @@
   </data>
   <data name="Settings_SyncPasswordRequired" xml:space="preserve">
     <value>Введите пароль WebDAV.</value>
+  </data>
+  <data name="Settings_SyncRequiredFieldsMissing" xml:space="preserve">
+    <value>URL WebDAV, имя пользователя и пароль не должны быть пустыми.</value>
   </data>
   <data name="Settings_SyncInsecureCredentialWarning" xml:space="preserve">
     <value>Пароль WebDAV сохранен в незащищенном виде и может быть раскрыт при доступе к этому компьютеру.</value>

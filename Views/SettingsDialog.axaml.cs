@@ -29,6 +29,7 @@ public sealed partial class SettingsDialog : Window
     private readonly Func<Window, string, Task<SettingsDialogResult>> _deleteSyncRemoteProblem;
     private readonly ISyncCredentialStore _syncCredentialStore;
     private readonly ISyncActivityService _syncActivityService;
+    private readonly SettingsDialogResult? _initialSyncResult;
     private readonly DispatcherTimer _syncActivityStatusTimer;
     private bool _isSyncActionRunning;
     private int _syncActivityStatusDotCount;
@@ -44,7 +45,8 @@ public sealed partial class SettingsDialog : Window
             (_, _) => Task.FromResult(SettingsDialogResult.Failed(string.Empty)),
             (_, _) => Task.FromResult(SettingsDialogResult.Failed(string.Empty)),
             new InMemorySyncCredentialStore(),
-            new SyncActivityService())
+            new SyncActivityService(),
+            initialSyncResult: null)
     {
     }
 
@@ -57,7 +59,8 @@ public sealed partial class SettingsDialog : Window
         Func<Window, string, Task<SettingsDialogResult>> clearSyncRemoteProblem,
         Func<Window, string, Task<SettingsDialogResult>> deleteSyncRemoteProblem,
         ISyncCredentialStore syncCredentialStore,
-        ISyncActivityService syncActivityService)
+        ISyncActivityService syncActivityService,
+        SettingsDialogResult? initialSyncResult = null)
     {
         ArgumentNullException.ThrowIfNull(saveSecretPassword);
         ArgumentNullException.ThrowIfNull(resetSecretMasterPassword);
@@ -79,6 +82,7 @@ public sealed partial class SettingsDialog : Window
         _deleteSyncRemoteProblem = deleteSyncRemoteProblem;
         _syncCredentialStore = syncCredentialStore;
         _syncActivityService = syncActivityService;
+        _initialSyncResult = initialSyncResult;
         _syncActivityStatusTimer = new DispatcherTimer
         {
             Interval = SyncActivityStatusAnimationInterval
@@ -90,6 +94,7 @@ public sealed partial class SettingsDialog : Window
         LoadSyncSettings();
         RefreshSyncRemoteProblems();
         SetSyncActivityStatus(_syncActivityService.IsActive);
+        ShowInitialSyncResult();
     }
 
     public static void Open(
@@ -102,7 +107,8 @@ public sealed partial class SettingsDialog : Window
         Func<Window, string, Task<SettingsDialogResult>> clearSyncRemoteProblem,
         Func<Window, string, Task<SettingsDialogResult>> deleteSyncRemoteProblem,
         ISyncCredentialStore syncCredentialStore,
-        ISyncActivityService syncActivityService)
+        ISyncActivityService syncActivityService,
+        SettingsDialogResult? initialSyncResult = null)
     {
         var dialog = new SettingsDialog(
             saveSecretPassword,
@@ -113,7 +119,8 @@ public sealed partial class SettingsDialog : Window
             clearSyncRemoteProblem,
             deleteSyncRemoteProblem,
             syncCredentialStore,
-            syncActivityService);
+            syncActivityService,
+            initialSyncResult);
         dialog.Show(owner);
     }
 
@@ -164,6 +171,20 @@ public sealed partial class SettingsDialog : Window
     {
         SyncStatusBanner.ShowInfo(
             UiStrings.SettingsSyncInProgress + new string('.', _syncActivityStatusDotCount));
+    }
+
+    private void ShowInitialSyncResult()
+    {
+        if (_initialSyncResult is null || _syncActivityService.IsActive)
+            return;
+
+        if (_initialSyncResult.Succeeded)
+        {
+            SyncStatusBanner.ShowSuccess(UiStrings.SettingsSyncNowSucceeded);
+            return;
+        }
+
+        SyncStatusBanner.ShowError(_initialSyncResult.ErrorMessage ?? UiStrings.SettingsSyncNowFailed);
     }
 
     private async void OnSaveSecretPasswordClick(object? sender, RoutedEventArgs e)
@@ -345,11 +366,17 @@ public sealed partial class SettingsDialog : Window
     {
         var previousSettings = AppSettingsService.Load();
         var settings = previousSettings;
-        var previousUsername = previousSettings.Sync.Username;
+        var webDavUrl = SyncWebDavUrlTextBox.Text?.Trim() ?? string.Empty;
         var username = SyncUsernameTextBox.Text?.Trim() ?? string.Empty;
+        var password = SyncPasswordTextBox.Text ?? string.Empty;
+
+        if (!ValidateSyncSettings(webDavUrl, username, password))
+            return false;
+
+        var previousUsername = previousSettings.Sync.Username;
         var usernameChanged = !string.Equals(previousUsername, username, StringComparison.Ordinal);
 
-        settings.Sync.WebDavUrl = SyncWebDavUrlTextBox.Text?.Trim() ?? string.Empty;
+        settings.Sync.WebDavUrl = webDavUrl;
         settings.Sync.Username = username;
 
         if (usernameChanged)
@@ -358,7 +385,6 @@ public sealed partial class SettingsDialog : Window
             settings.Sync.CredentialStorageKind = string.Empty;
         }
 
-        var password = SyncPasswordTextBox.Text ?? string.Empty;
         var shouldPersistPassword =
             !string.IsNullOrWhiteSpace(password) &&
             (usernameChanged ||
@@ -388,6 +414,7 @@ public sealed partial class SettingsDialog : Window
                     }
                     else
                     {
+                        _syncCredentialStore.Clear();
                         settings.Sync.CredentialStorageKind = string.Empty;
                         AppSettingsService.Save(settings);
                         RefreshSyncCredentialUi(settings);
@@ -398,6 +425,7 @@ public sealed partial class SettingsDialog : Window
 
                 if (persistResult.Status == SyncCredentialPersistStatus.InsecureFallbackFailed)
                 {
+                    _syncCredentialStore.Clear();
                     settings.Sync.CredentialStorageKind = string.Empty;
                     AppSettingsService.Save(settings);
                     RefreshSyncCredentialUi(settings);
@@ -419,6 +447,29 @@ public sealed partial class SettingsDialog : Window
         AppSettingsService.Save(settings);
         RefreshSyncCredentialUi(settings);
         return true;
+    }
+
+    private bool ValidateSyncSettings(string webDavUrl, string username, string password)
+    {
+        if (string.IsNullOrWhiteSpace(webDavUrl) ||
+            string.IsNullOrWhiteSpace(username) ||
+            string.IsNullOrWhiteSpace(password))
+        {
+            SyncStatusBanner.ShowError(UiStrings.SettingsSyncRequiredFieldsMissing);
+            return false;
+        }
+
+        if (IsValidSyncWebDavUrl(webDavUrl))
+            return true;
+
+        SyncStatusBanner.ShowError(UiStrings.SettingsSyncWebDavUrlInvalid);
+        return false;
+    }
+
+    private static bool IsValidSyncWebDavUrl(string webDavUrl)
+    {
+        return Uri.TryCreate(webDavUrl, UriKind.Absolute, out var parsedUri) &&
+            parsedUri.Scheme is "http" or "https";
     }
 
     private async Task SaveSecretPasswordAsync()

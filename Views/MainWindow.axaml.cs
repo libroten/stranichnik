@@ -101,6 +101,8 @@ public partial class MainWindow : Window
     private bool? _pendingSyncProgressCompletionSucceeded;
     private bool _isSyncProgressCompletionVisible;
     private int _syncProgressCompletionGeneration;
+    private bool _isManualSyncRunning;
+    private SettingsDialogResult? _lastManualSyncResult;
     private MainWindowViewModel? _observedViewModel;
 
     public MainWindow()
@@ -281,7 +283,8 @@ public partial class MainWindow : Window
             (_, problemId) => ClearSyncRemoteProblemFromSettingsAsync(problemId),
             (_, problemId) => DeleteSyncRemoteProblemFromSettingsAsync(problemId),
             _syncCredentialStore,
-            _syncActivityService);
+            _syncActivityService,
+            _lastManualSyncResult);
     }
 
     private async void OnToggleSecretsMenuClick(object? sender, RoutedEventArgs e)
@@ -359,6 +362,73 @@ public partial class MainWindow : Window
     }
 
     private async Task<SettingsDialogResult> SyncNowFromSettingsAsync(MainWindowViewModel viewModel)
+    {
+        var result = await TryRunManualSyncAndRememberAsync(viewModel, ignoreIfRunning: false);
+        return result ?? SettingsDialogResult.Failed(UiStrings.SettingsSyncNowUnavailable);
+    }
+
+    private async Task RunManualSyncFromShortcutAsync()
+    {
+        if (DataContext is not MainWindowViewModel viewModel)
+            return;
+
+        Logs.Print("Manual sync shortcut requested.");
+
+        if (!HasRunnableSyncConfiguration())
+        {
+            Logs.Print("Manual sync shortcut stopped: sync settings are incomplete.");
+            await MessageDialog.ShowMessage(
+                this,
+                UiStrings.SettingsSyncShortcutNotConfiguredTitle,
+                UiStrings.SettingsSyncShortcutNotConfiguredMessage);
+            return;
+        }
+
+        await TryRunManualSyncAndRememberAsync(viewModel, ignoreIfRunning: true);
+    }
+
+    private bool HasRunnableSyncConfiguration()
+    {
+        var settings = AppSettingsService.Load();
+        if (string.IsNullOrWhiteSpace(settings.Sync.WebDavUrl) ||
+            string.IsNullOrWhiteSpace(settings.Sync.Username))
+        {
+            return false;
+        }
+
+        if (!IsValidSyncWebDavUrl(settings.Sync.WebDavUrl))
+            return false;
+
+        return !string.IsNullOrWhiteSpace(settings.Sync.CredentialStorageKind) &&
+            _syncCredentialStore.Load() is not null;
+    }
+
+    private async Task<SettingsDialogResult?> TryRunManualSyncAndRememberAsync(
+        MainWindowViewModel viewModel,
+        bool ignoreIfRunning)
+    {
+        if (_isManualSyncRunning || _syncActivityService.IsActive)
+        {
+            if (ignoreIfRunning)
+                Logs.Print("Manual sync shortcut ignored: sync operation is already active.");
+
+            return null;
+        }
+
+        _isManualSyncRunning = true;
+        try
+        {
+            var result = await ExecuteManualSyncAsync(viewModel);
+            _lastManualSyncResult = result;
+            return result;
+        }
+        finally
+        {
+            _isManualSyncRunning = false;
+        }
+    }
+
+    private async Task<SettingsDialogResult> ExecuteManualSyncAsync(MainWindowViewModel viewModel)
     {
         if (_syncLocalStore is null)
             return SettingsDialogResult.Failed(UiStrings.SettingsSyncNowUnavailable);
@@ -498,6 +568,12 @@ public partial class MainWindow : Window
             SyncApplicationServiceFactoryStatus.MissingCredentials => UiStrings.SettingsSyncPasswordRequired,
             _ => UiStrings.SettingsSyncNowFailed
         };
+    }
+
+    private static bool IsValidSyncWebDavUrl(string webDavUrl)
+    {
+        return Uri.TryCreate(webDavUrl, UriKind.Absolute, out var parsedUri) &&
+            parsedUri.Scheme is "http" or "https";
     }
 
     private static string ToSyncSummaryErrorMessage(SyncRunSummary summary)
@@ -720,11 +796,28 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!IsSecretToggleShortcut(e))
+        if (IsManualSyncShortcut(e))
+        {
+            e.Handled = true;
+            await RunManualSyncFromShortcutAsync();
             return;
+        }
 
-        e.Handled = true;
-        await ToggleSecretBookmarksAsync(closePopups: true);
+        if (IsSecretToggleShortcut(e))
+        {
+            e.Handled = true;
+            await ToggleSecretBookmarksAsync(closePopups: true);
+        }
+    }
+
+    private static bool IsManualSyncShortcut(KeyEventArgs e)
+    {
+        if (e.Key != Key.S)
+            return false;
+
+        return HasPrimaryShortcutModifier(e) &&
+            !e.KeyModifiers.HasFlag(KeyModifiers.Alt) &&
+            !e.KeyModifiers.HasFlag(KeyModifiers.Shift);
     }
 
     private static bool IsSecretToggleShortcut(KeyEventArgs e)
@@ -732,15 +825,18 @@ public partial class MainWindow : Window
         if (e.Key != Key.P)
             return false;
 
+        return HasPrimaryShortcutModifier(e) &&
+            !e.KeyModifiers.HasFlag(KeyModifiers.Alt) &&
+            !e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+    }
+
+    private static bool HasPrimaryShortcutModifier(KeyEventArgs e)
+    {
         var requiredModifier = OperatingSystem.IsMacOS()
             ? KeyModifiers.Meta
             : KeyModifiers.Control;
 
-        if (!e.KeyModifiers.HasFlag(requiredModifier))
-            return false;
-
-        return !e.KeyModifiers.HasFlag(KeyModifiers.Alt) &&
-            !e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+        return e.KeyModifiers.HasFlag(requiredModifier);
     }
 
     private bool HasOpenMenuPopup()

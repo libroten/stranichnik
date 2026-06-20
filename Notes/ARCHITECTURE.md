@@ -243,6 +243,11 @@ Current implementation shape:
 - `Views/SettingsDialog.axaml` exposes WebDAV sync settings, connection test,
   manual sync, sync-settings reset, and user-facing quarantined remote problem
   management.
+- `MainWindow` also starts manual sync from `Cmd+S` on macOS and `Ctrl+S` on
+  Windows/Linux when the main window has focus. Repeated shortcut presses are
+  ignored while any WebDAV-backed sync operation is already active. The last
+  manual sync result is remembered and shown in the settings sync status area
+  when the user opens settings later.
 - The manual "Sync now" action is shown only when saved sync settings contain an
   WebDAV URL, username, active credential backend metadata, and a loadable
   password.
