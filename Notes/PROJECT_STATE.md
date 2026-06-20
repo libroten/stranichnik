@@ -171,10 +171,11 @@ Completed broad areas:
   - production WebDAV sync performs best-effort cleanup of stale files in the
     `.tmp/` service directory;
   - `ISyncLocalStore.ApplyPullPlan(...)` centralizes pull apply, conflict,
-    quarantine, matched-dirty cleanup, and missing-remote dirty marking. The
-    SQLite implementation is not yet a single shared transaction across every
-    internal store operation; that remains the next sync-interruption hardening
-    task;
+    quarantine, matched-dirty cleanup, missing-remote dirty marking, and
+    pending dependency reconciliation. The SQLite implementation applies the
+    whole pull plan through one shared `SqliteConnection`/`SqliteTransaction`,
+    so a failure in the middle of apply rolls back the local batch instead of
+    leaving partially applied pull state;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 
 Not implemented yet:

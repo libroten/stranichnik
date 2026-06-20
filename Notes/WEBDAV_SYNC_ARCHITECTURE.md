@@ -657,9 +657,13 @@ Current implementation note:
 - pull application is centralized in `ISyncLocalStore.ApplyPullPlan(...)`;
 - this keeps remote apply, matched-dirty cleanup, conflict state, quarantine
   state, and missing-remote dirty marks in one storage boundary;
-- the current SQLite implementation is not yet one single transaction across
-  every internal store operation. A later hardening step should pass one shared
-  `SqliteConnection`/`SqliteTransaction` through the entire pull apply.
+- the current SQLite implementation applies the whole pull plan through one
+  shared `SqliteConnection`/`SqliteTransaction`, including remote object apply,
+  matched-dirty cleanup, conflict state, quarantine state, missing-remote dirty
+  marking, pending icon refs, deferred secret items, reset events, icon assets,
+  crypto profiles, and items;
+- if local apply fails in the middle of a pull plan, SQLite rolls back the
+  local batch so the next sync can retry from the previous consistent state.
 - push remains object-by-object because WebDAV has no repository-wide
   transaction.
 
@@ -1280,6 +1284,7 @@ The table below lists the main expected failures and the required safe response.
 | Invalid remote JSON | Crash/corruption risk | Quarantine or ignore with reason code |
 | Missing parent/cycle | Broken tree | Delay, recover to root/conflict, or quarantine invalid graph |
 | Pending refs/deferred rows are left after interrupted apply | UI keeps default icon / hidden deferred data | Retry reconciliation after each pull plan, even when the dependency is already local |
+| SQLite apply fails in the middle of a pull plan | Partial local pull state | Roll back the shared SQLite transaction and retry the pull later |
 | Remote cleanup beyond temp uploads is not implemented | Remote storage can grow | Accept in v1; add later GC with safe retention rules |
 
 The most important invariant is:

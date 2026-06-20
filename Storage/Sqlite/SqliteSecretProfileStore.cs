@@ -18,7 +18,15 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
     public CryptoProfileRecord? LoadActiveProfile()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadActiveProfile(connection, transaction: null);
+    }
+
+    internal static CryptoProfileRecord? LoadActiveProfile(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = CreateSelectByIdCommand(connection, SecretCryptoProfileIds.ActiveProfileId);
+        command.Transaction = transaction;
         using var reader = command.ExecuteReader();
 
         return reader.Read()
@@ -29,7 +37,15 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
     public IReadOnlyList<SyncCryptoProfileSnapshotRecord> LoadAllProfilesForSync()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadAllProfilesForSync(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncCryptoProfileSnapshotRecord> LoadAllProfilesForSync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -140,6 +156,18 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
         transaction.Commit();
     }
 
+    internal static void UpsertRemoteProfile(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CryptoProfileRecord profile,
+        SyncObjectMetadata syncMetadata)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(syncMetadata);
+
+        UpsertRemoteProfileCore(connection, transaction, profile, syncMetadata);
+    }
+
     internal void MarkSyncMetadata(
         string secretGenerationId,
         BookmarkSyncState syncState,
@@ -151,7 +179,23 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
             throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
 
         using var connection = _connectionFactory.OpenConnection();
+        MarkSyncMetadata(connection, transaction: null, secretGenerationId, syncState, remoteEtag, lastSyncedAtUtc, contentHash);
+    }
+
+    internal static void MarkSyncMetadata(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string secretGenerationId,
+        BookmarkSyncState syncState,
+        string? remoteEtag,
+        DateTimeOffset? lastSyncedAtUtc,
+        string? contentHash)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             UPDATE crypto_profiles
             SET
@@ -179,7 +223,20 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
             throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
 
         using var connection = _connectionFactory.OpenConnection();
+        MarkSyncState(connection, transaction: null, secretGenerationId, syncState);
+    }
+
+    internal static void MarkSyncState(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string secretGenerationId,
+        BookmarkSyncState syncState)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             UPDATE crypto_profiles
             SET sync_state = $syncState
@@ -282,7 +339,7 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
         command.ExecuteNonQuery();
     }
 
-    private static void UpsertRemoteProfile(
+    private static void UpsertRemoteProfileCore(
         SqliteConnection connection,
         SqliteTransaction transaction,
         CryptoProfileRecord profile,

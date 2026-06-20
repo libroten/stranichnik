@@ -74,7 +74,15 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
     public IReadOnlyList<SyncItemSnapshotRecord> LoadAllItemsForSync()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadAllItemsForSync(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncItemSnapshotRecord> LoadAllItemsForSync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -119,7 +127,15 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
     public IReadOnlyList<SyncIconAssetSnapshotRecord> LoadAllIconAssetsForSync()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadAllIconAssetsForSync(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncIconAssetSnapshotRecord> LoadAllIconAssetsForSync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -156,7 +172,15 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
     public IReadOnlyList<SyncSecretIconAssetSnapshotRecord> LoadAllSecretIconAssetsForSync()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadAllSecretIconAssetsForSync(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncSecretIconAssetSnapshotRecord> LoadAllSecretIconAssetsForSync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -198,7 +222,18 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         ArgumentNullException.ThrowIfNull(iconAssetId);
 
         using var connection = _connectionFactory.OpenConnection();
+        return GetIconAsset(connection, transaction: null, iconAssetId);
+    }
+
+    internal static BookmarkIconAssetRecord? GetIconAsset(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string iconAssetId)
+    {
+        ArgumentNullException.ThrowIfNull(iconAssetId);
+
         using var command = CreateIconAssetByIdCommand(connection, iconAssetId);
+        command.Transaction = transaction;
         using var reader = command.ExecuteReader();
 
         return reader.Read()
@@ -284,7 +319,18 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         ArgumentNullException.ThrowIfNull(secretIconAssetId);
 
         using var connection = _connectionFactory.OpenConnection();
+        return GetSecretIconAsset(connection, transaction: null, secretIconAssetId);
+    }
+
+    internal static SecretIconAssetRecord? GetSecretIconAsset(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string secretIconAssetId)
+    {
+        ArgumentNullException.ThrowIfNull(secretIconAssetId);
+
         using var command = CreateSecretIconAssetByIdCommand(connection, secretIconAssetId);
+        command.Transaction = transaction;
         using var reader = command.ExecuteReader();
 
         return reader.Read()
@@ -731,7 +777,24 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             throw new ArgumentException("Asset ID cannot be empty.", nameof(assetId));
 
         using var connection = _connectionFactory.OpenConnection();
+        return TrySetRemoteResolvedIconAsset(connection, transaction: null, itemId, assetKind, assetId);
+    }
+
+    internal static bool TrySetRemoteResolvedIconAsset(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string itemId,
+        SyncPendingAssetKind assetKind,
+        string assetId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        if (string.IsNullOrWhiteSpace(assetId))
+            throw new ArgumentException("Asset ID cannot be empty.", nameof(assetId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = assetKind switch
         {
             SyncPendingAssetKind.RegularIcon => """
@@ -764,7 +827,19 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
 
         using var connection = _connectionFactory.OpenConnection();
+        return ItemExistsForSync(connection, transaction: null, itemId);
+    }
+
+    internal static bool ItemExistsForSync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "SELECT 1 FROM items WHERE id = $itemId AND deleted_at_utc IS NULL;";
         command.Parameters.AddWithValue("$itemId", itemId);
 
@@ -777,7 +852,19 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
 
         using var connection = _connectionFactory.OpenConnection();
+        return ItemExistsIncludingDeletedForSync(connection, transaction: null, itemId);
+    }
+
+    internal static bool ItemExistsIncludingDeletedForSync(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "SELECT 1 FROM items WHERE id = $itemId;";
         command.Parameters.AddWithValue("$itemId", itemId);
 
@@ -785,6 +872,23 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
     }
 
     internal void MarkSyncMetadata(
+        SyncObjectKind kind,
+        string objectId,
+        BookmarkSyncState syncState,
+        string? remoteEtag,
+        DateTimeOffset? lastSyncedAtUtc,
+        string? contentHash)
+    {
+        if (string.IsNullOrWhiteSpace(objectId))
+            throw new ArgumentException("Object ID cannot be empty.", nameof(objectId));
+
+        using var connection = _connectionFactory.OpenConnection();
+        MarkSyncMetadata(connection, transaction: null, kind, objectId, syncState, remoteEtag, lastSyncedAtUtc, contentHash);
+    }
+
+    internal static void MarkSyncMetadata(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
         SyncObjectKind kind,
         string objectId,
         BookmarkSyncState syncState,
@@ -803,8 +907,8 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported bookmark tree sync object kind.")
         };
 
-        using var connection = _connectionFactory.OpenConnection();
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = $"""
             UPDATE {tableName}
             SET
@@ -832,6 +936,20 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         if (string.IsNullOrWhiteSpace(objectId))
             throw new ArgumentException("Object ID cannot be empty.", nameof(objectId));
 
+        using var connection = _connectionFactory.OpenConnection();
+        MarkSyncState(connection, transaction: null, kind, objectId, syncState);
+    }
+
+    internal static void MarkSyncState(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        SyncObjectKind kind,
+        string objectId,
+        BookmarkSyncState syncState)
+    {
+        if (string.IsNullOrWhiteSpace(objectId))
+            throw new ArgumentException("Object ID cannot be empty.", nameof(objectId));
+
         var tableName = kind switch
         {
             SyncObjectKind.Item => "items",
@@ -840,8 +958,8 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported bookmark tree sync object kind.")
         };
 
-        using var connection = _connectionFactory.OpenConnection();
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = $"""
             UPDATE {tableName}
             SET sync_state = $syncState
@@ -1084,7 +1202,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             throw new InvalidOperationException("Bookmark tree item was not found.");
     }
 
-    private static void UpsertRemoteItem(
+    internal static void UpsertRemoteItem(
         SqliteConnection connection,
         SqliteTransaction transaction,
         BookmarkItemRecord record)
@@ -1477,7 +1595,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.ExecuteNonQuery();
     }
 
-    private static void UpsertRemoteIconAsset(
+    internal static void UpsertRemoteIconAsset(
         SqliteConnection connection,
         SqliteTransaction transaction,
         BookmarkIconAssetRecord iconAsset,
@@ -1598,7 +1716,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.ExecuteNonQuery();
     }
 
-    private static void UpsertRemoteSecretIconAsset(
+    internal static void UpsertRemoteSecretIconAsset(
         SqliteConnection connection,
         SqliteTransaction transaction,
         SecretIconAssetRecord iconAsset,

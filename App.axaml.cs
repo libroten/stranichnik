@@ -45,6 +45,7 @@ public partial class App : Application
                 resetDeviceId: new SqliteDatabaseMigrator(secretConnectionFactory).GetMetadataValue("device_id"));
             var syncMetadataStore = new SqliteSyncMetadataStore(secretConnectionFactory);
             var syncLocalStore = new SqliteSyncLocalStore(
+                secretConnectionFactory,
                 treeStore,
                 secretProfileStore,
                 secretResetStore,

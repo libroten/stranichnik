@@ -227,9 +227,10 @@ Current implementation shape:
   quarantine state, and missing-remote dirty marking are coordinated there.
   It also runs a post-apply reconciliation pass for pending icon asset refs and
   deferred secret items so interrupted earlier applies can recover when the
-  needed asset/profile is already present locally.
-  The current SQLite implementation is centralized but not yet one shared
-  SQLite transaction across all internal store operations.
+  needed asset/profile is already present locally. The SQLite implementation
+  applies this pull plan through one shared `SqliteConnection` and
+  `SqliteTransaction`, including sync metadata, quarantine state, pending refs,
+  deferred secret items, reset events, icon assets, crypto profiles, and items.
 - `Storage/Sqlite/SqliteSyncMetadataStore.cs` owns pending asset refs,
   deferred secret items, and quarantined remote object metadata.
 - `Sync/RemoteProblems/SyncRemoteProblemService.cs` provides explicit user

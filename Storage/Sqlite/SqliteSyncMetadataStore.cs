@@ -28,7 +28,15 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
     public IReadOnlyList<SyncPendingAssetRefRecord> LoadPendingAssetRefs()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadPendingAssetRefs(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncPendingAssetRefRecord> LoadPendingAssetRefs(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -59,7 +67,18 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
         ArgumentNullException.ThrowIfNull(record);
 
         using var connection = _connectionFactory.OpenConnection();
+        UpsertPendingAssetRef(connection, transaction: null, record);
+    }
+
+    internal static void UpsertPendingAssetRef(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        SyncPendingAssetRefRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO sync_pending_asset_refs (
                 id,
@@ -112,7 +131,19 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
             throw new ArgumentException("Record ID cannot be empty.", nameof(id));
 
         using var connection = _connectionFactory.OpenConnection();
+        DeletePendingAssetRef(connection, transaction: null, id);
+    }
+
+    internal static void DeletePendingAssetRef(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("Record ID cannot be empty.", nameof(id));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "DELETE FROM sync_pending_asset_refs WHERE id = $id;";
         command.Parameters.AddWithValue("$id", id);
         command.ExecuteNonQuery();
@@ -124,7 +155,20 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
             throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
 
         using var connection = _connectionFactory.OpenConnection();
+        DeletePendingAssetRefForItem(connection, transaction: null, itemId, assetKind);
+    }
+
+    internal static void DeletePendingAssetRefForItem(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string itemId,
+        SyncPendingAssetKind assetKind)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             DELETE FROM sync_pending_asset_refs
             WHERE item_id = $itemId
@@ -138,7 +182,15 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
     public IReadOnlyList<SyncDeferredSecretItemRecord> LoadDeferredSecretItems()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadDeferredSecretItems(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncDeferredSecretItemRecord> LoadDeferredSecretItems(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 remote_item_id,
@@ -168,7 +220,18 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
         ArgumentNullException.ThrowIfNull(record);
 
         using var connection = _connectionFactory.OpenConnection();
+        UpsertDeferredSecretItem(connection, transaction: null, record);
+    }
+
+    internal static void UpsertDeferredSecretItem(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        SyncDeferredSecretItemRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO sync_deferred_secret_items (
                 remote_item_id,
@@ -218,7 +281,19 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
             throw new ArgumentException("Remote item ID cannot be empty.", nameof(remoteItemId));
 
         using var connection = _connectionFactory.OpenConnection();
+        DeleteDeferredSecretItem(connection, transaction: null, remoteItemId);
+    }
+
+    internal static void DeleteDeferredSecretItem(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string remoteItemId)
+    {
+        if (string.IsNullOrWhiteSpace(remoteItemId))
+            throw new ArgumentException("Remote item ID cannot be empty.", nameof(remoteItemId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "DELETE FROM sync_deferred_secret_items WHERE remote_item_id = $remoteItemId;";
         command.Parameters.AddWithValue("$remoteItemId", remoteItemId);
         command.ExecuteNonQuery();
@@ -227,7 +302,16 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
     public void DeleteDeferredSecretItemsForGeneration(string secretGenerationId)
     {
         using var connection = _connectionFactory.OpenConnection();
+        DeleteDeferredSecretItemsForGeneration(connection, transaction: null, secretGenerationId);
+    }
+
+    internal static void DeleteDeferredSecretItemsForGeneration(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string secretGenerationId)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             DELETE FROM sync_deferred_secret_items
             WHERE secret_generation_id = $secretGenerationId;
@@ -239,7 +323,15 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
     public IReadOnlyList<SyncQuarantinedRemoteObjectRecord> LoadQuarantinedRemoteObjects()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadQuarantinedRemoteObjects(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SyncQuarantinedRemoteObjectRecord> LoadQuarantinedRemoteObjects(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -269,7 +361,18 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
         ArgumentNullException.ThrowIfNull(record);
 
         using var connection = _connectionFactory.OpenConnection();
+        UpsertQuarantinedRemoteObject(connection, transaction: null, record);
+    }
+
+    internal static void UpsertQuarantinedRemoteObject(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        SyncQuarantinedRemoteObjectRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO sync_quarantined_remote_objects (
                 id,
@@ -319,7 +422,19 @@ public sealed class SqliteSyncMetadataStore : ISyncMetadataStore
             throw new ArgumentException("Record ID cannot be empty.", nameof(id));
 
         using var connection = _connectionFactory.OpenConnection();
+        DeleteQuarantinedRemoteObject(connection, transaction: null, id);
+    }
+
+    internal static void DeleteQuarantinedRemoteObject(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("Record ID cannot be empty.", nameof(id));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "DELETE FROM sync_quarantined_remote_objects WHERE id = $id;";
         command.Parameters.AddWithValue("$id", id);
         command.ExecuteNonQuery();

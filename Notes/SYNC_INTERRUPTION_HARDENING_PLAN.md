@@ -34,9 +34,10 @@
   синхронизированы, но теперь отсутствуют на remote, и помечает их dirty для
   повторной выгрузки.
 - Применение pull-плана централизовано в `ISyncLocalStore.ApplyPullPlan(...)`.
-  Это уменьшает рассинхронизацию между apply/conflict/quarantine/metadata
-  шагами, но пока не является одной общей SQLite-транзакцией для всех
-  внутренних store-классов.
+  SQLite-реализация использует один общий `SqliteConnection` и
+  `SqliteTransaction` для remote apply, matched dirty cleanup, conflict
+  marking, quarantine updates, missing remote marking, pending icon refs,
+  deferred secret items, reset events, icon assets, crypto profiles и items.
 - Create-only upload использует временный объект в `.tmp/` и WebDAV `MOVE` в
   финальный путь. Если провайдер не поддерживает `MOVE`, транспорт
   откатывается к прямому create-only `PUT`.
@@ -46,9 +47,8 @@
 - UI-boundary sync code ловит ожидаемые local/storage-level ошибки и показывает
   обычную ошибку синхронизации, не превращая их в успешный summary.
 
-Оставшийся важный hardening-пункт: сделать применение всего pull-плана одной
-реальной SQLite-транзакцией через shared `SqliteConnection`/`SqliteTransaction`
-для всех задействованных операций.
+Дополнительно добавлен rollback-тест: если применение remote batch падает в
+середине, уже примененная часть batch-а не остается в SQLite.
 
 ## 1. Обновлять UI после любого sync, который мог изменить SQLite
 
@@ -197,16 +197,16 @@ Push оставляем поштучным, потому что WebDAV не да
 
 ### Статус
 
-Частично реализовано.
+Реализовано.
 
 `ISyncLocalStore.ApplyPullPlan(...)` введен и используется как единая точка
 применения pull-плана. Внутри него сгруппированы remote apply, matched dirty
 cleanup, conflict marking, quarantine updates и missing remote marking.
 
-Полная атомарность всего pull apply пока не завершена: часть внутренних
-операций все еще проходит через существующие store-методы со своими
-соединениями/транзакциями. Следующий hardening-шаг должен протащить shared
-`SqliteConnection`/`SqliteTransaction` через эти операции.
+SQLite implementation протаскивает shared `SqliteConnection`/`SqliteTransaction`
+через задействованные store-операции, включая sync metadata, pending refs,
+deferred secret items, quarantined remote objects, reset events, icon assets,
+secret icon assets, crypto profiles и items.
 
 ### Проверка
 
@@ -399,8 +399,8 @@ UI должен показывать нейтральное сообщение:
 - MOVE fallback;
 - cleanup temp object при MOVE conflict.
 
-Тест на настоящую single-transaction atomic pull apply остается актуальным для
-следующего hardening-этапа.
+Тест на single-transaction atomic pull apply добавлен: batch с валидным первым
+remote object и ошибочным вторым remote object откатывается целиком.
 
 ## Рекомендуемый порядок работ
 
@@ -428,7 +428,7 @@ UI должен показывать нейтральное сообщение:
 
 - пункт 2.
 
-## Следующий рекомендуемый hardening-этап
+## Завершенный hardening-этап
 
 После ревью текущего этапа дополнительно закрыты точечные риски:
 
@@ -442,12 +442,14 @@ UI должен показывать нейтральное сообщение:
   retention-порогом;
 - удаление quarantined remote file репортит финальное состояние в sync activity.
 
-Если возвращаться к interruption-hardening позже, начать с полной SQLite
-атомаризации `ApplyPullPlan(...)`:
+Последний закрытый шаг: полная SQLite-атомаризация `ApplyPullPlan(...)`.
 
-1. Выделить transaction-aware внутренние методы для apply items/assets/profiles,
-   sync metadata, conflict/quarantine updates и missing-remote dirty marks.
-2. Передавать один `SqliteConnection` и `SqliteTransaction` через весь pull
+Реализовано:
+
+1. Выделены transaction-aware внутренние методы для apply items/assets/profiles,
+   sync metadata, conflict/quarantine updates, pending refs, deferred secret
+   items и missing-remote dirty marks.
+2. Один `SqliteConnection` и `SqliteTransaction` передается через весь pull
    apply.
-3. Добавить тест, который искусственно роняет apply в середине и проверяет,
+3. Добавлен тест, который искусственно роняет apply в середине и проверяет,
    что локальная база не осталась в частично примененном состоянии.

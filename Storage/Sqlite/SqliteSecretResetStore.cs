@@ -59,7 +59,15 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
     public IReadOnlyList<SecretResetEventRecord> LoadResetEvents()
     {
         using var connection = _connectionFactory.OpenConnection();
+        return LoadResetEvents(connection, transaction: null);
+    }
+
+    internal static IReadOnlyList<SecretResetEventRecord> LoadResetEvents(
+        SqliteConnection connection,
+        SqliteTransaction? transaction)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             SELECT
                 id,
@@ -110,6 +118,31 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         }
     }
 
+    internal static void ApplyRemoteResetEventAndPurgeSecrets(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        SecretResetEventRecord resetEvent)
+    {
+        ArgumentNullException.ThrowIfNull(resetEvent);
+
+        try
+        {
+            UpsertRemoteResetEvent(connection, transaction, resetEvent);
+            var folderIdsToPurge = SelectSecretOnlyFolderIdsForGeneration(
+                connection,
+                transaction,
+                resetEvent.SecretGenerationId);
+            DeleteSecretBookmarksForGeneration(connection, transaction, resetEvent.SecretGenerationId);
+            DeleteFolders(connection, transaction, folderIdsToPurge);
+            DeleteSecretIconAssets(connection, transaction, resetEvent.SecretGenerationId);
+            DeleteActiveProfileIfGenerationMatches(connection, transaction, resetEvent.SecretGenerationId);
+        }
+        catch (SqliteException exception)
+        {
+            throw new InvalidOperationException("Remote secret reset storage operation failed.", exception);
+        }
+    }
+
     internal void MarkSyncMetadata(
         string secretGenerationId,
         BookmarkSyncState syncState,
@@ -120,7 +153,22 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
 
         using var connection = _connectionFactory.OpenConnection();
+        MarkSyncMetadata(connection, transaction: null, secretGenerationId, syncState, remoteEtag, lastSyncedAtUtc);
+    }
+
+    internal static void MarkSyncMetadata(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string secretGenerationId,
+        BookmarkSyncState syncState,
+        string? remoteEtag,
+        DateTimeOffset? lastSyncedAtUtc)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             UPDATE secret_reset_events
             SET
@@ -146,7 +194,20 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
 
         using var connection = _connectionFactory.OpenConnection();
+        MarkSyncState(connection, transaction: null, secretGenerationId, syncState);
+    }
+
+    internal static void MarkSyncState(
+        SqliteConnection connection,
+        SqliteTransaction? transaction,
+        string secretGenerationId,
+        BookmarkSyncState syncState)
+    {
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new ArgumentException("Secret generation ID cannot be empty.", nameof(secretGenerationId));
+
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = """
             UPDATE secret_reset_events
             SET sync_state = $syncState

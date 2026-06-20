@@ -126,6 +126,31 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyRemoteChanges_rolls_back_whole_batch_when_apply_fails()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var validIconAsset = CreateRemoteIconAsset("valid-remote-icon");
+        var invalidIconAsset = CreateRemoteIconAsset("invalid-remote-icon") with
+        {
+            ProcessedBytes = "not-base64"
+        };
+        var batch = new SyncApplyBatch(
+            SecretResetEvents: [],
+            CryptoProfiles: [],
+            IconAssets:
+            [
+                Applied(SyncObjectKind.IconAsset, validIconAsset.Id, validIconAsset),
+                Applied(SyncObjectKind.IconAsset, invalidIconAsset.Id, invalidIconAsset)
+            ],
+            SecretIconAssets: [],
+            Items: []);
+
+        Assert.Throws<FormatException>(() => database.SyncLocalStore.ApplyRemoteChanges(batch));
+
+        Assert.Empty(database.SyncLocalStore.LoadSnapshot().IconAssets);
+    }
+
+    [Fact]
     public void ApplyRemoteChanges_applies_secret_reset_before_other_remote_objects()
     {
         using var database = TempSqliteDatabase.Create();
@@ -1061,6 +1086,7 @@ public sealed class SqliteSyncLocalStoreTests
                 clock: () => Now,
                 modifiedDeviceId: "test-device");
             SyncLocalStore = new SqliteSyncLocalStore(
+                _connectionFactory,
                 TreeStore,
                 ProfileStore,
                 ResetStore,
