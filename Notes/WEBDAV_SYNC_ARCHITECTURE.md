@@ -115,6 +115,8 @@ crypto-profiles/
   <secret-generation-id>.json
 secret-reset-events/
   <secret-generation-id>.json
+.tmp/
+  <temporary-upload-id>.json
 ```
 
 Notes:
@@ -129,6 +131,8 @@ Notes:
   only one reset event per generation;
 - `devices/<device-id>.json` is diagnostic/coordination metadata, not a
   conflict-resolution authority.
+- `.tmp/` is a service directory used for safer create-only uploads. Temporary
+  files in it are not sync objects and should be ignored by pull logic.
 
 Use UTF-8 JSON for v1. The icon blobs are small normalized `64x64` PNGs, so
 base64-in-JSON is acceptable for simplicity. If this becomes inefficient later,
@@ -601,6 +605,11 @@ storage behind an interface.
 17. Record sync result/status.
 ```
 
+Remote repository initialization creates all required category directories,
+including `.tmp/`. A connection test must not create these directories; it
+should only check that the target WebDAV location is reachable and readable
+enough for sync setup.
+
 Pull reset events first because they invalidate old secret data. Upload reset
 events before uploading old dirty secret objects from the same generation.
 When a reset event for generation `G` exists locally or arrives remotely during
@@ -630,11 +639,29 @@ Core reliability rules:
   not partially applied.
 - item upload dependencies are enforced: if uploading a parent folder fails,
   descendants from the same push plan must not be uploaded in that run.
+- a clean local object that was previously synced but disappeared from remote is
+  marked dirty and uploaded again instead of being treated as locally deleted.
+- create-only uploads are made safer by writing a temporary object under
+  `.tmp/` and moving it to the final path with WebDAV `MOVE` when the provider
+  supports that operation.
+- the production WebDAV transport performs best-effort cleanup of stale `.tmp/`
+  objects during repository initialization. Fresh temp files are skipped.
 
 This means the app may temporarily show incomplete state, for example a bookmark
 with the default icon while the custom icon asset is still pending. That is
 acceptable. Losing the intended icon reference, overwriting user content, or
 making secret data undecryptable is not acceptable.
+
+Current implementation note:
+
+- pull application is centralized in `ISyncLocalStore.ApplyPullPlan(...)`;
+- this keeps remote apply, matched-dirty cleanup, conflict state, quarantine
+  state, and missing-remote dirty marks in one storage boundary;
+- the current SQLite implementation is not yet one single transaction across
+  every internal store operation. A later hardening step should pass one shared
+  `SqliteConnection`/`SqliteTransaction` through the entire pull apply.
+- push remains object-by-object because WebDAV has no repository-wide
+  transaction.
 
 ## Sync Coordination And Local Operation Gate
 
@@ -726,6 +753,21 @@ local conflict:
   do not auto-overwrite unless a conflict-resolution path says so
 ```
 
+For local clean objects:
+
+```text
+local clean + last_synced_at_utc != NULL + remote missing:
+  mark local dirty, clear stale remote_etag, restore it during push
+
+local clean + last_synced_at_utc == NULL + remote missing:
+  do not treat as a deletion; it is a never-confirmed local object and should
+  be handled by first-upload push rules
+
+local clean + remote object exists but is invalid/quarantined:
+  do not mark missing; keep the quarantine/problem path so the user can decide
+  whether to clear or delete the remote file
+```
+
 ### Push Object Decision Matrix
 
 For each local object that should be pushed.
@@ -734,10 +776,20 @@ Push candidates are:
 
 - objects with `sync_state = dirty`;
 - objects with `last_synced_at_utc = NULL`, even if their `sync_state` is
-  `clean`;
-- dependency objects required by selected push candidates, such as parent
-  folders, referenced icon assets, referenced secret icon assets, and crypto
-  profiles needed by secret payloads.
+  `clean`.
+
+Referenced dependencies are not push candidates merely because a selected item
+points to them. A dirty item can reference a clean already-synced parent folder,
+regular icon asset, secret icon asset, or crypto profile without re-uploading
+that dependency. If such a dependency really disappeared from WebDAV, the pull
+phase marks that dependency dirty first, and then the normal dirty-object rule
+uploads it again.
+
+This distinction is important for WebDAV providers that do not always return
+stable ETags. A clean synced dependency with `remote_etag = NULL` still counts
+as known remote content when `last_synced_at_utc != NULL`; pushing it again as
+create-only could create a false conflict and block the item that only needed
+that dependency.
 
 Important distinction:
 
@@ -770,6 +822,31 @@ PUT succeeds:
 PUT conditional failure:
   download remote and run conflict logic
 ```
+
+### Upload Atomicity
+
+For create-only object upload, the production WebDAV transport uses a safer
+two-step write when possible:
+
+```text
+PUT .tmp/<temporary-name>.json with If-None-Match: *
+MOVE .tmp/<temporary-name>.json -> <final-object-path> with Overwrite: F
+```
+
+If the process or network fails during the temp `PUT`, the final object is not
+touched. If it fails after the temp `PUT` but before/during `MOVE`, the remote
+may contain an orphan temp file. Pull ignores `.tmp/`; repository
+initialization performs best-effort cleanup of stale temp files after a
+conservative retention period.
+
+If the WebDAV provider does not support `MOVE`, the transport falls back to a
+direct create-only `PUT` to the final path. This is less robust, but keeps sync
+usable with simpler WebDAV servers.
+
+Update uploads with an expected ETag currently remain direct conditional
+`PUT`s. Do not change them to temp+MOVE without separate provider testing,
+because WebDAV support for conditional destination replacement during `MOVE` is
+not consistent enough to assume for v1.
 
 ## Conflict Strategy
 
@@ -999,6 +1076,11 @@ When a regular or secret icon asset is downloaded:
 
 Search does not depend on icons, so only visual refresh is needed.
 
+The local apply layer must also retry this resolution after every completed
+pull plan, even if the asset was not part of the current remote apply batch.
+This protects against interruptions after the asset was stored but before
+pending refs were resolved.
+
 ## Missing Crypto Profiles And Deferred Secret Items
 
 Secret bookmark items reference a remote crypto profile by
@@ -1062,6 +1144,10 @@ Notes:
 - If the matching reset event arrives later, delete matching deferred rows.
 - If the crypto profile arrives later, apply deferred items in a SQLite
   transaction and remove successfully applied deferred rows.
+- The local apply layer must retry deferred secret item application after every
+  completed pull plan when the matching profile is already available locally.
+  This protects against interruptions after a profile was stored but before
+  deferred rows were applied.
 
 Secret icon assets do not need the local integer profile ID merely to be stored,
 because they already carry encrypted bytes and `secret_generation_id`. They may
@@ -1181,7 +1267,10 @@ The table below lists the main expected failures and the required safe response.
 | Wrong credentials | Same as unavailable | Do not clear credentials automatically, show auth error |
 | Unsupported manifest | Applying incompatible data could corrupt local DB | Refuse sync before downloading user objects |
 | GET fails for one object | Partial pull | Skip that object, keep prior local state, retry next run |
+| Clean synced local object is missing remotely | Fresh devices would not restore it | Mark the local object dirty and restore the remote object during push |
 | PUT succeeds but app crashes before marking clean | Local object remains dirty | Next run compares content hash/ETag and marks clean or detects conflict |
+| Create-only PUT is interrupted mid-upload | Provider may leave partial remote file | Prefer temp PUT + MOVE; invalid final files are quarantined if they still happen |
+| Temp upload succeeds but MOVE fails/interruption happens | Orphan temp object | Ignore `.tmp/` during pull; retry the logical dirty object later; cleanup can remove stale temp files |
 | Asset upload succeeds but item upload fails | Remote orphan asset | Harmless; item remains dirty and retries later |
 | Item arrives before icon asset | Missing icon | Apply item, show default icon, create pending asset ref |
 | Secret item arrives before crypto profile | Cannot map to local profile ID | Store deferred encrypted item, retry after profile arrives |
@@ -1190,8 +1279,8 @@ The table below lists the main expected failures and the required safe response.
 | Sync starts while edit dialog is open | User save may overwrite synced change | Block/postpone sync apply through local operation gate |
 | Invalid remote JSON | Crash/corruption risk | Quarantine or ignore with reason code |
 | Missing parent/cycle | Broken tree | Delay, recover to root/conflict, or quarantine invalid graph |
-| Pending refs never resolve | UI keeps default icon / hidden deferred data | Keep retry metadata, show non-sensitive pending count, allow future cleanup |
-| Remote cleanup not implemented | Remote storage can grow | Accept in v1; add later GC with safe retention rules |
+| Pending refs/deferred rows are left after interrupted apply | UI keeps default icon / hidden deferred data | Retry reconciliation after each pull plan, even when the dependency is already local |
+| Remote cleanup beyond temp uploads is not implemented | Remote storage can grow | Accept in v1; add later GC with safe retention rules |
 
 The most important invariant is:
 

@@ -9,4 +9,5 @@ public sealed record SyncPullPlan(
     IReadOnlyList<SyncPullMatchedDirtyObject> MatchedDirtyObjects,
     IReadOnlyList<SyncPullQuarantineCandidate> QuarantinedRemoteObjects,
     IReadOnlyList<SyncPullQuarantineCandidate> KnownQuarantinedRemoteObjects,
-    IReadOnlyList<string> ResolvedQuarantinedRemoteObjectIds);
+    IReadOnlyList<string> ResolvedQuarantinedRemoteObjectIds,
+    IReadOnlyList<SyncObjectIdentity> MissingRemoteObjects);

@@ -59,10 +59,65 @@ public sealed class SyncPullServiceTests
         var summary = await service.PullAsync(CancellationToken.None);
 
         Assert.True(summary.Succeeded);
-        Assert.Equal(1, summary.DownloadedCount);
+        Assert.Equal(0, summary.DownloadedCount);
         var mark = Assert.Single(localStore.UploadedMarks);
         Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), mark.Identity);
         Assert.Equal(remoteItem.ContentHash, mark.ContentHash);
+        Assert.Empty(localStore.AppliedBatches.Single().Items);
+    }
+
+    [Fact]
+    public async Task PullAsync_reports_zero_downloaded_when_remote_object_is_already_current_locally()
+    {
+        var serializer = new SystemTextSyncJsonSerializer();
+        var remoteItem = CreateRemoteItem("bookmark", serializer);
+        var localStore = new FakeSyncLocalStore(EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem(
+                    "bookmark",
+                    BookmarkSyncState.Clean,
+                    remoteItem.ContentHash,
+                    hasBeenSynced: true)
+            ]
+        });
+        var transport = new InMemoryWebDavSyncTransport();
+        await PutRemoteObjectAsync(transport, serializer, SyncObjectKind.Item, remoteItem.Id, remoteItem);
+        var service = CreateService(localStore, transport, serializer);
+
+        var summary = await service.PullAsync(CancellationToken.None);
+
+        Assert.True(summary.Succeeded);
+        Assert.Equal(0, summary.DownloadedCount);
+        Assert.Empty(localStore.UploadedMarks);
+        Assert.Empty(localStore.AppliedBatches.Single().Items);
+    }
+
+    [Fact]
+    public async Task PullAsync_marks_clean_synced_local_item_missing_from_remote_as_dirty()
+    {
+        var localStore = new FakeSyncLocalStore(EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem(
+                    "bookmark",
+                    BookmarkSyncState.Clean,
+                    "sha256:local",
+                    hasBeenSynced: true)
+            ]
+        });
+        var transport = new InMemoryWebDavSyncTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        var service = CreateService(localStore, transport, serializer);
+
+        var summary = await service.PullAsync(CancellationToken.None);
+
+        Assert.True(summary.Succeeded);
+        Assert.Equal(0, summary.DownloadedCount);
+        var mark = Assert.Single(localStore.DirtyMarks);
+        Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), mark);
         Assert.Empty(localStore.AppliedBatches.Single().Items);
     }
 
@@ -93,6 +148,8 @@ public sealed class SyncPullServiceTests
     [Fact]
     public async Task PullAsync_does_not_fail_for_known_unchanged_invalid_remote_object()
     {
+        var invalidBytes = new byte[] { 1, 2, 3 };
+        var rawContentHash = new Sha256SyncContentHasher().ComputeHash(invalidBytes);
         var localStore = new FakeSyncLocalStore(EmptySnapshot() with
         {
             QuarantinedRemoteObjects =
@@ -102,7 +159,7 @@ public sealed class SyncPullServiceTests
                     SyncObjectKind.Item.ToString(),
                     "items/broken.json",
                     "\"memory-1\"",
-                    ContentHash: null,
+                    rawContentHash,
                     ReasonCode: "invalid-json",
                     FirstSeenAtUtc: Now,
                     LastSeenAtUtc: Now,
@@ -113,7 +170,7 @@ public sealed class SyncPullServiceTests
         var serializer = new SystemTextSyncJsonSerializer();
         await transport.PutAsync(
             "items/broken.json",
-            [1, 2, 3],
+            invalidBytes,
             expectedEtag: null,
             createOnly: true,
             CancellationToken.None);
@@ -161,7 +218,7 @@ public sealed class SyncPullServiceTests
     {
         return new SyncPullService(
             localStore,
-            new SyncRemoteObjectReader(transport, serializer),
+            new SyncRemoteObjectReader(transport, serializer, log: _ => { }),
             clock: () => Now,
             log: _ => { });
     }
@@ -198,8 +255,10 @@ public sealed class SyncPullServiceTests
     private static SyncItemSnapshotRecord CreateLocalItem(
         string id,
         BookmarkSyncState syncState,
-        string? contentHash)
+        string? contentHash,
+        bool hasBeenSynced = false)
     {
+        var lastSyncedAtUtc = hasBeenSynced ? Now : (DateTimeOffset?)null;
         var item = new BookmarkItemRecord(
             id,
             ParentId: null,
@@ -216,7 +275,7 @@ public sealed class SyncPullServiceTests
                 Revision: 1,
                 syncState,
                 RemoteEtag: null,
-                LastSyncedAtUtc: null,
+                LastSyncedAtUtc: lastSyncedAtUtc,
                 ContentHash: contentHash,
                 ModifiedDeviceId: "device"));
 
@@ -225,7 +284,7 @@ public sealed class SyncPullServiceTests
             new SyncObjectMetadata(
                 syncState,
                 RemoteEtag: null,
-                LastSyncedAtUtc: null,
+                LastSyncedAtUtc: lastSyncedAtUtc,
                 contentHash,
                 ModifiedDeviceId: "device"));
     }
@@ -275,6 +334,8 @@ public sealed class SyncPullServiceTests
 
         public List<ConflictMark> ConflictMarks { get; } = [];
 
+        public List<SyncObjectIdentity> DirtyMarks { get; } = [];
+
         public List<QuarantineMark> QuarantinedObjects { get; } = [];
 
         public List<string> ClearedQuarantinedObjectIds { get; } = [];
@@ -289,6 +350,51 @@ public sealed class SyncPullServiceTests
             AppliedBatches.Add(batch);
         }
 
+        public void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc)
+        {
+            ApplyRemoteChanges(plan.ApplyBatch);
+
+            foreach (var matchedObject in plan.MatchedDirtyObjects)
+            {
+                MarkUploaded(
+                    matchedObject.Identity,
+                    matchedObject.RemoteEtag,
+                    matchedObject.ContentHash,
+                    syncedAtUtc);
+            }
+
+            foreach (var conflict in plan.Conflicts)
+                MarkConflict(conflict.Identity, conflict.ReasonCode);
+
+            foreach (var quarantineCandidate in plan.QuarantinedRemoteObjects)
+            {
+                MarkQuarantinedRemoteObject(
+                    quarantineCandidate.ObjectKind,
+                    quarantineCandidate.RelativePath,
+                    quarantineCandidate.RemoteEtag,
+                    quarantineCandidate.ContentHash,
+                    quarantineCandidate.ReasonCode,
+                    syncedAtUtc);
+            }
+
+            foreach (var quarantineCandidate in plan.KnownQuarantinedRemoteObjects)
+            {
+                MarkQuarantinedRemoteObject(
+                    quarantineCandidate.ObjectKind,
+                    quarantineCandidate.RelativePath,
+                    quarantineCandidate.RemoteEtag,
+                    quarantineCandidate.ContentHash,
+                    quarantineCandidate.ReasonCode,
+                    syncedAtUtc);
+            }
+
+            foreach (var resolvedQuarantineId in plan.ResolvedQuarantinedRemoteObjectIds.Distinct(StringComparer.Ordinal))
+                ClearQuarantinedRemoteObject(resolvedQuarantineId);
+
+            foreach (var missingRemoteObject in plan.MissingRemoteObjects)
+                MarkDirty(missingRemoteObject);
+        }
+
         public void MarkUploaded(
             SyncObjectIdentity identity,
             string? remoteEtag,
@@ -301,6 +407,11 @@ public sealed class SyncPullServiceTests
         public void MarkConflict(SyncObjectIdentity identity, string reasonCode)
         {
             ConflictMarks.Add(new ConflictMark(identity, reasonCode));
+        }
+
+        public void MarkDirty(SyncObjectIdentity identity)
+        {
+            DirtyMarks.Add(identity);
         }
 
         public void MarkQuarantinedRemoteObject(

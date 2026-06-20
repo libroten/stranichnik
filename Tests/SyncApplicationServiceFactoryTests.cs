@@ -8,6 +8,7 @@ using Stranichnik.Settings;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Credentials;
 using Stranichnik.Sync.Local;
+using Stranichnik.Sync.Pull;
 using Xunit;
 
 namespace Stranichnik.Tests;
@@ -101,6 +102,10 @@ public sealed class SyncApplicationServiceFactoryTests
         {
         }
 
+        public void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc)
+        {
+        }
+
         public void MarkUploaded(
             SyncObjectIdentity identity,
             string? remoteEtag,
@@ -110,6 +115,10 @@ public sealed class SyncApplicationServiceFactoryTests
         }
 
         public void MarkConflict(SyncObjectIdentity identity, string reasonCode)
+        {
+        }
+
+        public void MarkDirty(SyncObjectIdentity identity)
         {
         }
 
@@ -143,6 +152,7 @@ public sealed class SyncApplicationServiceFactoryTests
             {
                 "MKCOL" => new HttpResponseMessage(HttpStatusCode.MethodNotAllowed),
                 "PUT" => CreateResponse(HttpStatusCode.Created, "\"etag\""),
+                "MOVE" => CreateResponse(HttpStatusCode.Created, "\"etag\""),
                 _ => new HttpResponseMessage(HttpStatusCode.NotFound)
             };
 

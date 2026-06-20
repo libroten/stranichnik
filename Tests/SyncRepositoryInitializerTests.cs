@@ -129,6 +129,18 @@ public sealed class SyncRepositoryInitializerTests
         Assert.DoesNotContain("\"encryptedPayload\"", manifestJson, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task EnsureInitializedAsync_runs_temp_cleanup_when_transport_supports_it()
+    {
+        var transport = new TempCleaningTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        var initializer = CreateInitializer(transport, serializer);
+
+        await initializer.EnsureInitializedAsync(CancellationToken.None);
+
+        Assert.True(transport.TempCleanupCalled);
+    }
+
     private static SyncRepositoryInitializer CreateInitializer(
         InMemoryWebDavSyncTransport transport,
         SystemTextSyncJsonSerializer serializer)
@@ -138,7 +150,8 @@ public sealed class SyncRepositoryInitializerTests
             serializer,
             new SyncLocalIdentity("database-id", "device-id"),
             clock: () => CreatedAt,
-            repositoryIdFactory: () => "repository-id");
+            repositoryIdFactory: () => "repository-id",
+            log: _ => { });
     }
 
     private static SyncManifestDto CreateManifest(
@@ -185,6 +198,18 @@ public sealed class SyncRepositoryInitializerTests
                 return Task.FromResult(SyncPutResult.PreconditionFailed("\"manifest\""));
 
             return base.PutAsync(relativePath, bytes, expectedEtag, createOnly, cancellationToken);
+        }
+    }
+
+    private sealed class TempCleaningTransport : InMemoryWebDavSyncTransport, IWebDavTempObjectCleaner
+    {
+        public bool TempCleanupCalled { get; private set; }
+
+        public Task CleanupStaleTempObjectsAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TempCleanupCalled = true;
+            return Task.CompletedTask;
         }
     }
 }

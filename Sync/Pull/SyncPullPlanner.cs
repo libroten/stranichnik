@@ -80,6 +80,14 @@ public sealed class SyncPullPlanner
             context)
             .Where(item => !IsResetSecretItem(item.Value, resetGenerationIds))
             .ToList();
+        var missingRemoteObjects = PlanMissingRemoteObjects(
+            snapshot,
+            secretResetEvents,
+            cryptoProfiles,
+            iconAssets,
+            secretIconAssets,
+            items,
+            resetGenerationIds);
 
         return new SyncPullPlan(
             new SyncApplyBatch(
@@ -92,7 +100,8 @@ public sealed class SyncPullPlanner
             context.MatchedDirtyObjects.ToArray(),
             context.QuarantinedRemoteObjects.ToArray(),
             context.KnownQuarantinedRemoteObjects.ToArray(),
-            context.ResolvedQuarantinedRemoteObjectIds.ToArray());
+            context.ResolvedQuarantinedRemoteObjectIds.ToArray(),
+            missingRemoteObjects);
     }
 
     private static List<SyncAppliedRemoteObject<SyncSecretResetEventDto>> PlanResetEvents(
@@ -200,7 +209,17 @@ public sealed class SyncPullPlanner
             }
 
             if (localMetadata.SyncState == BookmarkSyncState.Conflict)
+            {
+                if (string.Equals(localMetadata.ContentHash, remoteContentHash, StringComparison.Ordinal))
+                {
+                    context.MatchedDirtyObjects.Add(new SyncPullMatchedDirtyObject(
+                        identity,
+                        result.RemoteInfo.ETag,
+                        remoteContentHash));
+                }
+
                 continue;
+            }
 
             if (!string.Equals(localMetadata.ContentHash, remoteContentHash, StringComparison.Ordinal))
             {
@@ -212,6 +231,88 @@ public sealed class SyncPullPlanner
         }
 
         return objectsToApply;
+    }
+
+    private static List<SyncObjectIdentity> PlanMissingRemoteObjects(
+        SyncLocalSnapshot snapshot,
+        IReadOnlyList<SyncRemoteReadResult<SyncSecretResetEventDto>> secretResetEvents,
+        IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles,
+        IReadOnlyList<SyncRemoteReadResult<SyncIconAssetDto>> iconAssets,
+        IReadOnlyList<SyncRemoteReadResult<SyncSecretIconAssetDto>> secretIconAssets,
+        IReadOnlyList<SyncRemoteReadResult<SyncItemDto>> items,
+        HashSet<string> resetGenerationIds)
+    {
+        var missingObjects = new List<SyncObjectIdentity>();
+
+        AddMissingRemoteObjects(
+            snapshot.SecretResetEvents.Select(resetEvent => (
+                Id: resetEvent.SecretGenerationId,
+                Metadata: new SyncObjectMetadata(
+                    resetEvent.SyncState,
+                    resetEvent.RemoteEtag,
+                    resetEvent.LastSyncedAtUtc,
+                    ContentHash: null,
+                    ModifiedDeviceId: resetEvent.ResetDeviceId))),
+            secretResetEvents,
+            SyncObjectKind.SecretResetEvent,
+            missingObjects);
+        AddMissingRemoteObjects(
+            snapshot.CryptoProfiles
+                .Where(profile => !resetGenerationIds.Contains(profile.Profile.SecretGenerationId))
+                .Select(profile => (
+                    Id: profile.Profile.SecretGenerationId,
+                    profile.SyncMetadata)),
+            cryptoProfiles,
+            SyncObjectKind.CryptoProfile,
+            missingObjects);
+        AddMissingRemoteObjects(
+            snapshot.IconAssets.Select(asset => (
+                Id: asset.Asset.Id,
+                asset.SyncMetadata)),
+            iconAssets,
+            SyncObjectKind.IconAsset,
+            missingObjects);
+        AddMissingRemoteObjects(
+            snapshot.SecretIconAssets
+                .Where(asset => !resetGenerationIds.Contains(asset.Asset.SecretGenerationId))
+                .Select(asset => (
+                    Id: asset.Asset.Id,
+                    asset.SyncMetadata)),
+            secretIconAssets,
+            SyncObjectKind.SecretIconAsset,
+            missingObjects);
+        AddMissingRemoteObjects(
+            snapshot.Items
+                .Where(item => !IsResetSecretItem(item.Item, snapshot.CryptoProfiles, resetGenerationIds))
+                .Select(item => (
+                    Id: item.Item.Id,
+                    item.SyncMetadata)),
+            items,
+            SyncObjectKind.Item,
+            missingObjects);
+
+        return missingObjects;
+    }
+
+    private static void AddMissingRemoteObjects<T>(
+        IEnumerable<(string Id, SyncObjectMetadata Metadata)> localObjects,
+        IReadOnlyList<SyncRemoteReadResult<T>> remoteResults,
+        SyncObjectKind kind,
+        List<SyncObjectIdentity> missingObjects)
+    {
+        var remoteIds = remoteResults
+            .Where(result => result.Identity?.Kind == kind)
+            .Select(result => result.Identity!.Id)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var (id, metadata) in localObjects)
+        {
+            if (metadata is { SyncState: BookmarkSyncState.Clean, LastSyncedAtUtc: not null } &&
+                !remoteIds.Contains(id))
+            {
+                missingObjects.Add(new SyncObjectIdentity(kind, id));
+            }
+        }
     }
 
     private static bool TryGetSuccessfulValue<T>(
@@ -231,7 +332,7 @@ public sealed class SyncPullPlanner
             context.MarkQuarantined(ToQuarantineCandidate(
                 result,
                 ToReasonCode(result.Status),
-                contentHash: null));
+                result.ContentHash));
             return false;
         }
 
@@ -261,6 +362,22 @@ public sealed class SyncPullPlanner
             result.RemoteInfo.ETag,
             contentHash,
             reasonCode);
+    }
+
+    private static bool IsResetSecretItem(
+        BookmarkItemRecord item,
+        IReadOnlyList<SyncCryptoProfileSnapshotRecord> cryptoProfiles,
+        HashSet<string> resetGenerationIds)
+    {
+        if (!item.IsSecret ||
+            item.EncryptedPayload is not EncryptedBookmarkPayloadRecord payload)
+        {
+            return false;
+        }
+
+        return cryptoProfiles.Any(profile =>
+            profile.Profile.Id == payload.CryptoProfileId &&
+            resetGenerationIds.Contains(profile.Profile.SecretGenerationId));
     }
 
     private static string ToReasonCode(SyncRemoteReadStatus status)

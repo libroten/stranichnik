@@ -296,7 +296,7 @@ public partial class MainWindow : Window
         UpdateSecretVisibilityMenuState();
     }
 
-    private static async Task<SettingsDialogResult> SaveSecretMasterPasswordFromSettingsAsync(
+    private async Task<SettingsDialogResult> SaveSecretMasterPasswordFromSettingsAsync(
         Window owner,
         MainWindowViewModel viewModel,
         string newMasterPassword)
@@ -307,7 +307,10 @@ public partial class MainWindow : Window
             return SettingsDialogResult.Failed(UiStrings.SettingsSecretUnlockRequired);
         }
 
-        var result = viewModel.SaveSecretMasterPassword(newMasterPassword);
+        SecretPasswordSaveResult result;
+        using (_syncOperationGate.EnterLocalWriteOperation())
+            result = viewModel.SaveSecretMasterPassword(newMasterPassword);
+
         if (result.Succeeded)
         {
             return result.WasCreated
@@ -323,10 +326,13 @@ public partial class MainWindow : Window
         });
     }
 
-    private static Task<SettingsDialogResult> ResetSecretMasterPasswordFromSettingsAsync(
+    private Task<SettingsDialogResult> ResetSecretMasterPasswordFromSettingsAsync(
         MainWindowViewModel viewModel)
     {
-        var result = viewModel.ResetMasterPasswordAndDeleteSecrets();
+        SecretMasterPasswordResetResult result;
+        using (_syncOperationGate.EnterLocalWriteOperation())
+            result = viewModel.ResetMasterPasswordAndDeleteSecrets();
+
         if (result.WasReset)
             return Task.FromResult(SettingsDialogResult.Reset());
 
@@ -467,8 +473,14 @@ public partial class MainWindow : Window
             Logs.Print("Manual sync failed: request timed out.");
             return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
         }
+        catch (Exception exception) when (IsRecoverableLocalSyncException(exception))
+        {
+            Logs.Print($"Manual sync failed: local sync operation failed. ExceptionType={exception.GetType().Name}.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncNowFailed);
+        }
 
         viewModel.RefreshSecretSessionConfigurationFromStorage();
+        viewModel.ReloadVisibleTreeAndSearch();
 
         if (!summary.Succeeded)
             return SettingsDialogResult.Failed(ToSyncSummaryErrorMessage(summary));
@@ -476,7 +488,6 @@ public partial class MainWindow : Window
         var updatedSettings = AppSettingsService.Load();
         updatedSettings.Sync.LastSuccessfulSyncAtUtc = summary.FinishedAtUtc;
         AppSettingsService.Save(updatedSettings);
-        viewModel.ReloadVisibleTreeAndSearch();
         return SettingsDialogResult.Changed();
     }
 
@@ -568,6 +579,13 @@ public partial class MainWindow : Window
             SyncApplicationServiceFactoryStatus.MissingCredentials => UiStrings.SettingsSyncPasswordRequired,
             _ => UiStrings.SettingsSyncNowFailed
         };
+    }
+
+    private static bool IsRecoverableLocalSyncException(Exception exception)
+    {
+        var fullTypeName = exception.GetType().FullName;
+        return exception is InvalidOperationException or System.IO.IOException or System.Text.Json.JsonException ||
+            string.Equals(fullTypeName, "Microsoft.Data.Sqlite.SqliteException", StringComparison.Ordinal);
     }
 
     private static bool IsValidSyncWebDavUrl(string webDavUrl)
@@ -1178,21 +1196,40 @@ public partial class MainWindow : Window
         folder = viewModel.FindFolder(folder.Id) ?? folder;
 
         var addResult = result.IsSecret
-            ? viewModel.AddSecretBookmarkToFolderStart(
-                folder,
-                result.Title,
-                result.Url,
-                result.IconSelection)
-            : viewModel.AddBookmarkToFolderStart(
-                folder,
-                result.Title,
-                result.Url,
-                result.IconSelection);
+            ? AddSecretBookmarkWithSyncGate(viewModel, folder, result)
+            : AddBookmarkWithSyncGate(viewModel, folder, result);
+
         if (addResult.WasAdded)
         {
             folder.IsExpanded = true;
             UpdateBookmarksHorizontalOverflow();
         }
+    }
+
+    private BookmarkTreeAddBookmarkResult AddBookmarkWithSyncGate(
+        MainWindowViewModel viewModel,
+        BookmarkFolderViewModel folder,
+        BookmarkEditorDialogResult result)
+    {
+        using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
+        return viewModel.AddBookmarkToFolderStart(
+            folder,
+            result.Title,
+            result.Url,
+            result.IconSelection);
+    }
+
+    private BookmarkTreeAddBookmarkResult AddSecretBookmarkWithSyncGate(
+        MainWindowViewModel viewModel,
+        BookmarkFolderViewModel folder,
+        BookmarkEditorDialogResult result)
+    {
+        using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
+        return viewModel.AddSecretBookmarkToFolderStart(
+            folder,
+            result.Title,
+            result.Url,
+            result.IconSelection);
     }
 
     private async Task AddFolderToFolderAsync(BookmarkFolderViewModel folder)
@@ -1209,12 +1246,22 @@ public partial class MainWindow : Window
 
         folder = viewModel.FindFolder(folder.Id) ?? folder;
 
-        var addResult = viewModel.AddFolderToFolderStart(folder, result.Title, result.IconSelection);
+        var addResult = AddFolderWithSyncGate(viewModel, folder, result);
+
         if (addResult.WasAdded)
         {
             folder.IsExpanded = true;
             UpdateBookmarksHorizontalOverflow();
         }
+    }
+
+    private BookmarkTreeAddFolderResult AddFolderWithSyncGate(
+        MainWindowViewModel viewModel,
+        BookmarkFolderViewModel folder,
+        BookmarkEditorDialogResult result)
+    {
+        using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
+        return viewModel.AddFolderToFolderStart(folder, result.Title, result.IconSelection);
     }
 
     private async Task OpenBookmarkAsync(BookmarkViewModel bookmark)
@@ -1243,10 +1290,12 @@ public partial class MainWindow : Window
 
             if (result.IsSecret)
             {
+                using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
                 viewModel.EditBookmarkAsSecret(bookmark, result.Title, result.Url, result.IconSelection);
             }
             else if (bookmark.IsSecret)
             {
+                using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
                 viewModel.EditSecretBookmarkAsPlaintext(
                     bookmark,
                     result.Title,
@@ -1255,6 +1304,7 @@ public partial class MainWindow : Window
             }
             else
             {
+                using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
                 viewModel.EditBookmark(bookmark, result.Title, result.Url, result.IconSelection);
             }
 
@@ -1262,7 +1312,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private static async Task<bool> EnsureSecretEditingAvailableAsync(
+    private async Task<bool> EnsureSecretEditingAvailableAsync(
         MainWindowViewModel viewModel,
         Window owner)
     {
@@ -1278,7 +1328,9 @@ public partial class MainWindow : Window
         if (result is null)
             return false;
 
-        var setupResult = viewModel.CreateMasterPassword(result.MasterPassword, showSecrets: true);
+        SecretProfileSetupResult setupResult;
+        using (_syncOperationGate.EnterLocalWriteOperation())
+            setupResult = viewModel.CreateMasterPassword(result.MasterPassword, showSecrets: true);
 
         if (setupResult.WasCreated)
             return true;
@@ -1357,6 +1409,7 @@ public partial class MainWindow : Window
 
         if (result is not null)
         {
+            using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
             viewModel.EditFolder(folder, result.Title, result.IconSelection);
             UpdateBookmarksHorizontalOverflow();
         }
@@ -1370,6 +1423,7 @@ public partial class MainWindow : Window
         var confirmed = await ConfirmDialog.ShowDeleteBookmark(this, bookmark.Title);
         if (confirmed)
         {
+            using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
             viewModel.DeleteItem(bookmark);
             UpdateBookmarksHorizontalOverflow();
         }
@@ -1387,6 +1441,7 @@ public partial class MainWindow : Window
     private async Task<BookmarkEditorDialogResult?> ShowBookmarkEditorDialogAsync(BookmarkEditorDialog dialog)
     {
         _secretInactivityController.Pause();
+        using var editorSession = _syncOperationGate.EnterEditorSession();
         try
         {
             return await dialog.ShowDialog<BookmarkEditorDialogResult?>(this);
@@ -1431,6 +1486,7 @@ public partial class MainWindow : Window
         var confirmed = await ConfirmDialog.ShowDeleteFolder(this, folder.Title);
         if (confirmed)
         {
+            using var writeOperation = _syncOperationGate.EnterLocalWriteOperation();
             viewModel.DeleteItem(folder);
             UpdateBookmarksHorizontalOverflow();
         }
@@ -1698,7 +1754,10 @@ public partial class MainWindow : Window
 
         if (_hasActiveDropTarget)
         {
-            var moveResult = viewModel.MoveItemToFolderStart(draggedItem, _activeDropTargetFolder);
+            BookmarkTreeMoveResult moveResult;
+            using (_syncOperationGate.EnterLocalWriteOperation())
+                moveResult = viewModel.MoveItemToFolderStart(draggedItem, _activeDropTargetFolder);
+
             wasMoved = moveResult.WasMoved;
             UpdateBookmarksHorizontalOverflow();
 

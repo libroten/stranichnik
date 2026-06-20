@@ -534,6 +534,7 @@ public sealed partial class SettingsDialog : Window
         SyncPasswordTextBox.Text = _loadedSyncPassword;
         RefreshInsecureCredentialWarning(settings);
         SyncNowActionsPanel.IsVisible = HasSavedSyncConfiguration(settings, credentials);
+        ResetSyncSettingsActionsPanel.IsVisible = HasAnySavedSyncConfiguration(settings, credentials);
     }
 
     private static bool HasSavedSyncConfiguration(AppSettings settings, SyncCredentials? credentials)
@@ -541,6 +542,15 @@ public sealed partial class SettingsDialog : Window
         return !string.IsNullOrWhiteSpace(settings.Sync.WebDavUrl) &&
             !string.IsNullOrWhiteSpace(settings.Sync.Username) &&
             !string.IsNullOrWhiteSpace(settings.Sync.CredentialStorageKind) &&
+            credentials is not null;
+    }
+
+    private static bool HasAnySavedSyncConfiguration(AppSettings settings, SyncCredentials? credentials)
+    {
+        return !string.IsNullOrWhiteSpace(settings.Sync.WebDavUrl) ||
+            !string.IsNullOrWhiteSpace(settings.Sync.Username) ||
+            !string.IsNullOrWhiteSpace(settings.Sync.CredentialStorageKind) ||
+            settings.Sync.LastSuccessfulSyncAtUtc is not null ||
             credentials is not null;
     }
 
@@ -594,6 +604,7 @@ public sealed partial class SettingsDialog : Window
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Avalonia.Thickness(0, 4, 0, 0),
             Spacing = 6,
             Children =
             {
@@ -602,27 +613,20 @@ public sealed partial class SettingsDialog : Window
             }
         };
 
-        var content = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 8
-        };
-        content.Children.Add(new StackPanel
+        var content = new StackPanel
         {
             Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
                 pathTextBlock,
-                detailsTextBlock
+                detailsTextBlock,
+                buttons
             }
-        });
-        Grid.SetColumn(buttons, 1);
-        content.Children.Add(buttons);
+        };
 
         return new Border
         {
-            Padding = new Avalonia.Thickness(8, 6),
+            Padding = new Avalonia.Thickness(8, 6, 8, 8),
             CornerRadius = new Avalonia.CornerRadius(6),
             Background = Brushes.Transparent,
             Child = content

@@ -6,7 +6,8 @@ public sealed record SyncRemoteReadResult<T>(
     SyncRemoteReadStatus Status,
     SyncRemoteObjectInfo RemoteInfo,
     SyncObjectIdentity? Identity,
-    T? Value);
+    T? Value,
+    string? ContentHash);
 
 public static class SyncRemoteReadResult
 {
@@ -19,18 +20,21 @@ public static class SyncRemoteReadResult
             SyncRemoteReadStatus.Success,
             remoteInfo,
             identity,
-            value);
+            value,
+            ContentHash: null);
     }
 
     public static SyncRemoteReadResult<T> Failed<T>(
         SyncRemoteReadStatus status,
         SyncRemoteObjectInfo remoteInfo,
-        SyncObjectIdentity? identity = null)
+        SyncObjectIdentity? identity = null,
+        string? contentHash = null)
     {
         return new SyncRemoteReadResult<T>(
             status,
             remoteInfo,
             identity,
-            default);
+            default,
+            contentHash);
     }
 }

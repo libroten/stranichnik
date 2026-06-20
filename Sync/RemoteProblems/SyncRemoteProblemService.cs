@@ -45,19 +45,29 @@ public sealed class SyncRemoteProblemService : IDisposable
 
         _log("Sync remote problem delete started.");
         using var syncActivity = _syncActivityService?.BeginOperation();
-        var result = await _transport
-            .DeleteAsync(problem.RelativePath, problem.RemoteEtag, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (result.Status == SyncDeleteStatus.PreconditionFailed)
+        try
         {
-            _log("Sync remote problem delete stopped: remote object changed.");
-            return SyncRemoteProblemDeleteResult.RemoteChanged();
-        }
+            var result = await _transport
+                .DeleteAsync(problem.RelativePath, problem.RemoteEtag, cancellationToken)
+                .ConfigureAwait(false);
 
-        _localStore.ClearQuarantinedRemoteObject(problem.Id);
-        _log("Sync remote problem delete finished.");
-        return SyncRemoteProblemDeleteResult.DeletedOrMissing();
+            if (result.Status == SyncDeleteStatus.PreconditionFailed)
+            {
+                _log("Sync remote problem delete stopped: remote object changed.");
+                _syncActivityService?.ReportCompleted(succeeded: false);
+                return SyncRemoteProblemDeleteResult.RemoteChanged();
+            }
+
+            _localStore.ClearQuarantinedRemoteObject(problem.Id);
+            _syncActivityService?.ReportCompleted(succeeded: true);
+            _log("Sync remote problem delete finished.");
+            return SyncRemoteProblemDeleteResult.DeletedOrMissing();
+        }
+        catch
+        {
+            _syncActivityService?.ReportCompleted(succeeded: false);
+            throw;
+        }
     }
 
     public void Dispose()

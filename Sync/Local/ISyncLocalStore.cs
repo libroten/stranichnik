@@ -1,5 +1,6 @@
 using System;
 using Stranichnik.Sync;
+using Stranichnik.Sync.Pull;
 
 namespace Stranichnik.Sync.Local;
 
@@ -9,6 +10,8 @@ public interface ISyncLocalStore
 
     void ApplyRemoteChanges(SyncApplyBatch batch);
 
+    void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc);
+
     void MarkUploaded(
         SyncObjectIdentity identity,
         string? remoteEtag,
@@ -16,6 +19,8 @@ public interface ISyncLocalStore
         DateTimeOffset syncedAtUtc);
 
     void MarkConflict(SyncObjectIdentity identity, string reasonCode);
+
+    void MarkDirty(SyncObjectIdentity identity);
 
     void MarkQuarantinedRemoteObject(
         string objectKind,

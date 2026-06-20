@@ -64,6 +64,7 @@ public sealed class SyncApplicationService : IDisposable
         {
             using var syncActivity = _syncActivityService?.BeginOperation();
             _log("Sync run started.");
+            _log("Sync repository initialization started.");
             var initializationResult = await _repositoryInitializer
                 .EnsureInitializedAsync(cancellationToken)
                 .ConfigureAwait(false);
@@ -77,8 +78,23 @@ public sealed class SyncApplicationService : IDisposable
                 return blockedSummary;
             }
 
+            _log("Sync repository initialization finished: ready.");
+            _log("Sync pull phase requested.");
             var pullSummary = await _pullService.PullAsync(cancellationToken).ConfigureAwait(false);
+            _log(
+                "Sync pull phase completed. " +
+                $"Succeeded={pullSummary.Succeeded}; " +
+                $"Downloaded={pullSummary.DownloadedCount}; " +
+                $"Conflicts={pullSummary.ConflictCount}; " +
+                $"InvalidRemoteObjects={pullSummary.InvalidRemoteObjectCount}.");
+            _log("Sync push phase requested.");
             var pushSummary = await _pushService.PushAsync(cancellationToken).ConfigureAwait(false);
+            _log(
+                "Sync push phase completed. " +
+                $"Succeeded={pushSummary.Succeeded}; " +
+                $"Uploaded={pushSummary.UploadedCount}; " +
+                $"Conflicts={pushSummary.ConflictCount}; " +
+                $"Errors={pushSummary.ErrorCount}.");
             var finishedAtUtc = _clock();
             var summary = MergeSummaries(startedAtUtc, finishedAtUtc, pullSummary, pushSummary);
 

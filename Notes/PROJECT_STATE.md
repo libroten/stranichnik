@@ -159,6 +159,22 @@ Completed broad areas:
   - `Stranichnik -> Settings -> Sync` exposes WebDAV URL, username, password, connection test, sync now, sync-settings reset, last successful sync status, and quarantined remote problem management;
   - `Cmd+S` on macOS and `Ctrl+S` on Windows/Linux starts manual sync from the main window; repeated presses while sync is active are ignored, and the last manual sync result is shown in the settings sync status area when settings are opened later;
   - after sync pulls a crypto profile into an initially empty local database, `MainWindowViewModel` refreshes the runtime secret-session configuration so `Cmd+P` can unlock the downloaded secret bookmarks without restarting the app;
+  - current sync hardening covers several interruption/partial-state scenarios:
+    UI reloads after any completed sync summary that may have applied pull
+    changes, `SyncOperationGate` blocks sync while editors/local writes are in
+    progress, missing clean synced local objects are marked dirty for remote
+    restoration, and create-only uploads use `.tmp/` plus WebDAV `MOVE` when
+    supported;
+  - pull apply also runs a reconciliation pass for already-downloaded icon
+    assets and crypto profiles so pending icon references and deferred secret
+    items can recover after an interrupted earlier apply;
+  - production WebDAV sync performs best-effort cleanup of stale files in the
+    `.tmp/` service directory;
+  - `ISyncLocalStore.ApplyPullPlan(...)` centralizes pull apply, conflict,
+    quarantine, matched-dirty cleanup, and missing-remote dirty marking. The
+    SQLite implementation is not yet a single shared transaction across every
+    internal store operation; that remains the next sync-interruption hardening
+    task;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 
 Not implemented yet:
@@ -360,6 +376,8 @@ Recently verified sync scenarios include:
 - ensuring existing sample-data rows are uploaded during first sync after sync metadata migration;
 - pulling secret bookmarks, crypto profile data, and encrypted secret icons into an empty database;
 - unlocking downloaded secret bookmarks with `Cmd+P` after pull without restarting the app.
+- restoring a remote item that disappeared from WebDAV by marking the
+  previously synced clean local object dirty and uploading it again.
 
 The user confirmed the first search integration works in the app. The current search quality is acceptable as a first pass, with possible future tuning.
 

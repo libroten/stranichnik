@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Stranichnik.Diagnostics;
 using Stranichnik.Security;
 using Stranichnik.Storage;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Local;
+using Stranichnik.Sync.Pull;
 using Stranichnik.Sync.Remote;
 using Stranichnik.Sync.Serialization;
 using Stranichnik.Sync.WebDav;
@@ -18,13 +20,15 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
     private readonly SqliteSecretResetStore _secretResetStore;
     private readonly ISyncMetadataStore _syncMetadataStore;
     private readonly ISyncJsonSerializer _serializer;
+    private readonly Action<string> _log;
 
     public SqliteSyncLocalStore(
         SqliteBookmarkTreeStore bookmarkTreeStore,
         SqliteSecretProfileStore secretProfileStore,
         SqliteSecretResetStore secretResetStore,
         ISyncMetadataStore syncMetadataStore,
-        ISyncJsonSerializer serializer)
+        ISyncJsonSerializer serializer,
+        Action<string>? log = null)
     {
         ArgumentNullException.ThrowIfNull(bookmarkTreeStore);
         ArgumentNullException.ThrowIfNull(secretProfileStore);
@@ -37,6 +41,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         _secretResetStore = secretResetStore;
         _syncMetadataStore = syncMetadataStore;
         _serializer = serializer;
+        _log = log ?? Logs.Print;
     }
 
     public SyncLocalSnapshot LoadSnapshot()
@@ -58,21 +63,100 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         ArgumentNullException.ThrowIfNull(batch);
 
         var syncedAtUtc = DateTimeOffset.UtcNow;
+        _log(
+            "SQLite sync apply remote changes started. " +
+            $"ResetEvents={batch.SecretResetEvents.Count}; " +
+            $"CryptoProfiles={batch.CryptoProfiles.Count}; " +
+            $"IconAssets={batch.IconAssets.Count}; " +
+            $"SecretIconAssets={batch.SecretIconAssets.Count}; " +
+            $"Items={batch.Items.Count}.");
 
         foreach (var resetEvent in batch.SecretResetEvents)
+        {
+            _log("SQLite sync apply remote object started. Kind=SecretResetEvent.");
             ApplyRemoteResetEvent(resetEvent, syncedAtUtc);
+            _log("SQLite sync apply remote object finished. Kind=SecretResetEvent.");
+        }
 
         foreach (var iconAsset in batch.IconAssets)
+        {
+            _log("SQLite sync apply remote object started. Kind=IconAsset.");
             ApplyRemoteIconAsset(iconAsset, syncedAtUtc);
+            _log("SQLite sync apply remote object finished. Kind=IconAsset.");
+        }
 
         foreach (var secretIconAsset in batch.SecretIconAssets)
+        {
+            _log("SQLite sync apply remote object started. Kind=SecretIconAsset.");
             ApplyRemoteSecretIconAsset(secretIconAsset, syncedAtUtc);
+            _log("SQLite sync apply remote object finished. Kind=SecretIconAsset.");
+        }
 
         foreach (var profile in batch.CryptoProfiles)
+        {
+            _log("SQLite sync apply remote object started. Kind=CryptoProfile.");
             ApplyRemoteCryptoProfile(profile, syncedAtUtc);
+            _log("SQLite sync apply remote object finished. Kind=CryptoProfile.");
+        }
 
         foreach (var item in OrderItemsForApply(batch.Items))
+        {
+            _log("SQLite sync apply remote object started. Kind=Item.");
             ApplyRemoteItem(item, syncedAtUtc);
+            _log("SQLite sync apply remote object finished. Kind=Item.");
+        }
+
+        ReconcilePendingRemoteDependencies(syncedAtUtc);
+        _log("SQLite sync apply remote changes finished.");
+    }
+
+    public void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+
+        _log("SQLite sync apply pull plan started.");
+        ApplyRemoteChanges(plan.ApplyBatch);
+
+        foreach (var matchedObject in plan.MatchedDirtyObjects)
+        {
+            MarkUploaded(
+                matchedObject.Identity,
+                matchedObject.RemoteEtag,
+                matchedObject.ContentHash,
+                syncedAtUtc);
+        }
+
+        foreach (var conflict in plan.Conflicts)
+            MarkConflict(conflict.Identity, conflict.ReasonCode);
+
+        foreach (var quarantineCandidate in plan.QuarantinedRemoteObjects)
+        {
+            MarkQuarantinedRemoteObject(
+                quarantineCandidate.ObjectKind,
+                quarantineCandidate.RelativePath,
+                quarantineCandidate.RemoteEtag,
+                quarantineCandidate.ContentHash,
+                quarantineCandidate.ReasonCode,
+                syncedAtUtc);
+        }
+
+        foreach (var quarantineCandidate in plan.KnownQuarantinedRemoteObjects)
+        {
+            MarkQuarantinedRemoteObject(
+                quarantineCandidate.ObjectKind,
+                quarantineCandidate.RelativePath,
+                quarantineCandidate.RemoteEtag,
+                quarantineCandidate.ContentHash,
+                quarantineCandidate.ReasonCode,
+                syncedAtUtc);
+        }
+
+        foreach (var resolvedQuarantineId in plan.ResolvedQuarantinedRemoteObjectIds.Distinct(StringComparer.Ordinal))
+            ClearQuarantinedRemoteObject(resolvedQuarantineId);
+
+        foreach (var missingRemoteObject in plan.MissingRemoteObjects)
+            MarkRemoteMissingAsDirty(missingRemoteObject);
+        _log("SQLite sync apply pull plan finished.");
     }
 
     public void MarkUploaded(
@@ -90,6 +174,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             remoteEtag,
             syncedAtUtc,
             contentHash);
+        _log($"SQLite sync metadata marked uploaded. Kind={identity.Kind}; RemoteEtagPresent={remoteEtag is not null}.");
     }
 
     public void MarkConflict(SyncObjectIdentity identity, string reasonCode)
@@ -98,6 +183,29 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(reasonCode);
 
         MarkSyncState(identity, BookmarkSyncState.Conflict);
+        _log($"SQLite sync metadata marked conflict. Kind={identity.Kind}; Reason={reasonCode}.");
+    }
+
+    public void MarkDirty(SyncObjectIdentity identity)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+
+        MarkSyncState(identity, BookmarkSyncState.Dirty);
+        _log($"SQLite sync metadata marked dirty. Kind={identity.Kind}.");
+    }
+
+    private void MarkRemoteMissingAsDirty(SyncObjectIdentity identity)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+
+        var metadata = LoadMetadata(identity);
+        MarkSyncMetadata(
+            identity,
+            BookmarkSyncState.Dirty,
+            remoteEtag: null,
+            metadata.LastSyncedAtUtc,
+            metadata.ContentHash);
+        _log($"SQLite sync metadata marked dirty for missing remote object. Kind={identity.Kind}.");
     }
 
     public void MarkQuarantinedRemoteObject(
@@ -122,11 +230,18 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             FirstSeenAtUtc: seenAtUtc,
             LastSeenAtUtc: seenAtUtc,
             SeenCount: 1));
+        _log(
+            "SQLite sync remote object quarantine upserted. " +
+            $"ObjectKind={objectKind}; " +
+            $"Reason={reasonCode}; " +
+            $"RemoteEtagPresent={remoteEtag is not null}; " +
+            $"ContentHashPresent={contentHash is not null}.");
     }
 
     public void ClearQuarantinedRemoteObject(string id)
     {
         _syncMetadataStore.DeleteQuarantinedRemoteObject(id);
+        _log("SQLite sync remote object quarantine cleared.");
     }
 
     private void MarkSyncMetadata(
@@ -167,6 +282,36 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             default:
                 throw new ArgumentOutOfRangeException(nameof(identity), identity.Kind, "Unsupported sync object kind.");
         }
+    }
+
+    private SyncObjectMetadata LoadMetadata(SyncObjectIdentity identity)
+    {
+        var snapshot = LoadSnapshot();
+        return identity.Kind switch
+        {
+            SyncObjectKind.Item => snapshot.Items
+                .Single(item => string.Equals(item.Item.Id, identity.Id, StringComparison.Ordinal))
+                .SyncMetadata,
+            SyncObjectKind.IconAsset => snapshot.IconAssets
+                .Single(asset => string.Equals(asset.Asset.Id, identity.Id, StringComparison.Ordinal))
+                .SyncMetadata,
+            SyncObjectKind.SecretIconAsset => snapshot.SecretIconAssets
+                .Single(asset => string.Equals(asset.Asset.Id, identity.Id, StringComparison.Ordinal))
+                .SyncMetadata,
+            SyncObjectKind.CryptoProfile => snapshot.CryptoProfiles
+                .Single(profile => string.Equals(profile.Profile.SecretGenerationId, identity.Id, StringComparison.Ordinal))
+                .SyncMetadata,
+            SyncObjectKind.SecretResetEvent => snapshot.SecretResetEvents
+                .Where(resetEvent => string.Equals(resetEvent.SecretGenerationId, identity.Id, StringComparison.Ordinal))
+                .Select(resetEvent => new SyncObjectMetadata(
+                    resetEvent.SyncState,
+                    resetEvent.RemoteEtag,
+                    resetEvent.LastSyncedAtUtc,
+                    ContentHash: null,
+                    resetEvent.ResetDeviceId))
+                .Single(),
+            _ => throw new ArgumentOutOfRangeException(nameof(identity), identity.Kind, "Unsupported sync object kind.")
+        };
     }
 
     private void MarkSyncState(
@@ -549,10 +694,31 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             LastErrorCode: null));
     }
 
-    private void ResolvePendingAssetRefs(
+    private void ReconcilePendingRemoteDependencies(DateTimeOffset syncedAtUtc)
+    {
+        var resolvedAssetRefs = 0;
+        foreach (var pendingRef in _syncMetadataStore.LoadPendingAssetRefs())
+        {
+            if (ResolvePendingAssetRef(pendingRef))
+                resolvedAssetRefs++;
+        }
+
+        var appliedDeferredSecretItems = 0;
+        var profile = _secretProfileStore.LoadActiveProfile();
+        if (profile is not null && !IsSecretGenerationReset(profile.SecretGenerationId))
+            appliedDeferredSecretItems = ApplyDeferredSecretItemsForProfile(profile, syncedAtUtc);
+
+        _log(
+            "SQLite sync pending dependency reconciliation finished. " +
+            $"ResolvedAssetRefs={resolvedAssetRefs}; " +
+            $"AppliedDeferredSecretItems={appliedDeferredSecretItems}.");
+    }
+
+    private int ResolvePendingAssetRefs(
         SyncPendingAssetKind assetKind,
         string remoteAssetId)
     {
+        var resolvedCount = 0;
         foreach (var pendingRef in _syncMetadataStore.LoadPendingAssetRefs())
         {
             if (pendingRef.AssetKind != assetKind ||
@@ -561,14 +727,38 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
                 continue;
             }
 
-            if (_bookmarkTreeStore.TrySetRemoteResolvedIconAsset(
-                    pendingRef.ItemId,
-                    assetKind,
-                    remoteAssetId))
-            {
-                _syncMetadataStore.DeletePendingAssetRef(pendingRef.Id);
-            }
+            if (ResolvePendingAssetRef(pendingRef))
+                resolvedCount++;
         }
+
+        return resolvedCount;
+    }
+
+    private bool ResolvePendingAssetRef(SyncPendingAssetRefRecord pendingRef)
+    {
+        if (!RemoteAssetExists(pendingRef.AssetKind, pendingRef.RemoteAssetId))
+            return false;
+
+        if (!_bookmarkTreeStore.TrySetRemoteResolvedIconAsset(
+                pendingRef.ItemId,
+                pendingRef.AssetKind,
+                pendingRef.RemoteAssetId))
+        {
+            return false;
+        }
+
+        _syncMetadataStore.DeletePendingAssetRef(pendingRef.Id);
+        return true;
+    }
+
+    private bool RemoteAssetExists(SyncPendingAssetKind assetKind, string remoteAssetId)
+    {
+        return assetKind switch
+        {
+            SyncPendingAssetKind.RegularIcon => _bookmarkTreeStore.GetIconAsset(remoteAssetId) is not null,
+            SyncPendingAssetKind.SecretIcon => _bookmarkTreeStore.GetSecretIconAsset(remoteAssetId) is not null,
+            _ => false
+        };
     }
 
     private void QuarantineRemoteObject(
@@ -621,10 +811,11 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             LastErrorCode: null));
     }
 
-    private void ApplyDeferredSecretItemsForProfile(
+    private int ApplyDeferredSecretItemsForProfile(
         CryptoProfileRecord profile,
         DateTimeOffset syncedAtUtc)
     {
+        var appliedCount = 0;
         foreach (var deferredItem in _syncMetadataStore.LoadDeferredSecretItems())
         {
             if (!string.Equals(deferredItem.SecretGenerationId, profile.SecretGenerationId, StringComparison.Ordinal))
@@ -643,7 +834,10 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
                 syncedAtUtc,
                 profile);
             _syncMetadataStore.DeleteDeferredSecretItem(deferredItem.RemoteItemId);
+            appliedCount++;
         }
+
+        return appliedCount;
     }
 
     private static SyncObjectMetadata CreateCleanSyncMetadata(

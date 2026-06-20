@@ -6,6 +6,7 @@ using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Local;
+using Stranichnik.Sync.Pull;
 using Stranichnik.Sync.Remote;
 using Stranichnik.Sync.Serialization;
 using Stranichnik.Sync.WebDav;
@@ -392,6 +393,32 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyPullPlan_resolves_existing_pending_regular_icon_reference()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.InsertBookmark("remote-bookmark");
+        database.InsertIconAsset("remote-icon");
+        database.SyncMetadataStore.UpsertPendingAssetRef(new SyncPendingAssetRefRecord(
+            Id: "pending",
+            ItemId: "remote-bookmark",
+            AssetKind: SyncPendingAssetKind.RegularIcon,
+            RemoteAssetId: "remote-icon",
+            SourceHashAlgorithm: "sha256",
+            SourceHash: "remote-source-hash",
+            CreatedAtUtc: Now,
+            LastAttemptAtUtc: null,
+            AttemptCount: 0,
+            LastErrorCode: null));
+        var plan = EmptyPullPlan();
+
+        database.SyncLocalStore.ApplyPullPlan(plan, Now.AddMinutes(1));
+
+        Assert.Empty(database.SyncMetadataStore.LoadPendingAssetRefs());
+        var storedItem = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "remote-bookmark");
+        Assert.Equal("remote-icon", storedItem.Item.IconAssetId);
+    }
+
+    [Fact]
     public void ApplyRemoteChanges_uses_existing_regular_icon_reference_and_clears_pending_ref()
     {
         using var database = TempSqliteDatabase.Create();
@@ -559,6 +586,33 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyPullPlan_resolves_existing_pending_secret_icon_reference()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.ProfileStore.SaveNewProfile(CreateProfile("generation"));
+        database.InsertSecretBookmark("remote-secret", "generation");
+        database.InsertSecretIconAsset("remote-secret-icon", "generation");
+        database.SyncMetadataStore.UpsertPendingAssetRef(new SyncPendingAssetRefRecord(
+            Id: "pending",
+            ItemId: "remote-secret",
+            AssetKind: SyncPendingAssetKind.SecretIcon,
+            RemoteAssetId: "remote-secret-icon",
+            SourceHashAlgorithm: "sha256",
+            SourceHash: "remote-secret-source-hash",
+            CreatedAtUtc: Now,
+            LastAttemptAtUtc: null,
+            AttemptCount: 0,
+            LastErrorCode: null));
+        var plan = EmptyPullPlan();
+
+        database.SyncLocalStore.ApplyPullPlan(plan, Now.AddMinutes(1));
+
+        Assert.Empty(database.SyncMetadataStore.LoadPendingAssetRefs());
+        var storedItem = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "remote-secret");
+        Assert.Equal("remote-secret-icon", storedItem.Item.SecretIconAssetId);
+    }
+
+    [Fact]
     public void ApplyRemoteChanges_uses_existing_secret_icon_reference_and_clears_pending_ref()
     {
         using var database = TempSqliteDatabase.Create();
@@ -630,6 +684,33 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyPullPlan_applies_existing_deferred_secret_item_when_profile_exists()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.ProfileStore.SaveNewProfile(CreateProfile("remote-generation"));
+        var secretItem = CreateRemoteSecretBookmark("remote-secret", "remote-generation");
+        database.SyncMetadataStore.UpsertDeferredSecretItem(new SyncDeferredSecretItemRecord(
+            RemoteItemId: "remote-secret",
+            SecretGenerationId: "remote-generation",
+            RemoteEtag: "secret-etag",
+            ContentHash: "sha256:remote-secret-content",
+            CanonicalJson: Serializer.Serialize(secretItem),
+            CreatedAtUtc: Now,
+            LastAttemptAtUtc: null,
+            AttemptCount: 0,
+            LastErrorCode: null));
+        var plan = EmptyPullPlan();
+
+        database.SyncLocalStore.ApplyPullPlan(plan, Now.AddMinutes(1));
+
+        Assert.Empty(database.SyncMetadataStore.LoadDeferredSecretItems());
+        var storedItem = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "remote-secret");
+        Assert.True(storedItem.Item.IsSecret);
+        Assert.Equal("secret-etag", storedItem.SyncMetadata.RemoteEtag);
+        Assert.Equal("sha256:remote-secret-content", storedItem.SyncMetadata.ContentHash);
+    }
+
+    [Fact]
     public void MarkUploaded_marks_supported_dirty_objects_as_clean()
     {
         using var database = TempSqliteDatabase.Create();
@@ -691,6 +772,36 @@ public sealed class SqliteSyncLocalStoreTests
             resetEvent.SecretGenerationId == "generation" &&
             resetEvent.SyncState == BookmarkSyncState.Clean &&
             resetEvent.RemoteEtag == "reset-etag");
+    }
+
+    [Fact]
+    public void ApplyPullPlan_marks_missing_remote_item_dirty_and_clears_remote_etag()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var identity = new SyncObjectIdentity(SyncObjectKind.Item, "bookmark");
+        database.InsertBookmark("bookmark");
+        database.SyncLocalStore.MarkUploaded(identity, "old-etag", "sha256:item-content", Now);
+        var plan = new SyncPullPlan(
+            ApplyBatch: new SyncApplyBatch(
+                SecretResetEvents: [],
+                CryptoProfiles: [],
+                IconAssets: [],
+                SecretIconAssets: [],
+                Items: []),
+            Conflicts: [],
+            MatchedDirtyObjects: [],
+            QuarantinedRemoteObjects: [],
+            KnownQuarantinedRemoteObjects: [],
+            ResolvedQuarantinedRemoteObjectIds: [],
+            MissingRemoteObjects: [identity]);
+
+        database.SyncLocalStore.ApplyPullPlan(plan, Now.AddMinutes(1));
+
+        var storedItem = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "bookmark");
+        Assert.Equal(BookmarkSyncState.Dirty, storedItem.SyncMetadata.SyncState);
+        Assert.Null(storedItem.SyncMetadata.RemoteEtag);
+        Assert.Equal(Now, storedItem.SyncMetadata.LastSyncedAtUtc);
+        Assert.Equal("sha256:item-content", storedItem.SyncMetadata.ContentHash);
     }
 
     [Fact]
@@ -903,6 +1014,23 @@ public sealed class SqliteSyncLocalStoreTests
             value);
     }
 
+    private static SyncPullPlan EmptyPullPlan()
+    {
+        return new SyncPullPlan(
+            ApplyBatch: new SyncApplyBatch(
+                SecretResetEvents: [],
+                CryptoProfiles: [],
+                IconAssets: [],
+                SecretIconAssets: [],
+                Items: []),
+            Conflicts: [],
+            MatchedDirtyObjects: [],
+            QuarantinedRemoteObjects: [],
+            KnownQuarantinedRemoteObjects: [],
+            ResolvedQuarantinedRemoteObjectIds: [],
+            MissingRemoteObjects: []);
+    }
+
     private sealed class TempSqliteDatabase : IDisposable
     {
         private readonly string _directoryPath;
@@ -937,7 +1065,8 @@ public sealed class SqliteSyncLocalStoreTests
                 ProfileStore,
                 ResetStore,
                 SyncMetadataStore,
-                Serializer);
+                Serializer,
+                log: _ => { });
         }
 
         public SqliteBookmarkTreeStore TreeStore { get; }

@@ -62,14 +62,15 @@ public sealed class SyncApplicationServiceFactory
         var serializer = new SystemTextSyncJsonSerializer();
         var contentHasher = new Sha256SyncContentHasher();
         var httpClient = CreateHttpClient(settings.Sync.Username, credentials.Password);
-        var transport = new HttpWebDavSyncTransport(httpClient, repositoryUri);
-        var remoteReader = new SyncRemoteObjectReader(transport, serializer, contentHasher);
+        var transport = new HttpWebDavSyncTransport(httpClient, repositoryUri, _log);
+        var remoteReader = new SyncRemoteObjectReader(transport, serializer, contentHasher, _log);
         var identity = localStore.LoadSnapshot().Identity;
         var repositoryInitializer = new SyncRepositoryInitializer(
             transport,
             serializer,
             identity,
-            clock: _clock);
+            clock: _clock,
+            log: _log);
         var pullService = new SyncPullService(
             localStore,
             remoteReader,

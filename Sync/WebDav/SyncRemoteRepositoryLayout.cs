@@ -9,6 +9,7 @@ public static class SyncRemoteRepositoryLayout
     public const string SecretIconAssetsDirectory = "secret-icon-assets";
     public const string CryptoProfilesDirectory = "crypto-profiles";
     public const string SecretResetEventsDirectory = "secret-reset-events";
+    public const string TempDirectory = ".tmp";
 
     public static readonly string[] RequiredDirectories =
     [
@@ -17,6 +18,7 @@ public static class SyncRemoteRepositoryLayout
         IconAssetsDirectory,
         SecretIconAssetsDirectory,
         CryptoProfilesDirectory,
-        SecretResetEventsDirectory
+        SecretResetEventsDirectory,
+        TempDirectory
     ];
 }

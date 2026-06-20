@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Stranichnik.Storage;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Local;
+using Stranichnik.Sync.Pull;
 using Stranichnik.Sync.Push;
 using Stranichnik.Sync.Remote;
 using Stranichnik.Sync.Serialization;
@@ -300,6 +301,10 @@ public sealed class SyncPushServiceTests
         {
         }
 
+        public void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc)
+        {
+        }
+
         public void MarkUploaded(
             SyncObjectIdentity identity,
             string? remoteEtag,
@@ -312,6 +317,10 @@ public sealed class SyncPushServiceTests
         public void MarkConflict(SyncObjectIdentity identity, string reasonCode)
         {
             ConflictMarks.Add(new ConflictMark(identity, reasonCode));
+        }
+
+        public void MarkDirty(SyncObjectIdentity identity)
+        {
         }
 
         public void MarkQuarantinedRemoteObject(

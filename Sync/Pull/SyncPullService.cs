@@ -36,6 +36,16 @@ public sealed class SyncPullService
         _log("Sync pull started.");
 
         var snapshot = _localStore.LoadSnapshot();
+        _log(
+            "Sync pull local snapshot loaded. " +
+            $"Items={snapshot.Items.Count}; " +
+            $"IconAssets={snapshot.IconAssets.Count}; " +
+            $"SecretIconAssets={snapshot.SecretIconAssets.Count}; " +
+            $"CryptoProfiles={snapshot.CryptoProfiles.Count}; " +
+            $"ResetEvents={snapshot.SecretResetEvents.Count}; " +
+            $"PendingAssets={snapshot.PendingAssetRefs.Count}; " +
+            $"DeferredSecretItems={snapshot.DeferredSecretItems.Count}; " +
+            $"QuarantinedRemoteObjects={snapshot.QuarantinedRemoteObjects.Count}.");
         var secretResetEvents = await _remoteReader
             .ReadObjectsAsync<SyncSecretResetEventDto>(SyncObjectKind.SecretResetEvent, cancellationToken)
             .ConfigureAwait(false);
@@ -60,59 +70,44 @@ public sealed class SyncPullService
             secretIconAssets,
             items);
         var syncedAtUtc = _clock();
+        var remoteReadSuccessCount =
+            CountSuccessful(secretResetEvents) +
+            CountSuccessful(cryptoProfiles) +
+            CountSuccessful(iconAssets) +
+            CountSuccessful(secretIconAssets) +
+            CountSuccessful(items);
 
-        _localStore.ApplyRemoteChanges(plan.ApplyBatch);
-
-        foreach (var matchedObject in plan.MatchedDirtyObjects)
-        {
-            _localStore.MarkUploaded(
-                matchedObject.Identity,
-                matchedObject.RemoteEtag,
-                matchedObject.ContentHash,
-                syncedAtUtc);
-        }
-
-        foreach (var conflict in plan.Conflicts)
-            _localStore.MarkConflict(conflict.Identity, conflict.ReasonCode);
-
-        foreach (var quarantineCandidate in plan.QuarantinedRemoteObjects)
-        {
-            _localStore.MarkQuarantinedRemoteObject(
-                quarantineCandidate.ObjectKind,
-                quarantineCandidate.RelativePath,
-                quarantineCandidate.RemoteEtag,
-                quarantineCandidate.ContentHash,
-                quarantineCandidate.ReasonCode,
-                syncedAtUtc);
-        }
-
-        foreach (var quarantineCandidate in plan.KnownQuarantinedRemoteObjects)
-        {
-            _localStore.MarkQuarantinedRemoteObject(
-                quarantineCandidate.ObjectKind,
-                quarantineCandidate.RelativePath,
-                quarantineCandidate.RemoteEtag,
-                quarantineCandidate.ContentHash,
-                quarantineCandidate.ReasonCode,
-                syncedAtUtc);
-        }
-
-        foreach (var resolvedQuarantineId in plan.ResolvedQuarantinedRemoteObjectIds.Distinct(StringComparer.Ordinal))
-            _localStore.ClearQuarantinedRemoteObject(resolvedQuarantineId);
+        _log(
+            "Sync pull plan created. " +
+            $"RemoteReadSuccess={remoteReadSuccessCount}; " +
+            $"ApplyResetEvents={plan.ApplyBatch.SecretResetEvents.Count}; " +
+            $"ApplyCryptoProfiles={plan.ApplyBatch.CryptoProfiles.Count}; " +
+            $"ApplyIconAssets={plan.ApplyBatch.IconAssets.Count}; " +
+            $"ApplySecretIconAssets={plan.ApplyBatch.SecretIconAssets.Count}; " +
+            $"ApplyItems={plan.ApplyBatch.Items.Count}; " +
+            $"MatchedDirty={plan.MatchedDirtyObjects.Count}; " +
+            $"Conflicts={plan.Conflicts.Count}; " +
+            $"FreshInvalidRemoteObjects={plan.QuarantinedRemoteObjects.Count}; " +
+            $"KnownInvalidRemoteObjects={plan.KnownQuarantinedRemoteObjects.Count}; " +
+            $"ResolvedInvalidRemoteObjects={plan.ResolvedQuarantinedRemoteObjectIds.Count}; " +
+            $"MissingRemoteObjects={plan.MissingRemoteObjects.Count}.");
+        _log("Sync pull local apply started.");
+        _localStore.ApplyPullPlan(plan, syncedAtUtc);
+        _log("Sync pull local apply finished.");
 
         var finishedSnapshot = _localStore.LoadSnapshot();
+        _log(
+            "Sync pull finished snapshot loaded. " +
+            $"PendingAssets={finishedSnapshot.PendingAssetRefs.Count}; " +
+            $"DeferredSecretItems={finishedSnapshot.DeferredSecretItems.Count}; " +
+            $"QuarantinedRemoteObjects={finishedSnapshot.QuarantinedRemoteObjects.Count}.");
         var finishedAtUtc = _clock();
         var invalidRemoteObjectCount = Math.Max(
             finishedSnapshot.QuarantinedRemoteObjects.Count,
             plan.QuarantinedRemoteObjects.Count + plan.KnownQuarantinedRemoteObjects.Count);
         var summary = new SyncRunSummary(
             Succeeded: plan.Conflicts.Count == 0 && plan.QuarantinedRemoteObjects.Count == 0,
-            DownloadedCount:
-                CountSuccessful(secretResetEvents) +
-                CountSuccessful(cryptoProfiles) +
-                CountSuccessful(iconAssets) +
-                CountSuccessful(secretIconAssets) +
-                CountSuccessful(items),
+            DownloadedCount: CountAppliedRemoteChanges(plan.ApplyBatch),
             UploadedCount: 0,
             ConflictCount: plan.Conflicts.Count,
             PendingAssetCount: finishedSnapshot.PendingAssetRefs.Count,
@@ -134,9 +129,19 @@ public sealed class SyncPullService
             $"FreshInvalidRemoteObjects={plan.QuarantinedRemoteObjects.Count}; " +
             $"KnownInvalidRemoteObjects={plan.KnownQuarantinedRemoteObjects.Count}; " +
             $"ResolvedInvalidRemoteObjects={plan.ResolvedQuarantinedRemoteObjectIds.Count}; " +
+            $"MissingRemoteObjects={plan.MissingRemoteObjects.Count}; " +
             $"Errors={summary.ErrorCount}.");
 
         return summary;
+    }
+
+    private static int CountAppliedRemoteChanges(SyncApplyBatch batch)
+    {
+        return batch.SecretResetEvents.Count +
+            batch.CryptoProfiles.Count +
+            batch.IconAssets.Count +
+            batch.SecretIconAssets.Count +
+            batch.Items.Count;
     }
 
     private static int CountSuccessful<T>(

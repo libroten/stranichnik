@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Stranichnik.Diagnostics;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Serialization;
 using Stranichnik.Sync.WebDav;
@@ -14,11 +15,13 @@ public sealed class SyncRemoteObjectReader
     private readonly IWebDavSyncTransport _transport;
     private readonly ISyncJsonSerializer _serializer;
     private readonly ISyncContentHasher _contentHasher;
+    private readonly Action<string> _log;
 
     public SyncRemoteObjectReader(
         IWebDavSyncTransport transport,
         ISyncJsonSerializer serializer,
-        ISyncContentHasher? contentHasher = null)
+        ISyncContentHasher? contentHasher = null,
+        Action<string>? log = null)
     {
         ArgumentNullException.ThrowIfNull(transport);
         ArgumentNullException.ThrowIfNull(serializer);
@@ -26,6 +29,7 @@ public sealed class SyncRemoteObjectReader
         _transport = transport;
         _serializer = serializer;
         _contentHasher = contentHasher ?? new Sha256SyncContentHasher();
+        _log = log ?? Logs.Print;
     }
 
     public async Task<IReadOnlyList<SyncRemoteReadResult<T>>> ReadObjectsAsync<T>(
@@ -33,17 +37,35 @@ public sealed class SyncRemoteObjectReader
         CancellationToken cancellationToken)
     {
         var directory = SyncRemoteObjectPath.GetDirectory(kind);
+        _log($"Sync remote list started. Kind={kind}.");
         var remoteObjects = await _transport.ListAsync(directory, cancellationToken).ConfigureAwait(false);
+        _log($"Sync remote list finished. Kind={kind}; Count={remoteObjects.Count}.");
         var results = new List<SyncRemoteReadResult<T>>(remoteObjects.Count);
 
-        foreach (var remoteObject in remoteObjects)
+        for (var index = 0; index < remoteObjects.Count; index++)
         {
+            var remoteObject = remoteObjects[index];
+            _log($"Sync remote object read started. Kind={kind}; Index={index + 1}; Total={remoteObjects.Count}.");
             results.Add(await ReadObjectAsync<T>(
                 kind,
                 remoteObject,
                 cancellationToken).ConfigureAwait(false));
+            _log(
+                "Sync remote object read finished. " +
+                $"Kind={kind}; " +
+                $"Index={index + 1}; " +
+                $"Total={remoteObjects.Count}; " +
+                $"Status={results[index].Status}.");
         }
 
+        _log(
+            "Sync remote read category finished. " +
+            $"Kind={kind}; " +
+            $"Success={CountStatus(results, SyncRemoteReadStatus.Success)}; " +
+            $"InvalidPath={CountStatus(results, SyncRemoteReadStatus.InvalidPath)}; " +
+            $"MissingContent={CountStatus(results, SyncRemoteReadStatus.MissingContent)}; " +
+            $"InvalidJson={CountStatus(results, SyncRemoteReadStatus.InvalidJson)}; " +
+            $"InvalidRemoteObject={CountStatus(results, SyncRemoteReadStatus.InvalidRemoteObject)}.");
         return results;
     }
 
@@ -61,7 +83,13 @@ public sealed class SyncRemoteObjectReader
 
         var bytes = await _transport.GetAsync(remoteObject.RelativePath, cancellationToken).ConfigureAwait(false);
         if (bytes is null)
+        {
+            _log($"Sync remote object content missing. Kind={expectedKind}.");
             return SyncRemoteReadResult.Failed<T>(SyncRemoteReadStatus.MissingContent, remoteObject, identity);
+        }
+
+        _log($"Sync remote object content loaded. Kind={expectedKind}; Bytes={bytes.Length}.");
+        var rawContentHash = _contentHasher.ComputeHash(bytes);
 
         T value;
         try
@@ -70,7 +98,12 @@ public sealed class SyncRemoteObjectReader
         }
         catch (JsonException)
         {
-            return SyncRemoteReadResult.Failed<T>(SyncRemoteReadStatus.InvalidJson, remoteObject, identity);
+            _log($"Sync remote object JSON invalid. Kind={expectedKind}; Bytes={bytes.Length}.");
+            return SyncRemoteReadResult.Failed<T>(
+                SyncRemoteReadStatus.InvalidJson,
+                remoteObject,
+                identity,
+                rawContentHash);
         }
 
         try
@@ -80,10 +113,30 @@ public sealed class SyncRemoteObjectReader
         }
         catch (SyncRemoteObjectValidationException)
         {
-            return SyncRemoteReadResult.Failed<T>(SyncRemoteReadStatus.InvalidRemoteObject, remoteObject, identity);
+            _log($"Sync remote object validation failed. Kind={expectedKind}.");
+            return SyncRemoteReadResult.Failed<T>(
+                SyncRemoteReadStatus.InvalidRemoteObject,
+                remoteObject,
+                identity,
+                rawContentHash);
         }
 
+        _log($"Sync remote object validated. Kind={expectedKind}; Bytes={bytes.Length}.");
         return SyncRemoteReadResult.Success(remoteObject, identity, value);
+    }
+
+    private static int CountStatus<T>(
+        IReadOnlyList<SyncRemoteReadResult<T>> results,
+        SyncRemoteReadStatus status)
+    {
+        var count = 0;
+        foreach (var result in results)
+        {
+            if (result.Status == status)
+                count++;
+        }
+
+        return count;
     }
 
     private static void Validate<T>(T value)

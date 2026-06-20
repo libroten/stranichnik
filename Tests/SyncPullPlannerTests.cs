@@ -1,4 +1,5 @@
 using System;
+using Stranichnik.Security;
 using Stranichnik.Storage;
 using Stranichnik.Sync;
 using Stranichnik.Sync.Local;
@@ -57,6 +58,97 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
+    public void Plan_marks_clean_synced_local_item_missing_from_remote_as_dirty()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem(
+                    "bookmark",
+                    BookmarkSyncState.Clean,
+                    "sha256:local",
+                    hasBeenSynced: true)
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            []);
+
+        var missing = Assert.Single(plan.MissingRemoteObjects);
+        Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), missing);
+        Assert.Empty(plan.ApplyBatch.Items);
+        Assert.Empty(plan.Conflicts);
+    }
+
+    [Fact]
+    public void Plan_does_not_mark_clean_never_synced_local_item_as_missing_remote()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem(
+                    "bookmark",
+                    BookmarkSyncState.Clean,
+                    "sha256:local")
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            []);
+
+        Assert.DoesNotContain(
+            new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"),
+            plan.MissingRemoteObjects);
+    }
+
+    [Fact]
+    public void Plan_does_not_mark_existing_invalid_remote_item_as_missing_remote()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem(
+                    "bookmark",
+                    BookmarkSyncState.Clean,
+                    "sha256:local",
+                    hasBeenSynced: true)
+            ]
+        };
+        var remoteInfo = new SyncRemoteObjectInfo("items/bookmark.json", "etag", null, null);
+        var failedRead = SyncRemoteReadResult.Failed<SyncItemDto>(
+            SyncRemoteReadStatus.InvalidJson,
+            remoteInfo,
+            new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"));
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [failedRead]);
+
+        Assert.DoesNotContain(
+            new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"),
+            plan.MissingRemoteObjects);
+        var quarantine = Assert.Single(plan.QuarantinedRemoteObjects);
+        Assert.Equal("items/bookmark.json", quarantine.RelativePath);
+    }
+
+    [Fact]
     public void Plan_marks_dirty_item_as_matched_when_remote_content_is_same()
     {
         var snapshot = EmptySnapshot() with
@@ -77,6 +169,33 @@ public sealed class SyncPullPlannerTests
             [Success(SyncObjectKind.Item, remoteItem.Id, remoteItem)]);
 
         Assert.Empty(plan.ApplyBatch.Items);
+        var match = Assert.Single(plan.MatchedDirtyObjects);
+        Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), match.Identity);
+        Assert.Equal("sha256:same", match.ContentHash);
+    }
+
+    [Fact]
+    public void Plan_marks_conflicted_item_as_matched_when_remote_content_is_same()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalItem("bookmark", BookmarkSyncState.Conflict, "sha256:same")
+            ]
+        };
+        var remoteItem = CreateRemoteItem("bookmark", "sha256:same");
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [Success(SyncObjectKind.Item, remoteItem.Id, remoteItem)]);
+
+        Assert.Empty(plan.ApplyBatch.Items);
+        Assert.Empty(plan.Conflicts);
         var match = Assert.Single(plan.MatchedDirtyObjects);
         Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), match.Identity);
         Assert.Equal("sha256:same", match.ContentHash);
@@ -183,6 +302,74 @@ public sealed class SyncPullPlannerTests
             SyncRemoteReadStatus.InvalidJson,
             remoteInfo,
             new SyncObjectIdentity(SyncObjectKind.Item, "broken"));
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [failedRead]);
+
+        Assert.Empty(plan.KnownQuarantinedRemoteObjects);
+        var quarantine = Assert.Single(plan.QuarantinedRemoteObjects);
+        Assert.Equal("items/broken.json", quarantine.RelativePath);
+    }
+
+    [Fact]
+    public void Plan_treats_unchanged_quarantine_with_content_hash_as_known_problem_without_etag()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            QuarantinedRemoteObjects =
+            [
+                CreateQuarantine(
+                    "items/broken.json",
+                    remoteEtag: null,
+                    "invalid-json",
+                    contentHash: "sha256:raw")
+            ]
+        };
+        var remoteInfo = new SyncRemoteObjectInfo("items/broken.json", null, null, null);
+        var failedRead = SyncRemoteReadResult.Failed<SyncItemDto>(
+            SyncRemoteReadStatus.InvalidJson,
+            remoteInfo,
+            new SyncObjectIdentity(SyncObjectKind.Item, "broken"),
+            contentHash: "sha256:raw");
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            [failedRead]);
+
+        Assert.Empty(plan.QuarantinedRemoteObjects);
+        var knownProblem = Assert.Single(plan.KnownQuarantinedRemoteObjects);
+        Assert.Equal("items/broken.json", knownProblem.RelativePath);
+    }
+
+    [Fact]
+    public void Plan_treats_changed_quarantine_content_hash_as_new_problem_without_etag()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            QuarantinedRemoteObjects =
+            [
+                CreateQuarantine(
+                    "items/broken.json",
+                    remoteEtag: null,
+                    "invalid-json",
+                    contentHash: "sha256:old")
+            ]
+        };
+        var remoteInfo = new SyncRemoteObjectInfo("items/broken.json", null, null, null);
+        var failedRead = SyncRemoteReadResult.Failed<SyncItemDto>(
+            SyncRemoteReadStatus.InvalidJson,
+            remoteInfo,
+            new SyncObjectIdentity(SyncObjectKind.Item, "broken"),
+            contentHash: "sha256:new");
 
         var plan = SyncPullPlanner.Plan(
             snapshot,
@@ -332,6 +519,48 @@ public sealed class SyncPullPlannerTests
         Assert.Empty(plan.ApplyBatch.Items);
     }
 
+    [Fact]
+    public void Plan_does_not_mark_local_secret_item_for_reset_generation_as_missing_remote()
+    {
+        var profile = CreateLocalProfile("generation");
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalSecretItem(
+                    "secret",
+                    profile.Profile.Id,
+                    BookmarkSyncState.Clean,
+                    "sha256:secret",
+                    hasBeenSynced: true)
+            ],
+            CryptoProfiles = [profile],
+            SecretResetEvents =
+            [
+                new SecretResetEventRecord(
+                    "local-reset",
+                    "generation",
+                    Now,
+                    "device",
+                    BookmarkSyncState.Clean,
+                    "etag",
+                    Now)
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [],
+            [],
+            [],
+            []);
+
+        Assert.DoesNotContain(
+            new SyncObjectIdentity(SyncObjectKind.Item, "secret"),
+            plan.MissingRemoteObjects);
+    }
+
     private static SyncLocalSnapshot EmptySnapshot()
     {
         return new SyncLocalSnapshot(
@@ -349,8 +578,10 @@ public sealed class SyncPullPlannerTests
     private static SyncItemSnapshotRecord CreateLocalItem(
         string id,
         BookmarkSyncState syncState,
-        string? contentHash)
+        string? contentHash,
+        bool hasBeenSynced = false)
     {
+        var lastSyncedAtUtc = hasBeenSynced ? Now : (DateTimeOffset?)null;
         var item = new BookmarkItemRecord(
             id,
             ParentId: null,
@@ -367,7 +598,7 @@ public sealed class SyncPullPlannerTests
                 Revision: 1,
                 syncState,
                 RemoteEtag: null,
-                LastSyncedAtUtc: null,
+                LastSyncedAtUtc: lastSyncedAtUtc,
                 ContentHash: null,
                 ModifiedDeviceId: "device"));
 
@@ -376,22 +607,95 @@ public sealed class SyncPullPlannerTests
             new SyncObjectMetadata(
                 syncState,
                 RemoteEtag: null,
-                LastSyncedAtUtc: null,
+                LastSyncedAtUtc: lastSyncedAtUtc,
                 contentHash,
-            ModifiedDeviceId: "device"));
+                ModifiedDeviceId: "device"));
+    }
+
+    private static SyncItemSnapshotRecord CreateLocalSecretItem(
+        string id,
+        long cryptoProfileId,
+        BookmarkSyncState syncState,
+        string? contentHash,
+        bool hasBeenSynced = false)
+    {
+        var lastSyncedAtUtc = hasBeenSynced ? Now : (DateTimeOffset?)null;
+        var item = new BookmarkItemRecord(
+            id,
+            ParentId: null,
+            BookmarkItemKind.Bookmark,
+            SortOrder: 1000,
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            new EncryptedBookmarkPayloadRecord(
+                Payload: new byte[] { 1, 2, 3 },
+                Nonce: new byte[] { 4, 5, 6 },
+                CryptoProfileId: cryptoProfileId),
+            new BookmarkItemMetadata(
+                Now,
+                Now,
+                DeletedAtUtc: null,
+                Revision: 1,
+                syncState,
+                RemoteEtag: null,
+                LastSyncedAtUtc: lastSyncedAtUtc,
+                ContentHash: null,
+                ModifiedDeviceId: "device"));
+
+        return new SyncItemSnapshotRecord(
+            item,
+            new SyncObjectMetadata(
+                syncState,
+                RemoteEtag: null,
+                LastSyncedAtUtc: lastSyncedAtUtc,
+                contentHash,
+                ModifiedDeviceId: "device"));
+    }
+
+    private static SyncCryptoProfileSnapshotRecord CreateLocalProfile(string secretGenerationId)
+    {
+        var profile = new CryptoProfileRecord(
+            Id: 100,
+            ProfileVersion: 1,
+            KdfName: "pbkdf2",
+            KdfHashAlgorithm: "sha256",
+            KdfIterations: 10,
+            KdfSalt: new byte[] { 1, 2, 3 },
+            KekLengthBytes: 32,
+            DataKeyAlgorithm: "aes",
+            WrappedDataKey: new byte[] { 4, 5, 6 },
+            WrappedDataKeyNonce: new byte[] { 7, 8, 9 },
+            EncryptionAlgorithm: "aes",
+            PayloadFormat: "json",
+            PasswordCheckPayload: new byte[] { 10, 11, 12 },
+            PasswordCheckNonce: new byte[] { 13, 14, 15 },
+            CreatedAtUtc: Now,
+            UpdatedAtUtc: Now,
+            SecretGenerationId: secretGenerationId);
+
+        return new SyncCryptoProfileSnapshotRecord(
+            profile,
+            new SyncObjectMetadata(
+                BookmarkSyncState.Clean,
+                RemoteEtag: "profile-etag",
+                LastSyncedAtUtc: Now,
+                ContentHash: "sha256:profile",
+                ModifiedDeviceId: "device"));
     }
 
     private static SyncQuarantinedRemoteObjectRecord CreateQuarantine(
         string relativePath,
-        string remoteEtag,
-        string reasonCode)
+        string? remoteEtag,
+        string reasonCode,
+        string? contentHash = null)
     {
         return new SyncQuarantinedRemoteObjectRecord(
             relativePath,
             SyncObjectKind.Item.ToString(),
             relativePath,
             remoteEtag,
-            ContentHash: null,
+            contentHash,
             ReasonCode: reasonCode,
             FirstSeenAtUtc: Now,
             LastSeenAtUtc: Now,

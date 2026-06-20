@@ -222,6 +222,14 @@ Current implementation shape:
 - `Sync/WebDav/InMemoryWebDavSyncTransport.cs` is the test transport.
 - `Storage/Sqlite/SqliteSyncLocalStore.cs` bridges SQLite data to sync
   snapshots and applies remote changes in transactions.
+- `ISyncLocalStore.ApplyPullPlan(...)` is the storage boundary for applying a
+  completed pull plan: remote changes, matched dirty cleanup, conflict marking,
+  quarantine state, and missing-remote dirty marking are coordinated there.
+  It also runs a post-apply reconciliation pass for pending icon asset refs and
+  deferred secret items so interrupted earlier applies can recover when the
+  needed asset/profile is already present locally.
+  The current SQLite implementation is centralized but not yet one shared
+  SQLite transaction across all internal store operations.
 - `Storage/Sqlite/SqliteSyncMetadataStore.cs` owns pending asset refs,
   deferred secret items, and quarantined remote object metadata.
 - `Sync/RemoteProblems/SyncRemoteProblemService.cs` provides explicit user
@@ -251,6 +259,16 @@ Current implementation shape:
 - The manual "Sync now" action is shown only when saved sync settings contain an
   WebDAV URL, username, active credential backend metadata, and a loadable
   password.
+- The remote repository layout includes a `.tmp/` service directory. The
+  production WebDAV transport uses it for safer create-only uploads:
+  temporary `PUT` first, then `MOVE` to the final object path. If a provider
+  does not support `MOVE`, create-only upload falls back to direct `PUT`.
+  The production transport also performs best-effort cleanup of stale `.tmp/`
+  files during repository initialization; fresh temp files are intentionally
+  left alone.
+- If a clean local object was previously synced but its remote JSON object is
+  missing, pull marks it dirty so push can restore the remote file instead of
+  treating the missing remote file as a local deletion.
 
 Important rules:
 
@@ -265,6 +283,9 @@ Important rules:
 - An unchanged already-quarantined remote object is treated as a known problem,
   not a fresh sync failure. It remains visible in settings until the remote file
   is fixed, cleared locally, or explicitly deleted from WebDAV.
+  For invalid downloaded bytes, sync stores a non-sensitive raw content hash in
+  quarantine metadata so providers without ETags can still distinguish known
+  unchanged problems from changed ones.
 - If a pulled item references an icon asset that is not available yet, keep a
   pending asset reference and show the default icon until a later sync resolves
   it.

@@ -185,10 +185,11 @@ public sealed class SyncApplicationServiceTests
             serializer,
             new SyncLocalIdentity("database-id", "device-id"),
             clock: () => Now,
-            repositoryIdFactory: () => "repository-id");
+            repositoryIdFactory: () => "repository-id",
+            log: _ => { });
         var pullService = new SyncPullService(
             localStore,
-            new SyncRemoteObjectReader(transport, serializer),
+            new SyncRemoteObjectReader(transport, serializer, log: _ => { }),
             clock: () => Now,
             log: _ => { });
         var pushService = new SyncPushService(
@@ -333,6 +334,11 @@ public sealed class SyncApplicationServiceTests
             AppliedBatches.Add(batch);
         }
 
+        public void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc)
+        {
+            ApplyRemoteChanges(plan.ApplyBatch);
+        }
+
         public void MarkUploaded(
             SyncObjectIdentity identity,
             string? remoteEtag,
@@ -342,6 +348,10 @@ public sealed class SyncApplicationServiceTests
         }
 
         public void MarkConflict(SyncObjectIdentity identity, string reasonCode)
+        {
+        }
+
+        public void MarkDirty(SyncObjectIdentity identity)
         {
         }
 

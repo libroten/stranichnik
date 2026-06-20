@@ -95,7 +95,7 @@ public sealed class SyncPushPlannerTests
     }
 
     [Fact]
-    public void Plan_includes_clean_parent_folders_for_dirty_child()
+    public void Plan_skips_clean_synced_parent_folders_for_dirty_child()
     {
         var snapshot = EmptySnapshot() with
         {
@@ -103,6 +103,24 @@ public sealed class SyncPushPlannerTests
             [
                 CreateFolder("root-folder", parentId: null, syncState: BookmarkSyncState.Clean),
                 CreateFolder("nested-folder", parentId: "root-folder", syncState: BookmarkSyncState.Clean),
+                CreateItem("dirty-bookmark", BookmarkSyncState.Dirty, parentId: "nested-folder")
+            ]
+        };
+
+        var plan = SyncPushPlanner.Plan(snapshot);
+
+        Assert.Equal("dirty-bookmark", Assert.Single(plan.Items).Item.Id);
+    }
+
+    [Fact]
+    public void Plan_includes_never_synced_parent_folders_for_dirty_child()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateFolder("root-folder", parentId: null, syncState: BookmarkSyncState.Clean, hasBeenSynced: false),
+                CreateFolder("nested-folder", parentId: "root-folder", syncState: BookmarkSyncState.Clean, hasBeenSynced: false),
                 CreateItem("dirty-bookmark", BookmarkSyncState.Dirty, parentId: "nested-folder")
             ]
         };
@@ -117,7 +135,7 @@ public sealed class SyncPushPlannerTests
     }
 
     [Fact]
-    public void Plan_includes_clean_icon_asset_referenced_by_dirty_item()
+    public void Plan_skips_clean_synced_icon_asset_referenced_by_dirty_item()
     {
         var snapshot = EmptySnapshot() with
         {
@@ -133,11 +151,12 @@ public sealed class SyncPushPlannerTests
 
         var plan = SyncPushPlanner.Plan(snapshot);
 
-        Assert.Equal("clean-icon", Assert.Single(plan.IconAssets).Asset.Id);
+        Assert.Empty(plan.IconAssets);
+        Assert.Equal("dirty-bookmark", Assert.Single(plan.Items).Item.Id);
     }
 
     [Fact]
-    public void Plan_includes_clean_crypto_profile_for_dirty_secret_item()
+    public void Plan_skips_clean_synced_crypto_profile_for_dirty_secret_item()
     {
         var snapshot = EmptySnapshot() with
         {
@@ -153,11 +172,12 @@ public sealed class SyncPushPlannerTests
 
         var plan = SyncPushPlanner.Plan(snapshot);
 
-        Assert.Equal("profile-generation", Assert.Single(plan.CryptoProfiles).Profile.SecretGenerationId);
+        Assert.Empty(plan.CryptoProfiles);
+        Assert.Equal("dirty-secret-bookmark", Assert.Single(plan.Items).Item.Id);
     }
 
     [Fact]
-    public void Plan_includes_clean_secret_icon_asset_for_dirty_secret_item()
+    public void Plan_skips_clean_synced_secret_icon_asset_for_dirty_secret_item()
     {
         var snapshot = EmptySnapshot() with
         {
@@ -181,8 +201,49 @@ public sealed class SyncPushPlannerTests
 
         var plan = SyncPushPlanner.Plan(snapshot);
 
+        Assert.Empty(plan.CryptoProfiles);
+        Assert.Empty(plan.SecretIconAssets);
+        Assert.Equal("dirty-secret-bookmark", Assert.Single(plan.Items).Item.Id);
+    }
+
+    [Fact]
+    public void Plan_includes_never_synced_dependencies_referenced_by_dirty_items()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles =
+            [
+                CreateProfile("profile-generation", BookmarkSyncState.Clean, hasBeenSynced: false)
+            ],
+            IconAssets =
+            [
+                CreateIconAsset("never-synced-icon", BookmarkSyncState.Clean, hasBeenSynced: false)
+            ],
+            SecretIconAssets =
+            [
+                CreateSecretIconAsset(
+                    "never-synced-secret-icon",
+                    "profile-generation",
+                    BookmarkSyncState.Clean,
+                    hasBeenSynced: false)
+            ],
+            Items =
+            [
+                CreateItem("dirty-bookmark", BookmarkSyncState.Dirty, iconAssetId: "never-synced-icon"),
+                CreateSecretItem(
+                    "dirty-secret-bookmark",
+                    cryptoProfileId: 1,
+                    BookmarkSyncState.Dirty,
+                    secretIconAssetId: "never-synced-secret-icon")
+            ]
+        };
+
+        var plan = SyncPushPlanner.Plan(snapshot);
+
         Assert.Equal("profile-generation", Assert.Single(plan.CryptoProfiles).Profile.SecretGenerationId);
-        Assert.Equal("clean-secret-icon", Assert.Single(plan.SecretIconAssets).Asset.Id);
+        Assert.Equal("never-synced-icon", Assert.Single(plan.IconAssets).Asset.Id);
+        Assert.Equal("never-synced-secret-icon", Assert.Single(plan.SecretIconAssets).Asset.Id);
+        Assert.Equal(2, plan.Items.Count);
     }
 
     [Fact]

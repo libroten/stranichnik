@@ -275,7 +275,8 @@
                                 </Button>
                             </StackPanel>
 
-                            <StackPanel Orientation="Horizontal"
+                            <StackPanel x:Name="ResetSyncSettingsActionsPanel"
+                                        Orientation="Horizontal"
                                         HorizontalAlignment="Right">
                                 <Button Classes="dialogButton"
                                         Width="220"

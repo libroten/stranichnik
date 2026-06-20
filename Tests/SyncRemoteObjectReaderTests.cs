@@ -19,7 +19,7 @@ public sealed class SyncRemoteObjectReaderTests
         var transport = new InMemoryWebDavSyncTransport();
         var item = SyncTestDtoHasher.WithContentHash(CreateItem("bookmark"), serializer);
         await PutJsonAsync(transport, serializer, SyncObjectKind.Item, item.Id, item);
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 
@@ -40,7 +40,7 @@ public sealed class SyncRemoteObjectReaderTests
             expectedEtag: null,
             createOnly: false,
             cancellationToken: CancellationToken.None);
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 
@@ -56,7 +56,7 @@ public sealed class SyncRemoteObjectReaderTests
         var serializer = new SystemTextSyncJsonSerializer();
         var transport = new MissingContentTransport();
         await PutJsonAsync(transport, serializer, SyncObjectKind.Item, "bookmark", CreateItem("bookmark"));
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 
@@ -70,19 +70,21 @@ public sealed class SyncRemoteObjectReaderTests
     {
         var serializer = new SystemTextSyncJsonSerializer();
         var transport = new InMemoryWebDavSyncTransport();
+        var invalidBytes = Encoding.UTF8.GetBytes("{not-json");
         await transport.PutAsync(
             SyncRemoteObjectPath.ToRelativePath(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark")),
-            Encoding.UTF8.GetBytes("{not-json"),
+            invalidBytes,
             expectedEtag: null,
             createOnly: false,
             cancellationToken: CancellationToken.None);
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 
         var result = Assert.Single(results);
         Assert.Equal(SyncRemoteReadStatus.InvalidJson, result.Status);
         Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), result.Identity);
+        Assert.Equal(new Sha256SyncContentHasher().ComputeHash(invalidBytes), result.ContentHash);
     }
 
     [Fact]
@@ -95,13 +97,14 @@ public sealed class SyncRemoteObjectReaderTests
             Schema = "wrong"
         };
         await PutJsonAsync(transport, serializer, SyncObjectKind.Item, invalidItem.Id, invalidItem);
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 
         var result = Assert.Single(results);
         Assert.Equal(SyncRemoteReadStatus.InvalidRemoteObject, result.Status);
         Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), result.Identity);
+        Assert.NotNull(result.ContentHash);
     }
 
     [Fact]
@@ -114,7 +117,7 @@ public sealed class SyncRemoteObjectReaderTests
             Title = "Changed without updating hash"
         };
         await PutRawJsonAsync(transport, serializer, SyncObjectKind.Item, item.Id, item);
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 
@@ -139,7 +142,7 @@ public sealed class SyncRemoteObjectReaderTests
             SecretPayloadFormatVersion = 1
         }, serializer);
         await PutJsonAsync(transport, serializer, SyncObjectKind.Item, item.Id, item);
-        var reader = new SyncRemoteObjectReader(transport, serializer);
+        var reader = new SyncRemoteObjectReader(transport, serializer, log: _ => { });
 
         var results = await reader.ReadObjectsAsync<SyncItemDto>(SyncObjectKind.Item, CancellationToken.None);
 

@@ -48,7 +48,24 @@ public sealed class SyncPushService
         _log("Sync push started.");
 
         var snapshot = _localStore.LoadSnapshot();
+        _log(
+            "Sync push local snapshot loaded. " +
+            $"Items={snapshot.Items.Count}; " +
+            $"IconAssets={snapshot.IconAssets.Count}; " +
+            $"SecretIconAssets={snapshot.SecretIconAssets.Count}; " +
+            $"CryptoProfiles={snapshot.CryptoProfiles.Count}; " +
+            $"ResetEvents={snapshot.SecretResetEvents.Count}; " +
+            $"PendingAssets={snapshot.PendingAssetRefs.Count}; " +
+            $"DeferredSecretItems={snapshot.DeferredSecretItems.Count}; " +
+            $"QuarantinedRemoteObjects={snapshot.QuarantinedRemoteObjects.Count}.");
         var plan = SyncPushPlanner.Plan(snapshot);
+        _log(
+            "Sync push plan created. " +
+            $"ResetEvents={plan.SecretResetEvents.Count}; " +
+            $"CryptoProfiles={plan.CryptoProfiles.Count}; " +
+            $"IconAssets={plan.IconAssets.Count}; " +
+            $"SecretIconAssets={plan.SecretIconAssets.Count}; " +
+            $"Items={plan.Items.Count}.");
         var syncedAtUtc = _clock();
         var result = new PushResult();
         var blockedRegularIconAssetIds = new HashSet<string>(StringComparer.Ordinal);
@@ -111,6 +128,7 @@ public sealed class SyncPushService
         PushResult result,
         CancellationToken cancellationToken)
     {
+        _log($"Sync push upload category started. Kind={SyncObjectKind.SecretResetEvent}; Count={resetEvents.Count}.");
         foreach (var resetEvent in resetEvents)
         {
             var dto = _dtoMapper.ToDto(resetEvent);
@@ -124,6 +142,7 @@ public sealed class SyncPushService
                     cancellationToken)
                 .ConfigureAwait(false);
         }
+        _log($"Sync push upload category finished. Kind={SyncObjectKind.SecretResetEvent}.");
     }
 
     private async Task UploadCryptoProfilesAsync(
@@ -133,6 +152,7 @@ public sealed class SyncPushService
         HashSet<long> blockedCryptoProfileIds,
         CancellationToken cancellationToken)
     {
+        _log($"Sync push upload category started. Kind={SyncObjectKind.CryptoProfile}; Count={profiles.Count}.");
         foreach (var profile in profiles)
         {
             var dto = _dtoMapper.ToDto(profile);
@@ -149,6 +169,10 @@ public sealed class SyncPushService
             if (!uploaded)
                 blockedCryptoProfileIds.Add(profile.Profile.Id);
         }
+        _log(
+            "Sync push upload category finished. " +
+            $"Kind={SyncObjectKind.CryptoProfile}; " +
+            $"BlockedDependencies={blockedCryptoProfileIds.Count}.");
     }
 
     private async Task UploadIconAssetsAsync(
@@ -158,6 +182,7 @@ public sealed class SyncPushService
         HashSet<string> blockedIconAssetIds,
         CancellationToken cancellationToken)
     {
+        _log($"Sync push upload category started. Kind={SyncObjectKind.IconAsset}; Count={iconAssets.Count}.");
         foreach (var iconAsset in iconAssets)
         {
             var dto = _dtoMapper.ToDto(iconAsset);
@@ -174,6 +199,10 @@ public sealed class SyncPushService
             if (!uploaded)
                 blockedIconAssetIds.Add(iconAsset.Asset.Id);
         }
+        _log(
+            "Sync push upload category finished. " +
+            $"Kind={SyncObjectKind.IconAsset}; " +
+            $"BlockedDependencies={blockedIconAssetIds.Count}.");
     }
 
     private async Task UploadSecretIconAssetsAsync(
@@ -183,6 +212,7 @@ public sealed class SyncPushService
         HashSet<string> blockedSecretIconAssetIds,
         CancellationToken cancellationToken)
     {
+        _log($"Sync push upload category started. Kind={SyncObjectKind.SecretIconAsset}; Count={secretIconAssets.Count}.");
         foreach (var secretIconAsset in secretIconAssets)
         {
             var dto = _dtoMapper.ToDto(secretIconAsset);
@@ -199,6 +229,10 @@ public sealed class SyncPushService
             if (!uploaded)
                 blockedSecretIconAssetIds.Add(secretIconAsset.Asset.Id);
         }
+        _log(
+            "Sync push upload category finished. " +
+            $"Kind={SyncObjectKind.SecretIconAsset}; " +
+            $"BlockedDependencies={blockedSecretIconAssetIds.Count}.");
     }
 
     private async Task UploadItemsAsync(
@@ -218,17 +252,25 @@ public sealed class SyncPushService
             plannedItemIds.Add(item.Item.Id);
 
         var blockedItemIds = new HashSet<string>(StringComparer.Ordinal);
+        _log($"Sync push upload category started. Kind={SyncObjectKind.Item}; Count={items.Count}.");
 
         foreach (var item in items)
         {
-            if (HasBlockedParent(item.Item, plannedItemIds, blockedItemIds) ||
-                HasBlockedDependency(
+            if (HasBlockedParent(item.Item, plannedItemIds, blockedItemIds))
+            {
+                blockedItemIds.Add(item.Item.Id);
+                _log("Sync push object skipped. Kind=Item; Reason=blocked-parent.");
+                continue;
+            }
+
+            if (HasBlockedDependency(
                     item.Item,
                     blockedRegularIconAssetIds,
                     blockedSecretIconAssetIds,
                     blockedCryptoProfileIds))
             {
                 blockedItemIds.Add(item.Item.Id);
+                _log("Sync push object skipped. Kind=Item; Reason=blocked-dependency.");
                 continue;
             }
 
@@ -250,6 +292,10 @@ public sealed class SyncPushService
             if (!uploaded)
                 blockedItemIds.Add(item.Item.Id);
         }
+        _log(
+            "Sync push upload category finished. " +
+            $"Kind={SyncObjectKind.Item}; " +
+            $"BlockedItems={blockedItemIds.Count}.");
     }
 
     private async Task<bool> UploadObjectAsync<T>(
@@ -261,10 +307,16 @@ public sealed class SyncPushService
         PushResult result,
         CancellationToken cancellationToken)
     {
+        var bytes = _serializer.Serialize(dto);
+        _log(
+            "Sync push object upload started. " +
+            $"Kind={identity.Kind}; " +
+            $"Mode={(remoteEtag is null ? "Create" : "Update")}; " +
+            $"Bytes={bytes.Length}.");
         var putResult = await _transport
             .PutAsync(
                 SyncRemoteObjectPath.ToRelativePath(identity),
-                _serializer.Serialize(dto),
+                bytes,
                 remoteEtag,
                 createOnly: remoteEtag is null,
                 cancellationToken)
@@ -274,11 +326,16 @@ public sealed class SyncPushService
         {
             _localStore.MarkUploaded(identity, putResult.ETag, contentHash, syncedAtUtc);
             result.UploadedCount++;
+            _log(
+                "Sync push object upload succeeded. " +
+                $"Kind={identity.Kind}; " +
+                $"RemoteEtagPresent={putResult.ETag is not null}.");
             return true;
         }
 
         _localStore.MarkConflict(identity, PreconditionFailedReasonCode);
         result.ConflictCount++;
+        _log($"Sync push object upload conflicted. Kind={identity.Kind}; Status={putResult.Status}.");
         return false;
     }
 

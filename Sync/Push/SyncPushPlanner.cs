@@ -17,24 +17,15 @@ public sealed class SyncPushPlanner
             .ToHashSet(StringComparer.Ordinal);
         var profileGenerationById = snapshot.CryptoProfiles
             .ToDictionary(profile => profile.Profile.Id, profile => profile.Profile.SecretGenerationId);
-        var profileIdByGeneration = snapshot.CryptoProfiles
-            .ToDictionary(profile => profile.Profile.SecretGenerationId, profile => profile.Profile.Id, StringComparer.Ordinal);
         var plannedItems = ItemsToPush(snapshot.Items, profileGenerationById, resetGenerationIds);
-        var requiredIconAssetIds = RequiredIconAssetIds(plannedItems);
-        var requiredSecretIconAssetIds = RequiredSecretIconAssetIds(plannedItems);
         var plannedSecretIconAssets = SecretIconAssetsToPush(
             snapshot.SecretIconAssets,
-            resetGenerationIds,
-            requiredSecretIconAssetIds);
-        var requiredCryptoProfileIds = RequiredCryptoProfileIds(
-            plannedItems,
-            plannedSecretIconAssets,
-            profileIdByGeneration);
+            resetGenerationIds);
 
         return new SyncPushPlan(
             SecretResetEvents: ResetEventsToPush(snapshot.SecretResetEvents),
-            CryptoProfiles: CryptoProfilesToPush(snapshot.CryptoProfiles, resetGenerationIds, requiredCryptoProfileIds),
-            IconAssets: IconAssetsToPush(snapshot.IconAssets, requiredIconAssetIds),
+            CryptoProfiles: CryptoProfilesToPush(snapshot.CryptoProfiles, resetGenerationIds),
+            IconAssets: IconAssetsToPush(snapshot.IconAssets),
             SecretIconAssets: plannedSecretIconAssets,
             Items: plannedItems);
     }
@@ -51,13 +42,10 @@ public sealed class SyncPushPlanner
 
     private static List<SyncCryptoProfileSnapshotRecord> CryptoProfilesToPush(
         IReadOnlyList<SyncCryptoProfileSnapshotRecord> profiles,
-        HashSet<string> resetGenerationIds,
-        HashSet<long> requiredCryptoProfileIds)
+        HashSet<string> resetGenerationIds)
     {
         return profiles
-            .Where(profile =>
-                ShouldPush(profile.SyncMetadata) ||
-                requiredCryptoProfileIds.Contains(profile.Profile.Id))
+            .Where(profile => ShouldPush(profile.SyncMetadata))
             .Where(profile => !resetGenerationIds.Contains(profile.Profile.SecretGenerationId))
             .OrderBy(profile => profile.Profile.UpdatedAtUtc)
             .ThenBy(profile => profile.Profile.SecretGenerationId, StringComparer.Ordinal)
@@ -65,13 +53,10 @@ public sealed class SyncPushPlanner
     }
 
     private static List<SyncIconAssetSnapshotRecord> IconAssetsToPush(
-        IReadOnlyList<SyncIconAssetSnapshotRecord> iconAssets,
-        HashSet<string> requiredIconAssetIds)
+        IReadOnlyList<SyncIconAssetSnapshotRecord> iconAssets)
     {
         return iconAssets
-            .Where(asset =>
-                ShouldPush(asset.SyncMetadata) ||
-                requiredIconAssetIds.Contains(asset.Asset.Id))
+            .Where(asset => ShouldPush(asset.SyncMetadata))
             .OrderBy(asset => asset.Asset.CreatedAtUtc)
             .ThenBy(asset => asset.Asset.Id, StringComparer.Ordinal)
             .ToList();
@@ -79,13 +64,10 @@ public sealed class SyncPushPlanner
 
     private static List<SyncSecretIconAssetSnapshotRecord> SecretIconAssetsToPush(
         IReadOnlyList<SyncSecretIconAssetSnapshotRecord> secretIconAssets,
-        HashSet<string> resetGenerationIds,
-        HashSet<string> requiredSecretIconAssetIds)
+        HashSet<string> resetGenerationIds)
     {
         return secretIconAssets
-            .Where(asset =>
-                ShouldPush(asset.SyncMetadata) ||
-                requiredSecretIconAssetIds.Contains(asset.Asset.Id))
+            .Where(asset => ShouldPush(asset.SyncMetadata))
             .Where(asset => !resetGenerationIds.Contains(asset.Asset.SecretGenerationId))
             .OrderBy(asset => asset.Asset.CreatedAtUtc)
             .ThenBy(asset => asset.Asset.Id, StringComparer.Ordinal)
@@ -140,6 +122,9 @@ public sealed class SyncPushPlanner
             if (parent.Item.Kind != BookmarkItemKind.Folder || parent.Item.Metadata.DeletedAtUtc is not null)
                 return;
 
+            if (!ShouldPush(parent.SyncMetadata))
+                return;
+
             selectedIds.Add(parent.Item.Id);
             currentId = parent.Item.Id;
         }
@@ -162,43 +147,6 @@ public sealed class SyncPushPlanner
         }
 
         return depth;
-    }
-
-    private static HashSet<string> RequiredIconAssetIds(
-        IReadOnlyList<SyncItemSnapshotRecord> items)
-    {
-        return items
-            .Select(item => item.Item.IconAssetId)
-            .OfType<string>()
-            .ToHashSet(StringComparer.Ordinal);
-    }
-
-    private static HashSet<string> RequiredSecretIconAssetIds(
-        IReadOnlyList<SyncItemSnapshotRecord> items)
-    {
-        return items
-            .Select(item => item.Item.SecretIconAssetId)
-            .OfType<string>()
-            .ToHashSet(StringComparer.Ordinal);
-    }
-
-    private static HashSet<long> RequiredCryptoProfileIds(
-        IReadOnlyList<SyncItemSnapshotRecord> items,
-        IReadOnlyList<SyncSecretIconAssetSnapshotRecord> secretIconAssets,
-        Dictionary<string, long> profileIdByGeneration)
-    {
-        var profileIds = items
-            .Select(item => item.Item.EncryptedPayload?.CryptoProfileId)
-            .OfType<long>()
-            .ToHashSet();
-
-        foreach (var secretIconAsset in secretIconAssets)
-        {
-            if (profileIdByGeneration.TryGetValue(secretIconAsset.Asset.SecretGenerationId, out var profileId))
-                profileIds.Add(profileId);
-        }
-
-        return profileIds;
     }
 
     private static bool IsResetSecretItem(

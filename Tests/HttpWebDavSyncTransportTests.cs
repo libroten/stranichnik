@@ -125,13 +125,15 @@ public sealed class HttpWebDavSyncTransportTests
     }
 
     [Fact]
-    public async Task PutAsync_create_only_sends_if_none_match()
+    public async Task PutAsync_create_only_uses_temp_put_and_move()
     {
-        CapturedHttpRequest? capturedRequest = null;
+        var requests = new List<CapturedHttpRequest>();
         using var httpClient = CreateClient(request =>
         {
-            capturedRequest = CaptureRequest(request);
-            return CreatePutResponse(HttpStatusCode.Created, "\"new\"");
+            requests.Add(CaptureRequest(request));
+            return request.Method == HttpMethod.Put
+                ? CreatePutResponse(HttpStatusCode.Created, "\"temp\"")
+                : CreatePutResponse(HttpStatusCode.Created, "\"new\"");
         });
         var transport = CreateTransport(httpClient);
 
@@ -142,11 +144,80 @@ public sealed class HttpWebDavSyncTransportTests
             createOnly: true,
             cancellationToken: CancellationToken.None);
 
-        Assert.NotNull(capturedRequest);
-        Assert.Equal(HttpMethod.Put, capturedRequest.Method);
-        Assert.Equal("*", capturedRequest.GetHeader("If-None-Match").Single());
+        Assert.Equal(2, requests.Count);
+        Assert.Equal(HttpMethod.Put, requests[0].Method);
+        Assert.NotNull(requests[0].RequestUri);
+        Assert.StartsWith("https://example.test/sync/.tmp/", requests[0].RequestUri, StringComparison.Ordinal);
+        Assert.Equal("*", requests[0].GetHeader("If-None-Match").Single());
+        Assert.Equal("MOVE", requests[1].Method.Method);
+        Assert.NotNull(requests[1].RequestUri);
+        Assert.StartsWith("https://example.test/sync/.tmp/", requests[1].RequestUri, StringComparison.Ordinal);
+        Assert.Equal("https://example.test/sync/items/item.json", requests[1].GetHeader("Destination").Single());
+        Assert.Equal("F", requests[1].GetHeader("Overwrite").Single());
         Assert.Equal(SyncPutStatus.CreatedOrUpdated, result.Status);
         Assert.Equal("\"new\"", result.ETag);
+    }
+
+    [Fact]
+    public async Task PutAsync_create_only_deletes_temp_file_when_move_conflicts()
+    {
+        var requests = new List<CapturedHttpRequest>();
+        using var httpClient = CreateClient(request =>
+        {
+            requests.Add(CaptureRequest(request));
+            return request.Method.Method switch
+            {
+                "PUT" => CreatePutResponse(HttpStatusCode.Created, "\"temp\""),
+                "MOVE" => CreatePutResponse(HttpStatusCode.PreconditionFailed, "\"current\""),
+                "DELETE" => new HttpResponseMessage(HttpStatusCode.NoContent),
+                _ => throw new InvalidOperationException("Unexpected HTTP request.")
+            };
+        });
+        var transport = CreateTransport(httpClient);
+
+        var result = await transport.PutAsync(
+            "items/item.json",
+            PayloadBytes,
+            expectedEtag: null,
+            createOnly: true,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(SyncPutStatus.PreconditionFailed, result.Status);
+        Assert.Equal("\"current\"", result.ETag);
+        Assert.Equal(["PUT", "MOVE", "DELETE"], requests.Select(request => request.Method.Method).ToArray());
+        Assert.Equal(requests[0].RequestUri, requests[2].RequestUri);
+    }
+
+    [Fact]
+    public async Task PutAsync_create_only_falls_back_to_final_put_when_move_is_not_supported()
+    {
+        var requests = new List<CapturedHttpRequest>();
+        using var httpClient = CreateClient(request =>
+        {
+            requests.Add(CaptureRequest(request));
+            return request.Method.Method switch
+            {
+                "PUT" => CreatePutResponse(HttpStatusCode.Created, "\"put\""),
+                "MOVE" => new HttpResponseMessage(HttpStatusCode.MethodNotAllowed),
+                "DELETE" => new HttpResponseMessage(HttpStatusCode.NoContent),
+                _ => throw new InvalidOperationException("Unexpected HTTP request.")
+            };
+        });
+        var transport = CreateTransport(httpClient);
+
+        var result = await transport.PutAsync(
+            "items/item.json",
+            PayloadBytes,
+            expectedEtag: null,
+            createOnly: true,
+            cancellationToken: CancellationToken.None);
+
+        Assert.Equal(SyncPutStatus.CreatedOrUpdated, result.Status);
+        Assert.Equal("\"put\"", result.ETag);
+        Assert.Equal(["PUT", "MOVE", "PUT", "DELETE"], requests.Select(request => request.Method.Method).ToArray());
+        Assert.StartsWith("https://example.test/sync/.tmp/", requests[0].RequestUri, StringComparison.Ordinal);
+        Assert.Equal("https://example.test/sync/items/item.json", requests[2].RequestUri);
+        Assert.Equal(requests[0].RequestUri, requests[3].RequestUri);
     }
 
     [Fact]
@@ -231,9 +302,65 @@ public sealed class HttpWebDavSyncTransportTests
         Assert.Equal("\"current\"", result.ETag);
     }
 
+    [Fact]
+    public async Task CleanupStaleTempObjectsAsync_deletes_only_old_temp_files()
+    {
+        var requests = new List<CapturedHttpRequest>();
+        using var httpClient = CreateClient(request =>
+        {
+            requests.Add(CaptureRequest(request));
+            return request.Method.Method switch
+            {
+                "PROPFIND" => CreateXmlResponse(
+                    """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <D:multistatus xmlns:D="DAV:">
+                      <D:response>
+                        <D:href>/sync/.tmp/</D:href>
+                        <D:propstat>
+                          <D:prop><D:resourcetype><D:collection /></D:resourcetype></D:prop>
+                        </D:propstat>
+                      </D:response>
+                      <D:response>
+                        <D:href>/sync/.tmp/old.json</D:href>
+                        <D:propstat>
+                          <D:prop>
+                            <D:getetag>"old"</D:getetag>
+                            <D:getlastmodified>Sat, 13 Jun 2020 10:20:30 GMT</D:getlastmodified>
+                            <D:getcontentlength>42</D:getcontentlength>
+                            <D:resourcetype />
+                          </D:prop>
+                        </D:propstat>
+                      </D:response>
+                      <D:response>
+                        <D:href>/sync/.tmp/fresh.json</D:href>
+                        <D:propstat>
+                          <D:prop>
+                            <D:getetag>"fresh"</D:getetag>
+                            <D:getlastmodified>Sat, 13 Jun 2999 10:20:30 GMT</D:getlastmodified>
+                            <D:getcontentlength>42</D:getcontentlength>
+                            <D:resourcetype />
+                          </D:prop>
+                        </D:propstat>
+                      </D:response>
+                    </D:multistatus>
+                    """),
+                "DELETE" => new HttpResponseMessage(HttpStatusCode.NoContent),
+                _ => throw new InvalidOperationException("Unexpected HTTP request.")
+            };
+        });
+        var transport = CreateTransport(httpClient);
+
+        await transport.CleanupStaleTempObjectsAsync(CancellationToken.None);
+
+        Assert.Equal(["PROPFIND", "DELETE"], requests.Select(request => request.Method.Method).ToArray());
+        Assert.Equal("https://example.test/sync/.tmp/old.json", requests[1].RequestUri);
+        Assert.Equal("\"old\"", requests[1].GetHeader("If-Match").Single());
+    }
+
     private static HttpWebDavSyncTransport CreateTransport(HttpClient httpClient)
     {
-        return new HttpWebDavSyncTransport(httpClient, new Uri("https://example.test/sync/"));
+        return new HttpWebDavSyncTransport(httpClient, new Uri("https://example.test/sync/"), log: _ => { });
     }
 
     private static HttpClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> handler)
