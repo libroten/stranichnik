@@ -9,6 +9,8 @@ public sealed class SyncActivityService : ISyncActivityService
 
     public event EventHandler<SyncActivityChangedEventArgs>? ActivityChanged;
 
+    public event EventHandler<SyncActivityCompletedEventArgs>? ActivityCompleted;
+
     public bool IsActive
     {
         get
@@ -31,6 +33,11 @@ public sealed class SyncActivityService : ISyncActivityService
             ActivityChanged?.Invoke(this, new SyncActivityChangedEventArgs(isActive: true));
 
         return new ActivityScope(this);
+    }
+
+    public void ReportCompleted(bool succeeded)
+    {
+        ActivityCompleted?.Invoke(this, new SyncActivityCompletedEventArgs(succeeded));
     }
 
     private void EndOperation()

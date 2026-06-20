@@ -41,6 +41,9 @@ public static class ThemeResourceKeys
     public const string SearchClearButtonForegroundBrush = nameof(SearchClearButtonForegroundBrush);
     public const string SearchEmptyTextBrush = nameof(SearchEmptyTextBrush);
 
+    public const string SyncProgressSuccessBrush = nameof(SyncProgressSuccessBrush);
+    public const string SyncProgressErrorBrush = nameof(SyncProgressErrorBrush);
+
     public const string UrlTextBrush = nameof(UrlTextBrush);
     public const string UrlHoverTextBrush = nameof(UrlHoverTextBrush);
     public const string UrlUnderlineBrush = nameof(UrlUnderlineBrush);

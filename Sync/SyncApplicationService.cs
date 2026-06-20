@@ -72,7 +72,9 @@ public sealed class SyncApplicationService : IDisposable
             {
                 var blockingReason = ToBlockingReason(initializationResult.Status);
                 _log($"Sync run stopped: repository initialization status={initializationResult.Status}.");
-                return CreateBlockedSummary(startedAtUtc, blockingReason);
+                var blockedSummary = CreateBlockedSummary(startedAtUtc, blockingReason);
+                _syncActivityService?.ReportCompleted(IsFullySuccessful(blockedSummary));
+                return blockedSummary;
             }
 
             var pullSummary = await _pullService.PullAsync(cancellationToken).ConfigureAwait(false);
@@ -81,7 +83,13 @@ public sealed class SyncApplicationService : IDisposable
             var summary = MergeSummaries(startedAtUtc, finishedAtUtc, pullSummary, pushSummary);
 
             LogSyncFinished(summary);
+            _syncActivityService?.ReportCompleted(IsFullySuccessful(summary));
             return summary;
+        }
+        catch
+        {
+            _syncActivityService?.ReportCompleted(succeeded: false);
+            throw;
         }
         finally
         {
@@ -167,6 +175,17 @@ public sealed class SyncApplicationService : IDisposable
                 : pushSummary.BlockingReason,
             StartedAtUtc: startedAtUtc,
             FinishedAtUtc: finishedAtUtc);
+    }
+
+    private static bool IsFullySuccessful(SyncRunSummary summary)
+    {
+        return summary.Succeeded &&
+            summary.ConflictCount == 0 &&
+            summary.PendingAssetCount == 0 &&
+            summary.PendingCryptoProfileCount == 0 &&
+            summary.InvalidRemoteObjectCount == 0 &&
+            summary.ErrorCount == 0 &&
+            summary.BlockingReason == SyncBlockingReason.None;
     }
 
     private static SyncBlockingReason ToBlockingReason(SyncRepositoryInitializationStatus status)

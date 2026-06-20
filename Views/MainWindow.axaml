@@ -490,6 +490,12 @@
 
     <Grid Background="{DynamicResource AppBackgroundBrush}"
           RowDefinitions="Auto,*">
+        <Grid.Styles>
+            <Style Selector="Border.syncProgressBarFill">
+                <Setter Property="Background" Value="{DynamicResource FocusBorderBrush}"/>
+            </Style>
+        </Grid.Styles>
+
         <Border Grid.Row="0"
                 Background="{DynamicResource WorkAreaBackgroundBrush}"
                 BorderBrush="{DynamicResource AppTopBarBorderBrush}"
@@ -1216,11 +1222,11 @@
                       Grid.Column="1"
                       ClipToBounds="True">
                     <Border x:Name="SyncProgressBarFill"
+                            Classes="syncProgressBarFill"
                             Height="3"
                             Width="0"
                             HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            Background="{DynamicResource FocusBorderBrush}"/>
+                            VerticalAlignment="Center"/>
                 </Grid>
             </Grid>
         </Border>

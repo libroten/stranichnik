@@ -228,8 +228,10 @@ Current implementation shape:
   actions for quarantined remote objects: clear the local problem row or delete
   the problematic WebDAV file after confirmation.
 - `Sync/SyncActivityService.cs` reports whether a WebDAV-backed sync operation
-  is currently active. `MainWindow` uses it for the bottom sync activity bar,
-  and `SettingsDialog` uses it for the animated in-progress status banner.
+  is currently active and can publish a final success/failure result for full
+  sync runs. `MainWindow` uses it for the bottom sync activity bar and its
+  completion color, and `SettingsDialog` uses it for the animated in-progress
+  status banner.
 - `Sync/SyncApplicationService.cs` orchestrates one manual sync run:
   repository initialization, pull, and push. A completed pull can report
   conflicts or quarantined invalid remote objects and still be followed by

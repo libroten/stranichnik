@@ -93,6 +93,48 @@ public sealed class SyncApplicationServiceTests
     }
 
     [Fact]
+    public async Task SyncNowAsync_reports_completion_failure_when_invalid_remote_objects_exist()
+    {
+        var transport = new InMemoryWebDavSyncTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        var localStore = new FakeSyncLocalStore(EmptySnapshot());
+        await transport.PutAsync(
+            "items/broken.json",
+            [1, 2, 3],
+            expectedEtag: null,
+            createOnly: true,
+            CancellationToken.None);
+        var activityService = new SyncActivityService();
+        var completions = new List<bool>();
+        activityService.ActivityCompleted += (_, e) => completions.Add(e.Succeeded);
+        var service = CreateService(localStore, transport, serializer, syncActivityService: activityService);
+
+        var summary = await service.SyncNowAsync(CancellationToken.None);
+
+        Assert.False(summary.Succeeded);
+        Assert.Equal(1, summary.InvalidRemoteObjectCount);
+        Assert.Collection(completions, completed => Assert.False(completed));
+    }
+
+    [Fact]
+    public async Task SyncNowAsync_reports_completion_success_when_sync_is_clean()
+    {
+        var transport = new InMemoryWebDavSyncTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        var localStore = new FakeSyncLocalStore(EmptySnapshot());
+        var activityService = new SyncActivityService();
+        var completions = new List<bool>();
+        activityService.ActivityCompleted += (_, e) => completions.Add(e.Succeeded);
+        var service = CreateService(localStore, transport, serializer, syncActivityService: activityService);
+
+        var summary = await service.SyncNowAsync(CancellationToken.None);
+
+        Assert.True(summary.Succeeded);
+        Assert.Equal(0, summary.InvalidRemoteObjectCount);
+        Assert.Collection(completions, completed => Assert.True(completed));
+    }
+
+    [Fact]
     public async Task SyncNowAsync_stops_when_repository_version_is_unsupported()
     {
         var transport = new InMemoryWebDavSyncTransport();
@@ -135,7 +177,8 @@ public sealed class SyncApplicationServiceTests
         FakeSyncLocalStore localStore,
         InMemoryWebDavSyncTransport transport,
         SystemTextSyncJsonSerializer serializer,
-        SyncOperationGate? operationGate = null)
+        SyncOperationGate? operationGate = null,
+        ISyncActivityService? syncActivityService = null)
     {
         var initializer = new SyncRepositoryInitializer(
             transport,
@@ -162,7 +205,8 @@ public sealed class SyncApplicationServiceTests
             pushService,
             operationGate ?? new SyncOperationGate(),
             clock: () => Now,
-            log: _ => { });
+            log: _ => { },
+            syncActivityService: syncActivityService);
     }
 
     private static async Task PutRemoteObjectAsync<T>(

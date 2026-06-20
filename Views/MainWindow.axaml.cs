@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private static readonly TimeSpan DragGhostAnimationDuration = TimeSpan.FromMilliseconds(200);
     private static readonly TimeSpan SyncProgressAnimationInterval = TimeSpan.FromMilliseconds(16);
     private static readonly TimeSpan SyncProgressAnimationHalfCycle = TimeSpan.FromMilliseconds(850);
+    private static readonly TimeSpan SyncProgressCompletionHoldDuration = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan SecretInactivityTimeout = TimeSpan.FromMinutes(1);
 
     private bool _isMiddleButtonPanning;
@@ -97,6 +98,9 @@ public partial class MainWindow : Window
     };
     private DateTimeOffset _dragGhostAnimationStartedAt;
     private DateTimeOffset _syncProgressAnimationStartedAt;
+    private bool? _pendingSyncProgressCompletionSucceeded;
+    private bool _isSyncProgressCompletionVisible;
+    private int _syncProgressCompletionGeneration;
     private MainWindowViewModel? _observedViewModel;
 
     public MainWindow()
@@ -163,6 +167,7 @@ public partial class MainWindow : Window
         Closed += OnClosed;
         BookmarksScrollViewer.SizeChanged += (_, _) => UpdateBookmarksHorizontalOverflow();
         _syncActivityService.ActivityChanged += OnSyncActivityChanged;
+        _syncActivityService.ActivityCompleted += OnSyncActivityCompleted;
         SetSyncProgressActive(_syncActivityService.IsActive);
         UpdateBookmarksHorizontalOverflow();
     }
@@ -761,7 +766,9 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _syncActivityService.ActivityChanged -= OnSyncActivityChanged;
+        _syncActivityService.ActivityCompleted -= OnSyncActivityCompleted;
         _syncProgressAnimationTimer.Stop();
+        _syncProgressCompletionGeneration++;
     }
 
     private void OnSyncActivityChanged(object? sender, SyncActivityChangedEventArgs e)
@@ -769,19 +776,44 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => SetSyncProgressActive(e.IsActive));
     }
 
+    private void OnSyncActivityCompleted(object? sender, SyncActivityCompletedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_syncActivityService.IsActive)
+                _pendingSyncProgressCompletionSucceeded = e.Succeeded;
+            else
+                ShowSyncProgressCompletion(e.Succeeded);
+        });
+    }
+
     private void SetSyncProgressActive(bool isActive)
     {
         if (!isActive)
         {
             _syncProgressAnimationTimer.Stop();
-            SyncProgressBarHost.IsVisible = false;
-            SyncProgressBarFill.Width = 0;
-            SyncProgressBarFill.Margin = new Avalonia.Thickness(0);
+
+            if (_isSyncProgressCompletionVisible)
+                return;
+
+            if (_pendingSyncProgressCompletionSucceeded is { } succeeded)
+            {
+                _pendingSyncProgressCompletionSucceeded = null;
+                ShowSyncProgressCompletion(succeeded);
+                return;
+            }
+
+            HideSyncProgressBar();
             return;
         }
 
+        _syncProgressCompletionGeneration++;
+        _pendingSyncProgressCompletionSucceeded = null;
+        _isSyncProgressCompletionVisible = false;
         _syncProgressAnimationStartedAt = DateTimeOffset.UtcNow;
         SyncProgressBarHost.IsVisible = true;
+        SyncProgressBarFill.Background = GetBrush(ThemeResourceKeys.FocusBorderBrush, Brushes.SteelBlue);
+        SyncProgressBarFill.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
         _syncProgressAnimationTimer.Start();
         UpdateSyncProgressBar();
     }
@@ -796,6 +828,8 @@ public partial class MainWindow : Window
         var availableWidth = SyncProgressBarTrack.Bounds.Width;
         if (availableWidth <= 0)
             return;
+
+        SyncProgressBarFill.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
 
         var halfCycleMilliseconds = SyncProgressAnimationHalfCycle.TotalMilliseconds;
         var elapsedMilliseconds = (DateTimeOffset.UtcNow - _syncProgressAnimationStartedAt).TotalMilliseconds;
@@ -812,6 +846,54 @@ public partial class MainWindow : Window
         var shrinkProgress = (cyclePosition - halfCycleMilliseconds) / halfCycleMilliseconds;
         SyncProgressBarFill.Margin = new Avalonia.Thickness(availableWidth * shrinkProgress, 0, 0, 0);
         SyncProgressBarFill.Width = Math.Max(1, availableWidth * (1 - shrinkProgress));
+    }
+
+    private void ShowSyncProgressCompletion(bool succeeded)
+    {
+        var generation = ++_syncProgressCompletionGeneration;
+        _isSyncProgressCompletionVisible = true;
+        SyncProgressBarHost.IsVisible = true;
+        SyncProgressBarFill.Background = succeeded
+            ? GetBrush(ThemeResourceKeys.SyncProgressSuccessBrush, Brushes.ForestGreen)
+            : GetBrush(ThemeResourceKeys.SyncProgressErrorBrush, Brushes.Firebrick);
+        SyncProgressBarFill.Margin = new Avalonia.Thickness(0);
+        SyncProgressBarFill.Width = double.NaN;
+        SyncProgressBarFill.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+        _ = HideSyncProgressCompletionLaterAsync(generation);
+    }
+
+    private async Task HideSyncProgressCompletionLaterAsync(int generation)
+    {
+        await Task.Delay(SyncProgressCompletionHoldDuration).ConfigureAwait(true);
+
+        if (generation != _syncProgressCompletionGeneration ||
+            _syncActivityService.IsActive)
+        {
+            return;
+        }
+
+        HideSyncProgressBar();
+    }
+
+    private void HideSyncProgressBar()
+    {
+        SyncProgressBarHost.IsVisible = false;
+        _isSyncProgressCompletionVisible = false;
+        SyncProgressBarFill.Background = GetBrush(ThemeResourceKeys.FocusBorderBrush, Brushes.SteelBlue);
+        SyncProgressBarFill.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
+        SyncProgressBarFill.Width = 0;
+        SyncProgressBarFill.Margin = new Avalonia.Thickness(0);
+    }
+
+    private IBrush GetBrush(string key, IBrush fallback)
+    {
+        if (TryGetResource(key, ActualThemeVariant, out var resource) && resource is IBrush brush)
+            return brush;
+
+        return Application.Current?.TryGetResource(key, ActualThemeVariant, out resource) == true &&
+            resource is IBrush appBrush
+            ? appBrush
+            : fallback;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

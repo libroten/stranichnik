@@ -45,6 +45,9 @@ public static class ThemePalettes
         (ThemeResourceKeys.SearchClearButtonForegroundBrush, "#596073"),
         (ThemeResourceKeys.SearchEmptyTextBrush, "#7D8290"),
 
+        (ThemeResourceKeys.SyncProgressSuccessBrush, "#2E7D32"),
+        (ThemeResourceKeys.SyncProgressErrorBrush, "#B3261E"),
+
         (ThemeResourceKeys.UrlTextBrush, "#596073"),
         (ThemeResourceKeys.UrlHoverTextBrush, "#35416D"),
         (ThemeResourceKeys.UrlUnderlineBrush, "#35416D"),
@@ -113,6 +116,9 @@ public static class ThemePalettes
         (ThemeResourceKeys.SearchIconBrush, "#C6BDAA"),
         (ThemeResourceKeys.SearchClearButtonForegroundBrush, "#D9CFC5"),
         (ThemeResourceKeys.SearchEmptyTextBrush, "#AFA59C"),
+
+        (ThemeResourceKeys.SyncProgressSuccessBrush, "#7BC47F"),
+        (ThemeResourceKeys.SyncProgressErrorBrush, "#FF6B6B"),
 
         (ThemeResourceKeys.UrlTextBrush, "#B6ACA4"),
         (ThemeResourceKeys.UrlHoverTextBrush, "#C6BDAA"),

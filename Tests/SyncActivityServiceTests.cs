@@ -42,4 +42,20 @@ public sealed class SyncActivityServiceTests
 
         Assert.False(service.IsActive);
     }
+
+    [Fact]
+    public void ReportCompleted_reports_completion_result()
+    {
+        var service = new SyncActivityService();
+        var results = new List<bool>();
+        service.ActivityCompleted += (_, e) => results.Add(e.Succeeded);
+
+        service.ReportCompleted(succeeded: true);
+        service.ReportCompleted(succeeded: false);
+
+        Assert.Collection(
+            results,
+            result => Assert.True(result),
+            result => Assert.False(result));
+    }
 }

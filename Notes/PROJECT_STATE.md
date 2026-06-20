@@ -198,8 +198,9 @@ Current dialogs:
 - Inline form errors, success states, and neutral in-progress states use `Views/StatusBanner.axaml`.
 - `StatusBanner` should be reused for future dialog-local validation/status messages instead of adding raw error `TextBlock`s.
 - WebDAV-backed sync operations report active/inactive state through `SyncActivityService`.
-  The main window shows a bottom activity bar while sync is active, and the settings window
-  shows an animated in-progress status message.
+  Full sync runs also report final success/failure. The main window shows a bottom
+  activity bar while sync is active, briefly holds a full green/red completion bar after
+  sync finishes, and the settings window shows an animated in-progress status message.
 
 ## Current UI Behavior
 
