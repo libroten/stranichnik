@@ -123,6 +123,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>Отмена</value>
   </data>
+  <data name="Common_Continue" xml:space="preserve">
+    <value>Продолжить</value>
+  </data>
   <data name="Common_Close" xml:space="preserve">
     <value>Закрыть</value>
   </data>
@@ -307,19 +310,13 @@
     <value>Сначала разблокируйте секретные закладки, затем попробуйте еще раз.</value>
   </data>
   <data name="Settings_SyncDescription" xml:space="preserve">
-    <value>Настройте синхронизацию через WebDAV. Пароль хранится только в текущей сессии приложения.</value>
+    <value>Настройте синхронизацию через WebDAV. После сохранения настроек Страничник запомнит пароль на этом устройстве.</value>
   </data>
   <data name="Settings_SyncConnectionFailed" xml:space="preserve">
     <value>Не удалось проверить соединение с WebDAV.</value>
   </data>
   <data name="Settings_SyncConnectionSucceeded" xml:space="preserve">
     <value>Соединение с WebDAV доступно.</value>
-  </data>
-  <data name="Settings_SyncDisabled" xml:space="preserve">
-    <value>Сначала включите синхронизацию.</value>
-  </data>
-  <data name="Settings_SyncEnabledLabel" xml:space="preserve">
-    <value>Включить синхронизацию</value>
   </data>
   <data name="Settings_SyncInvalidRepository" xml:space="preserve">
     <value>Удаленный репозиторий синхронизации выглядит некорректно. Проверьте папку WebDAV или выберите другую.</value>
@@ -331,7 +328,7 @@
     <value>Синхронизировать сейчас</value>
   </data>
   <data name="Settings_SyncNowCompletedWithIssues" xml:space="preserve">
-    <value>Синхронизация завершилась с проблемами. Подробности записаны в лог.</value>
+    <value>Синхронизация завершилась с проблемами.</value>
   </data>
   <data name="Settings_SyncNowFailed" xml:space="preserve">
     <value>Не удалось выполнить синхронизацию.</value>
@@ -340,13 +337,34 @@
     <value>Синхронизация завершена.</value>
   </data>
   <data name="Settings_SyncNowUnavailable" xml:space="preserve">
-    <value>Синхронизация недоступна в этой сессии приложения.</value>
+    <value>Синхронизация сейчас недоступна.</value>
   </data>
   <data name="Settings_SyncPasswordLabel" xml:space="preserve">
-    <value>Пароль WebDAV для этой сессии</value>
+    <value>Пароль WebDAV</value>
   </data>
   <data name="Settings_SyncPasswordRequired" xml:space="preserve">
-    <value>Введите пароль WebDAV для этой сессии.</value>
+    <value>Введите пароль WebDAV.</value>
+  </data>
+  <data name="Settings_SyncInsecureCredentialWarning" xml:space="preserve">
+    <value>Пароль WebDAV сохранен в незащищенном виде и может быть раскрыт при доступе к этому компьютеру.</value>
+  </data>
+  <data name="Settings_SyncCredentialSystemStoreUnavailableTitle" xml:space="preserve">
+    <value>Системное хранилище недоступно</value>
+  </data>
+  <data name="Settings_SyncCredentialSystemStoreUnavailableMessage" xml:space="preserve">
+    <value>Не удалось использовать системное хранилище паролей. Если продолжить, пароль будет сохранен в незащищенном виде и может быть раскрыт при доступе к этому компьютеру. Продолжить?</value>
+  </data>
+  <data name="Settings_SyncCredentialFallbackFailed" xml:space="preserve">
+    <value>Не удалось сохранить пароль WebDAV в fallback-файл. Пароль доступен только до выхода из приложения.</value>
+  </data>
+  <data name="Settings_SyncPasswordSessionOnly" xml:space="preserve">
+    <value>Пароль WebDAV не был сохранен.</value>
+  </data>
+  <data name="Settings_SyncResetAction" xml:space="preserve">
+    <value>Сбросить настройки синхронизации</value>
+  </data>
+  <data name="Settings_SyncResetSuccess" xml:space="preserve">
+    <value>Настройки синхронизации сброшены.</value>
   </data>
   <data name="Settings_SyncInProgress" xml:space="preserve">
     <value>Идет синхронизация</value>
@@ -382,7 +400,7 @@
     <value>Удаленный файл синхронизации удален.</value>
   </data>
   <data name="Settings_SyncRemoteProblemDeleteUnavailable" xml:space="preserve">
-    <value>Удаление remote-файла недоступно. Проверьте настройки синхронизации и введите пароль WebDAV для этой сессии.</value>
+    <value>Удаление remote-файла недоступно. Проверьте настройки синхронизации и введите пароль WebDAV.</value>
   </data>
   <data name="Settings_SyncRemoteProblemFileLabel" xml:space="preserve">
     <value>Файл синхронизации:</value>

@@ -196,13 +196,15 @@ Current app data files:
 `Settings/AppSettings.cs` includes `SyncSettings` for non-secret WebDAV sync
 configuration:
 
-- `IsEnabled`
 - `WebDavUrl`
 - `Username`
+- `CredentialStorageKind`
 - `LastSuccessfulSyncAtUtc`
 
-Do not add WebDAV passwords or other sync credentials to `AppSettings`.
-Credentials must stay behind a separate credential-store abstraction.
+Do not add raw WebDAV passwords or other raw sync credentials to `AppSettings`.
+Credentials must stay behind a separate credential-store abstraction. `AppSettings`
+may store only non-secret credential metadata such as which storage backend is
+active.
 
 ## WebDAV Sync
 
@@ -237,7 +239,11 @@ Current implementation shape:
 - `Sync/SyncApplicationServiceFactory.cs` validates sync settings and
   credentials before constructing a sync service.
 - `Views/SettingsDialog.axaml` exposes WebDAV sync settings, connection test,
-  manual sync, and user-facing quarantined remote problem management.
+  manual sync, sync-settings reset, and user-facing quarantined remote problem
+  management.
+- The manual "Sync now" action is shown only when saved sync settings contain an
+  WebDAV URL, username, active credential backend metadata, and a loadable
+  password.
 
 Important rules:
 
@@ -267,8 +273,27 @@ Current credential behavior:
 
 - WebDAV URL and username are saved in `settings.json`.
 - WebDAV password is kept in `ISyncCredentialStore`.
-- The current implementation uses `InMemorySyncCredentialStore`, so the password
-  is available only during the current app session.
+- `PersistentSyncCredentialStore` first keeps credentials in an in-memory session
+  cache.
+- When the user enters a WebDAV password and saves sync settings, the store tries
+  to persist the password in the operating system credential store:
+  - macOS: Keychain;
+  - Windows: Credential Manager;
+  - Linux: Secret Service through `secret-tool` when available.
+- If the OS credential store is unavailable, the UI asks for explicit
+  confirmation before saving an obfuscated fallback file at
+  `sync-credentials.json`.
+- The fallback file XOR-obfuscates the UTF-8 password bytes with the repeated
+  UTF-8 username bytes and stores the result as Base64. This is only a casual
+  visibility barrier, not cryptographic protection.
+- When the fallback file is active, the settings window always shows a red
+  warning banner in the sync section.
+- The sync settings reset action clears the saved WebDAV URL, username,
+  credential backend metadata, last successful sync timestamp, in-memory
+  credentials, and persisted credentials.
+- Running with `--simulate-unavailable-system-credential-store` forces the
+  system credential backend to report unavailable, so the fallback UX can be
+  tested without breaking the real OS credential store.
 
 Logging is implemented in:
 

@@ -221,11 +221,6 @@
                                        TextWrapping="Wrap"
                                        Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
 
-                            <CheckBox x:Name="SyncEnabledCheckBox"
-                                      Classes="syncToggle"
-                                      Content="{x:Static localization:UiStrings.SettingsSyncEnabledLabel}"
-                                      Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
-
                             <StackPanel Spacing="6">
                                 <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncWebDavUrlLabel}"
                                            Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
@@ -244,6 +239,8 @@
                                 <TextBox x:Name="SyncPasswordTextBox"
                                          PasswordChar="*"/>
                             </StackPanel>
+
+                            <views:StatusBanner x:Name="SyncInsecureCredentialWarningBanner"/>
 
                             <views:StatusBanner x:Name="SyncStatusBanner"/>
 
@@ -266,13 +263,25 @@
                                 </Button>
                             </StackPanel>
 
-                            <StackPanel Orientation="Horizontal"
+                            <StackPanel x:Name="SyncNowActionsPanel"
+                                        Orientation="Horizontal"
                                         HorizontalAlignment="Right">
                                 <Button Classes="dialogButton"
                                         Width="220"
                                         Height="44"
                                         Click="OnSyncNowClick">
                                     <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncNowAction}"
+                                               TextWrapping="Wrap"/>
+                                </Button>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Classes="dialogButton"
+                                        Width="220"
+                                        Height="44"
+                                        Click="OnResetSyncSettingsClick">
+                                    <TextBlock Text="{x:Static localization:UiStrings.SettingsSyncResetAction}"
                                                TextWrapping="Wrap"/>
                                 </Button>
                             </StackPanel>

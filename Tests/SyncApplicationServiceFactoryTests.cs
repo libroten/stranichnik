@@ -15,14 +15,12 @@ namespace Stranichnik.Tests;
 public sealed class SyncApplicationServiceFactoryTests
 {
     [Theory]
-    [InlineData(false, "https://example.invalid/sync/", "user", true, SyncApplicationServiceFactoryStatus.Disabled)]
-    [InlineData(true, "", "user", true, SyncApplicationServiceFactoryStatus.MissingWebDavUrl)]
-    [InlineData(true, "not-a-url", "user", true, SyncApplicationServiceFactoryStatus.InvalidWebDavUrl)]
-    [InlineData(true, "file:///tmp/sync", "user", true, SyncApplicationServiceFactoryStatus.InvalidWebDavUrl)]
-    [InlineData(true, "https://example.invalid/sync/", "", true, SyncApplicationServiceFactoryStatus.MissingUsername)]
-    [InlineData(true, "https://example.invalid/sync/", "user", false, SyncApplicationServiceFactoryStatus.MissingCredentials)]
+    [InlineData("", "user", true, SyncApplicationServiceFactoryStatus.MissingWebDavUrl)]
+    [InlineData("not-a-url", "user", true, SyncApplicationServiceFactoryStatus.InvalidWebDavUrl)]
+    [InlineData("file:///tmp/sync", "user", true, SyncApplicationServiceFactoryStatus.InvalidWebDavUrl)]
+    [InlineData("https://example.invalid/sync/", "", true, SyncApplicationServiceFactoryStatus.MissingUsername)]
+    [InlineData("https://example.invalid/sync/", "user", false, SyncApplicationServiceFactoryStatus.MissingCredentials)]
     public void Create_returns_configuration_status(
-        bool isEnabled,
         string webDavUrl,
         string username,
         bool hasCredentials,
@@ -33,7 +31,7 @@ public sealed class SyncApplicationServiceFactoryTests
             credentialStore.SaveForSession(new SyncCredentials("secret"));
 
         var result = CreateFactory().Create(
-            CreateSettings(isEnabled, webDavUrl, username),
+            CreateSettings(webDavUrl, username),
             credentialStore,
             new FakeSyncLocalStore(),
             new SyncOperationGate());
@@ -49,7 +47,7 @@ public sealed class SyncApplicationServiceFactoryTests
         var credentialStore = new InMemorySyncCredentialStore();
         credentialStore.SaveForSession(new SyncCredentials("secret"));
         var result = CreateFactory(() => handler).Create(
-            CreateSettings(isEnabled: true, webDavUrl: "https://example.invalid/sync/", username: "user"),
+            CreateSettings(webDavUrl: "https://example.invalid/sync/", username: "user"),
             credentialStore,
             new FakeSyncLocalStore(),
             new SyncOperationGate());
@@ -71,16 +69,12 @@ public sealed class SyncApplicationServiceFactoryTests
             log: _ => { });
     }
 
-    private static AppSettings CreateSettings(
-        bool isEnabled,
-        string webDavUrl,
-        string username)
+    private static AppSettings CreateSettings(string webDavUrl, string username)
     {
         return new AppSettings
         {
             Sync = new SyncSettings
             {
-                IsEnabled = isEnabled,
                 WebDavUrl = webDavUrl,
                 Username = username
             }

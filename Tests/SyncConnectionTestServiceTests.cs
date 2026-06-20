@@ -14,14 +14,12 @@ namespace Stranichnik.Tests;
 public sealed class SyncConnectionTestServiceTests
 {
     [Theory]
-    [InlineData(false, "https://example.invalid/sync/", "user", true, SyncConnectionTestStatus.Disabled)]
-    [InlineData(true, "", "user", true, SyncConnectionTestStatus.MissingWebDavUrl)]
-    [InlineData(true, "not-a-url", "user", true, SyncConnectionTestStatus.InvalidWebDavUrl)]
-    [InlineData(true, "file:///tmp/sync", "user", true, SyncConnectionTestStatus.InvalidWebDavUrl)]
-    [InlineData(true, "https://example.invalid/sync/", "", true, SyncConnectionTestStatus.MissingUsername)]
-    [InlineData(true, "https://example.invalid/sync/", "user", false, SyncConnectionTestStatus.MissingCredentials)]
+    [InlineData("", "user", true, SyncConnectionTestStatus.MissingWebDavUrl)]
+    [InlineData("not-a-url", "user", true, SyncConnectionTestStatus.InvalidWebDavUrl)]
+    [InlineData("file:///tmp/sync", "user", true, SyncConnectionTestStatus.InvalidWebDavUrl)]
+    [InlineData("https://example.invalid/sync/", "", true, SyncConnectionTestStatus.MissingUsername)]
+    [InlineData("https://example.invalid/sync/", "user", false, SyncConnectionTestStatus.MissingCredentials)]
     public async Task TestAsync_returns_configuration_status(
-        bool isEnabled,
         string webDavUrl,
         string username,
         bool hasCredentials,
@@ -31,7 +29,7 @@ public sealed class SyncConnectionTestServiceTests
         var service = new SyncConnectionTestService(log: _ => { });
 
         var result = await service.TestAsync(
-            CreateSettings(isEnabled, webDavUrl, username),
+            CreateSettings(webDavUrl, username),
             credentialStore,
             CancellationToken.None);
 
@@ -47,7 +45,7 @@ public sealed class SyncConnectionTestServiceTests
         var service = new SyncConnectionTestService(log: _ => { }, syncActivityService: activityService);
 
         var result = await service.TestAsync(
-            CreateSettings(isEnabled: true, webDavUrl: "", username: "user"),
+            CreateSettings(webDavUrl: "", username: "user"),
             CreateCredentialStore(hasCredentials: true),
             CancellationToken.None);
 
@@ -65,7 +63,7 @@ public sealed class SyncConnectionTestServiceTests
         var service = CreateService(handler, activityService);
 
         var result = await service.TestAsync(
-            CreateSettings(isEnabled: true, webDavUrl: "https://example.invalid/sync/", username: "user"),
+            CreateSettings(webDavUrl: "https://example.invalid/sync/", username: "user"),
             CreateCredentialStore(hasCredentials: true),
             CancellationToken.None);
 
@@ -83,7 +81,7 @@ public sealed class SyncConnectionTestServiceTests
         var service = CreateService(handler);
 
         var result = await service.TestAsync(
-            CreateSettings(isEnabled: true, webDavUrl: "https://example.invalid/sync/", username: "user"),
+            CreateSettings(webDavUrl: "https://example.invalid/sync/", username: "user"),
             CreateCredentialStore(hasCredentials: true),
             CancellationToken.None);
 
@@ -102,7 +100,7 @@ public sealed class SyncConnectionTestServiceTests
         var service = CreateService(handler);
 
         var result = await service.TestAsync(
-            CreateSettings(isEnabled: true, webDavUrl: "https://example.invalid/sync/", username: "user"),
+            CreateSettings(webDavUrl: "https://example.invalid/sync/", username: "user"),
             CreateCredentialStore(hasCredentials: true),
             CancellationToken.None);
 
@@ -116,7 +114,7 @@ public sealed class SyncConnectionTestServiceTests
         var service = CreateService(handler);
 
         var result = await service.TestAsync(
-            CreateSettings(isEnabled: true, webDavUrl: "https://example.invalid/sync/", username: "user"),
+            CreateSettings(webDavUrl: "https://example.invalid/sync/", username: "user"),
             CreateCredentialStore(hasCredentials: true),
             CancellationToken.None);
 
@@ -142,16 +140,12 @@ public sealed class SyncConnectionTestServiceTests
         return credentialStore;
     }
 
-    private static AppSettings CreateSettings(
-        bool isEnabled,
-        string webDavUrl,
-        string username)
+    private static AppSettings CreateSettings(string webDavUrl, string username)
     {
         return new AppSettings
         {
             Sync = new SyncSettings
             {
-                IsEnabled = isEnabled,
                 WebDavUrl = webDavUrl,
                 Username = username
             }

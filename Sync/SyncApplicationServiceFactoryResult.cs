@@ -9,11 +9,6 @@ public sealed record SyncApplicationServiceFactoryResult(
         return new SyncApplicationServiceFactoryResult(SyncApplicationServiceFactoryStatus.Ready, service);
     }
 
-    public static SyncApplicationServiceFactoryResult Disabled()
-    {
-        return new SyncApplicationServiceFactoryResult(SyncApplicationServiceFactoryStatus.Disabled, null);
-    }
-
     public static SyncApplicationServiceFactoryResult MissingWebDavUrl()
     {
         return new SyncApplicationServiceFactoryResult(SyncApplicationServiceFactoryStatus.MissingWebDavUrl, null);

@@ -545,9 +545,9 @@ Some WebDAV servers have imperfect ETag behavior. Therefore:
 Recommended settings:
 
 ```text
-sync.enabled
 sync.webDavUrl
 sync.username
+sync.credentialStorageKind
 sync.repositoryId
 sync.lastSyncAtUtc
 ```
@@ -557,12 +557,22 @@ Credential storage:
 - do not log WebDAV URL, username, or password;
 - do not store password in SQLite;
 - prefer an `ISyncCredentialStore` abstraction;
-- current implementation starts with `InMemorySyncCredentialStore`, which keeps
-  the WebDAV password only for the current app process;
-- v1 may ask for the password each app run if no safe cross-platform credential
-  storage exists yet;
-- a later "remember password" option should use OS credential storage where
-  feasible.
+- current implementation uses `PersistentSyncCredentialStore`;
+- the credential store keeps a session cache first;
+- when the user enters a WebDAV password and saves sync settings, it tries the OS credential store first:
+  macOS Keychain, Windows Credential Manager, or Linux Secret Service via
+  `secret-tool`;
+- if the OS credential store is unavailable, the user can explicitly accept an
+  obfuscated local fallback file;
+- the fallback file stores only a username-hash plus XOR(username, password)
+  bytes encoded as Base64. This is a convenience fallback and not strong
+  cryptographic protection;
+- when fallback file storage is active, settings must show a persistent warning.
+- the sync settings reset action must clear WebDAV URL, username, credential
+  backend metadata, last successful sync timestamp, in-memory credentials, and
+  persisted credentials for the saved username.
+- `--simulate-unavailable-system-credential-store` forces the OS credential
+  backend to be unavailable and exists only to test this fallback path.
 
 Do not block the sync engine on perfect credential persistence. Keep credential
 storage behind an interface.
@@ -1247,8 +1257,7 @@ Suggested first UI:
 - fields:
   - WebDAV URL;
   - username;
-  - password for current session or credential-store-backed password;
-  - enable sync checkbox;
+  - password;
   - "Test connection";
   - "Sync now";
 - show status through `StatusBanner`;
@@ -1308,8 +1317,6 @@ Manual testing should cover:
 
 Before implementation, confirm or refine:
 
-- should v1 store WebDAV password only in memory, or implement OS credential
-  storage immediately;
 - should v1 include automatic periodic sync, or manual sync only;
 - what user-facing conflict UI is acceptable for normal items;
 - how much crypto-profile conflict handling is required in v1;

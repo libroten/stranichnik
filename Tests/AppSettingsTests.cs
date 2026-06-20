@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using Stranichnik.Settings;
+using Stranichnik.Sync.Credentials;
 using Xunit;
 
 namespace Stranichnik.Tests;
@@ -12,27 +13,27 @@ public sealed class AppSettingsTests
     {
         var settings = new AppSettings();
 
-        Assert.False(settings.Sync.IsEnabled);
         Assert.Equal(string.Empty, settings.Sync.WebDavUrl);
         Assert.Equal(string.Empty, settings.Sync.Username);
+        Assert.Equal(string.Empty, settings.Sync.CredentialStorageKind);
         Assert.Null(settings.Sync.LastSuccessfulSyncAtUtc);
     }
 
     [Fact]
-    public void AppSettings_sync_json_does_not_contain_password_field()
+    public void AppSettings_sync_json_does_not_contain_raw_password_value()
     {
         var settings = new AppSettings
         {
             Sync = new SyncSettings
             {
-                IsEnabled = true,
                 WebDavUrl = "https://example.invalid/webdav/",
-                Username = "user"
+                Username = "user",
+                CredentialStorageKind = SyncCredentialStorageKindNames.SystemCredentialStore
             }
         };
 
         var json = JsonSerializer.Serialize(settings);
 
-        Assert.DoesNotContain("password", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secret", json, StringComparison.OrdinalIgnoreCase);
     }
 }

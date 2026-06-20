@@ -39,6 +39,7 @@ public static class UiStrings
     public static string BookmarkEditorUrlPlaceholder => TextResources.Get("BookmarkEditor_UrlPlaceholder");
     public static string CommonAdd => TextResources.Get("Common_Add");
     public static string CommonCancel => TextResources.Get("Common_Cancel");
+    public static string CommonContinue => TextResources.Get("Common_Continue");
     public static string CommonClose => TextResources.Get("Common_Close");
     public static string CommonDelete => TextResources.Get("Common_Delete");
     public static string CommonMessage => TextResources.Get("Common_Message");
@@ -102,8 +103,6 @@ public static class UiStrings
     public static string SettingsSyncDescription => TextResources.Get("Settings_SyncDescription");
     public static string SettingsSyncConnectionFailed => TextResources.Get("Settings_SyncConnectionFailed");
     public static string SettingsSyncConnectionSucceeded => TextResources.Get("Settings_SyncConnectionSucceeded");
-    public static string SettingsSyncDisabled => TextResources.Get("Settings_SyncDisabled");
-    public static string SettingsSyncEnabledLabel => TextResources.Get("Settings_SyncEnabledLabel");
     public static string SettingsSyncInvalidRepository => TextResources.Get("Settings_SyncInvalidRepository");
     public static string SettingsSyncLocalOperationActive => TextResources.Get("Settings_SyncLocalOperationActive");
     public static string SettingsSyncNowAction => TextResources.Get("Settings_SyncNowAction");
@@ -113,6 +112,13 @@ public static class UiStrings
     public static string SettingsSyncNowUnavailable => TextResources.Get("Settings_SyncNowUnavailable");
     public static string SettingsSyncPasswordLabel => TextResources.Get("Settings_SyncPasswordLabel");
     public static string SettingsSyncPasswordRequired => TextResources.Get("Settings_SyncPasswordRequired");
+    public static string SettingsSyncInsecureCredentialWarning => TextResources.Get("Settings_SyncInsecureCredentialWarning");
+    public static string SettingsSyncCredentialSystemStoreUnavailableTitle => TextResources.Get("Settings_SyncCredentialSystemStoreUnavailableTitle");
+    public static string SettingsSyncCredentialSystemStoreUnavailableMessage => TextResources.Get("Settings_SyncCredentialSystemStoreUnavailableMessage");
+    public static string SettingsSyncCredentialFallbackFailed => TextResources.Get("Settings_SyncCredentialFallbackFailed");
+    public static string SettingsSyncPasswordSessionOnly => TextResources.Get("Settings_SyncPasswordSessionOnly");
+    public static string SettingsSyncResetAction => TextResources.Get("Settings_SyncResetAction");
+    public static string SettingsSyncResetSuccess => TextResources.Get("Settings_SyncResetSuccess");
     public static string SettingsSyncInProgress => TextResources.Get("Settings_SyncInProgress");
     public static string SettingsSyncSaveAction => TextResources.Get("Settings_SyncSaveAction");
     public static string SettingsSyncSaved => TextResources.Get("Settings_SyncSaved");

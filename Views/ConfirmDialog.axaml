@@ -79,7 +79,8 @@
                 </Button>
                 <Button Classes="dialogButton danger"
                         Click="OnConfirmClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonDelete}"/>
+                    <TextBlock x:Name="ConfirmButtonTextBlock"
+                               Text="{x:Static localization:UiStrings.CommonDelete}"/>
                 </Button>
             </StackPanel>
         </StackPanel>

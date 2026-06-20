@@ -123,6 +123,9 @@
   <data name="Common_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="Common_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
   <data name="Common_Close" xml:space="preserve">
     <value>Close</value>
   </data>
@@ -307,19 +310,13 @@
     <value>Unlock secret bookmarks first, then try again.</value>
   </data>
   <data name="Settings_SyncDescription" xml:space="preserve">
-    <value>Configure WebDAV synchronization. The password is stored only for the current app session.</value>
+    <value>Configure WebDAV synchronization. Stranichnik will remember the password on this device when the settings are saved.</value>
   </data>
   <data name="Settings_SyncConnectionFailed" xml:space="preserve">
     <value>Could not check the WebDAV connection.</value>
   </data>
   <data name="Settings_SyncConnectionSucceeded" xml:space="preserve">
     <value>WebDAV connection is available.</value>
-  </data>
-  <data name="Settings_SyncDisabled" xml:space="preserve">
-    <value>Enable synchronization first.</value>
-  </data>
-  <data name="Settings_SyncEnabledLabel" xml:space="preserve">
-    <value>Enable synchronization</value>
   </data>
   <data name="Settings_SyncInvalidRepository" xml:space="preserve">
     <value>The remote sync repository looks invalid. Check the WebDAV folder or use another one.</value>
@@ -331,7 +328,7 @@
     <value>Sync now</value>
   </data>
   <data name="Settings_SyncNowCompletedWithIssues" xml:space="preserve">
-    <value>Synchronization completed with issues. Check the log for details.</value>
+    <value>Synchronization completed with issues.</value>
   </data>
   <data name="Settings_SyncNowFailed" xml:space="preserve">
     <value>Could not synchronize now.</value>
@@ -340,13 +337,34 @@
     <value>Synchronization completed.</value>
   </data>
   <data name="Settings_SyncNowUnavailable" xml:space="preserve">
-    <value>Synchronization is not available in this application session.</value>
+    <value>Synchronization is not available right now.</value>
   </data>
   <data name="Settings_SyncPasswordLabel" xml:space="preserve">
-    <value>WebDAV password for this session</value>
+    <value>WebDAV password</value>
   </data>
   <data name="Settings_SyncPasswordRequired" xml:space="preserve">
-    <value>Enter the WebDAV password for this session.</value>
+    <value>Enter the WebDAV password.</value>
+  </data>
+  <data name="Settings_SyncInsecureCredentialWarning" xml:space="preserve">
+    <value>The WebDAV password is saved without protection and may be exposed if someone gets access to this computer.</value>
+  </data>
+  <data name="Settings_SyncCredentialSystemStoreUnavailableTitle" xml:space="preserve">
+    <value>System credential store unavailable</value>
+  </data>
+  <data name="Settings_SyncCredentialSystemStoreUnavailableMessage" xml:space="preserve">
+    <value>Could not use the system password store. If you continue, the password will be saved without protection and may be exposed if someone gets access to this computer. Continue?</value>
+  </data>
+  <data name="Settings_SyncCredentialFallbackFailed" xml:space="preserve">
+    <value>Could not save the WebDAV password to the fallback file. The password is available only until the app exits.</value>
+  </data>
+  <data name="Settings_SyncPasswordSessionOnly" xml:space="preserve">
+    <value>The WebDAV password was not saved.</value>
+  </data>
+  <data name="Settings_SyncResetAction" xml:space="preserve">
+    <value>Reset sync settings</value>
+  </data>
+  <data name="Settings_SyncResetSuccess" xml:space="preserve">
+    <value>Sync settings were reset.</value>
   </data>
   <data name="Settings_SyncInProgress" xml:space="preserve">
     <value>Sync in progress</value>
@@ -382,7 +400,7 @@
     <value>Remote sync file deleted.</value>
   </data>
   <data name="Settings_SyncRemoteProblemDeleteUnavailable" xml:space="preserve">
-    <value>Remote deletion is unavailable. Check sync settings and enter the WebDAV password for this session.</value>
+    <value>Remote deletion is unavailable. Check sync settings and enter the WebDAV password.</value>
   </data>
   <data name="Settings_SyncRemoteProblemFileLabel" xml:space="preserve">
     <value>Sync file:</value>

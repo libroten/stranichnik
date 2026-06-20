@@ -100,7 +100,7 @@ public partial class MainWindow : Window
     private MainWindowViewModel? _observedViewModel;
 
     public MainWindow()
-        : this(new InMemorySyncCredentialStore(), syncLocalStore: null, new SyncOperationGate(), new SyncActivityService())
+        : this(SyncCredentialStoreFactory.CreateDefault(), syncLocalStore: null, new SyncOperationGate(), new SyncActivityService())
     {
     }
 
@@ -343,7 +343,6 @@ public partial class MainWindow : Window
         return result.Status switch
         {
             SyncConnectionTestStatus.Succeeded => SettingsDialogResult.Changed(),
-            SyncConnectionTestStatus.Disabled => SettingsDialogResult.Failed(UiStrings.SettingsSyncDisabled),
             SyncConnectionTestStatus.MissingWebDavUrl => SettingsDialogResult.Failed(UiStrings.SettingsSyncWebDavUrlRequired),
             SyncConnectionTestStatus.InvalidWebDavUrl => SettingsDialogResult.Failed(UiStrings.SettingsSyncWebDavUrlInvalid),
             SyncConnectionTestStatus.MissingUsername => SettingsDialogResult.Failed(UiStrings.SettingsSyncUsernameRequired),
@@ -488,7 +487,6 @@ public partial class MainWindow : Window
     {
         return status switch
         {
-            SyncApplicationServiceFactoryStatus.Disabled => UiStrings.SettingsSyncDisabled,
             SyncApplicationServiceFactoryStatus.MissingWebDavUrl => UiStrings.SettingsSyncWebDavUrlRequired,
             SyncApplicationServiceFactoryStatus.InvalidWebDavUrl => UiStrings.SettingsSyncWebDavUrlInvalid,
             SyncApplicationServiceFactoryStatus.MissingUsername => UiStrings.SettingsSyncUsernameRequired,

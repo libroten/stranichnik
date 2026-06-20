@@ -43,9 +43,6 @@ public sealed class SyncApplicationServiceFactory
         ArgumentNullException.ThrowIfNull(localStore);
         ArgumentNullException.ThrowIfNull(operationGate);
 
-        if (!settings.Sync.IsEnabled)
-            return SyncApplicationServiceFactoryResult.Disabled();
-
         if (string.IsNullOrWhiteSpace(settings.Sync.WebDavUrl))
             return SyncApplicationServiceFactoryResult.MissingWebDavUrl();
 

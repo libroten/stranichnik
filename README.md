@@ -114,9 +114,15 @@ Stranichnik includes first-pass manual WebDAV synchronization. Configure it from
 Stranichnik -> Settings -> Sync
 ```
 
-The settings UI currently stores the WebDAV URL and username in `settings.json`.
-The WebDAV password is kept only for the current application session through the
-sync credential abstraction and is not persisted to disk.
+The settings UI stores the WebDAV URL, username, and non-secret credential
+metadata in `settings.json`. The raw WebDAV password is kept behind the sync
+credential abstraction. When the password is entered and settings are saved,
+Stranichnik tries to remember it through the operating system credential store.
+If that is unavailable, the app asks before using an obfuscated local fallback
+file and shows a persistent warning in the sync settings.
+
+The sync settings section also has a reset action that clears the saved WebDAV
+URL, username, password metadata, and stored WebDAV password for this device.
 
 Sync stores portable JSON objects on the WebDAV server instead of uploading the
 local SQLite database file. Secret bookmark payloads and secret icon bytes remain
@@ -126,6 +132,13 @@ Recommended manual run with logs while testing sync:
 
 ```bash
 dotnet run -- --print-logs-to-console
+```
+
+To manually test the fallback path where the operating system credential store is
+unavailable:
+
+```bash
+dotnet run -- --print-logs-to-console --simulate-unavailable-system-credential-store
 ```
 
 ## Run Tests

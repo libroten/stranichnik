@@ -54,7 +54,8 @@ public partial class App : Application
             var syncActivityService = new SyncActivityService();
             var secretCryptoService = new SecretCryptoService();
             var secretSession = new SecretSessionService();
-            var syncCredentialStore = new InMemorySyncCredentialStore();
+            var syncCredentialStore = SyncCredentialStoreFactory.CreateDefault(
+                AppStartupOptions.SimulateUnavailableSystemCredentialStore);
 
             if (secretProfileStore.LoadActiveProfile() is null)
                 secretSession.MarkNotConfigured();

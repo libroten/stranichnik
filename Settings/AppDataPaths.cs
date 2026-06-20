@@ -22,4 +22,6 @@ public static class AppDataPaths
     public static string LogPath => Path.Combine(AppDataDirectory, "stranichnik.log");
 
     public static string DatabasePath => Path.Combine(AppDataDirectory, "stranichnik.sqlite");
+
+    public static string SyncCredentialsPath => Path.Combine(AppDataDirectory, "sync-credentials.json");
 }

@@ -246,6 +246,9 @@ The user does not want:
 The desired experience is similar to Joplin sync:
 
 - User enters WebDAV URL, username, and password.
+- User may remember the WebDAV password locally through the OS credential store;
+  if the OS store is unavailable, an explicitly accepted obfuscated file fallback
+  may be used with a persistent warning in settings.
 - Multiple desktop app instances synchronize through a folder in a cloud drive.
 
 ### Chosen Direction

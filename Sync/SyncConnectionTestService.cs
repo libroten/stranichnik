@@ -81,9 +81,6 @@ public sealed class SyncConnectionTestService
         repositoryUri = new Uri("https://example.invalid/", UriKind.Absolute);
         credentials = null;
 
-        if (!settings.Sync.IsEnabled)
-            return SyncConnectionTestResult.Disabled();
-
         if (string.IsNullOrWhiteSpace(settings.Sync.WebDavUrl))
             return SyncConnectionTestResult.MissingWebDavUrl();
 

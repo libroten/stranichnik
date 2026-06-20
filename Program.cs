@@ -19,6 +19,8 @@ sealed class Program
         Logs.Print("Application starting.");
         Logs.Print($"Application data directory: {AppDataPaths.AppDataDirectory}");
         Logs.Print($"Use sample data: {AppStartupOptions.UseSampleData}");
+        Logs.Print(
+            $"Simulate unavailable system credential store: {AppStartupOptions.SimulateUnavailableSystemCredentialStore}");
 
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

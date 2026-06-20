@@ -152,14 +152,16 @@ Completed broad areas:
   - unchanged already-quarantined remote objects are treated as known problems rather than fresh sync failures, while changed invalid objects are surfaced again;
   - local SQLite rows carry sync metadata such as state, remote ETag, last synced timestamp, content hash, and modified device ID;
   - existing local objects are marked dirty during sync metadata migration so a first sync uploads the whole local dataset instead of only post-migration edits;
-  - sync settings live in `settings.json`, but WebDAV passwords are kept behind `ISyncCredentialStore` and are not persisted by the current in-memory credential store;
-  - `Stranichnik -> Settings -> Sync` exposes enablement, WebDAV URL, username, password for the current session, connection test, sync now, last successful sync status, and quarantined remote problem management;
+  - sync settings live in `settings.json`, but raw WebDAV passwords are kept behind `ISyncCredentialStore`;
+  - WebDAV passwords can be remembered between app sessions through the OS credential store where available;
+  - if the OS credential store is unavailable, the user must explicitly confirm an obfuscated local fallback file, and the settings window shows a persistent red warning banner while that fallback is active;
+  - `--simulate-unavailable-system-credential-store` forces the OS credential backend to be unavailable for manual fallback testing;
+  - `Stranichnik -> Settings -> Sync` exposes WebDAV URL, username, password, connection test, sync now, sync-settings reset, last successful sync status, and quarantined remote problem management;
   - after sync pulls a crypto profile into an initially empty local database, `MainWindowViewModel` refreshes the runtime secret-session configuration so `Cmd+P` can unlock the downloaded secret bookmarks without restarting the app;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 
 Not implemented yet:
 
-- persistent OS keychain-backed WebDAV credential storage;
 - automatic/background sync;
 - advanced user-facing sync conflict resolution UI;
 - remote garbage collection for orphaned old sync objects;
@@ -392,9 +394,8 @@ Likely order:
 
 1. Continue manual WebDAV sync regression on macOS, then Windows and Linux.
 2. Review sync conflict handling and any remaining edge cases found during two-device testing.
-3. Decide whether v1 should persist WebDAV credentials through an OS keychain-backed store or keep session-only credentials.
-4. Add automatic/background sync only after manual sync is stable.
-5. Revisit search quality tuning if the user wants better ranking/tokenization.
+3. Add automatic/background sync only after manual sync is stable.
+4. Revisit search quality tuning if the user wants better ranking/tokenization.
 
 SQLite schema direction:
 

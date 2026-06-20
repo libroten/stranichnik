@@ -75,7 +75,6 @@ public sealed class SyncRemoteProblemService : IDisposable
         ArgumentNullException.ThrowIfNull(credentialStore);
 
         if (localStore is null ||
-            !settings.Sync.IsEnabled ||
             string.IsNullOrWhiteSpace(settings.Sync.WebDavUrl) ||
             string.IsNullOrWhiteSpace(settings.Sync.Username) ||
             !Uri.TryCreate(settings.Sync.WebDavUrl, UriKind.Absolute, out var repositoryUri) ||

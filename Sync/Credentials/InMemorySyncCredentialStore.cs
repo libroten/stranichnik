@@ -21,6 +21,22 @@ public sealed class InMemorySyncCredentialStore : ISyncCredentialStore
             _credentials = credentials;
     }
 
+    public SyncCredentialPersistResult SavePersistently(
+        SyncCredentials credentials,
+        string username,
+        bool allowInsecureFallback)
+    {
+        ArgumentNullException.ThrowIfNull(credentials);
+        ArgumentException.ThrowIfNullOrWhiteSpace(username);
+
+        SaveForSession(credentials);
+        return SyncCredentialPersistResult.Saved(SyncCredentialStorageKind.SessionOnly);
+    }
+
+    public void ClearPersistent()
+    {
+    }
+
     public void Clear()
     {
         lock (_gate)

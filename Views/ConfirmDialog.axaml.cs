@@ -21,6 +21,12 @@ public sealed partial class ConfirmDialog : Window
         MessageTextBlock.Text = message;
     }
 
+    private ConfirmDialog(string title, string message, string confirmText)
+        : this(title, message)
+    {
+        ConfirmButtonTextBlock.Text = confirmText;
+    }
+
     public static Task<bool> ShowDeleteBookmark(Window owner, string title)
     {
         var dialog = new ConfirmDialog(
@@ -62,6 +68,16 @@ public sealed partial class ConfirmDialog : Window
         var dialog = new ConfirmDialog(
             UiStrings.ConfirmDeleteSyncRemoteProblemTitle,
             UiStrings.ConfirmDeleteSyncRemoteProblemMessage);
+
+        return dialog.ShowDialog<bool>(owner);
+    }
+
+    public static Task<bool> ShowSaveSyncPasswordInsecurely(Window owner)
+    {
+        var dialog = new ConfirmDialog(
+            UiStrings.SettingsSyncCredentialSystemStoreUnavailableTitle,
+            UiStrings.SettingsSyncCredentialSystemStoreUnavailableMessage,
+            UiStrings.CommonContinue);
 
         return dialog.ShowDialog<bool>(owner);
     }

@@ -7,11 +7,6 @@ public sealed record SyncConnectionTestResult(SyncConnectionTestStatus Status)
         return new SyncConnectionTestResult(SyncConnectionTestStatus.Succeeded);
     }
 
-    public static SyncConnectionTestResult Disabled()
-    {
-        return new SyncConnectionTestResult(SyncConnectionTestStatus.Disabled);
-    }
-
     public static SyncConnectionTestResult MissingWebDavUrl()
     {
         return new SyncConnectionTestResult(SyncConnectionTestStatus.MissingWebDavUrl);
