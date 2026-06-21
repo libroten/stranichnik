@@ -338,9 +338,9 @@ need to count purged icon assets unless the UI later needs that number.
 
 ## Sync Considerations
 
-Future WebDAV sync should treat secret icons as encrypted blobs.
+Current WebDAV sync treats secret icons as encrypted blobs.
 
-Initial sync direction:
+Current sync direction:
 
 - sync regular `icon_assets` separately from `secret_icon_assets`;
 - include `source_hash` for deduplication;
@@ -349,8 +349,8 @@ Initial sync direction:
   generation;
 - never upload plaintext secret icon PNG bytes.
 
-Detailed WebDAV sync design is still future work. Keep this data shape in mind
-when designing sync object formats.
+Detailed WebDAV sync design now lives in `Notes/WEBDAV_SYNC_ARCHITECTURE.md`.
+Keep this data shape in mind when evolving future sync object formats.
 
 ## Testing Requirements
 

@@ -87,6 +87,36 @@ public sealed class BookmarkTreeViewModelMapperTests
     }
 
     [Fact]
+    public void CreateViewModels_promotes_item_with_bookmark_parent_to_root()
+    {
+        var snapshot = new BookmarkTreeSnapshot(new[]
+        {
+            CreateBookmark("parent-bookmark", parentId: null, sortOrder: 2000),
+            CreateBookmark("child-bookmark", parentId: "parent-bookmark", sortOrder: 1000)
+        });
+
+        var items = BookmarkTreeViewModelMapper.CreateViewModels(snapshot);
+
+        Assert.Equal(ExpectedPromotedBookmarkIds, items.Select(item => item.Id));
+        Assert.All(items, item => Assert.Null(item.Parent));
+    }
+
+    [Fact]
+    public void CreateViewModels_promotes_folder_cycle_items_to_root()
+    {
+        var snapshot = new BookmarkTreeSnapshot(new[]
+        {
+            CreateFolder("folder-a", parentId: "folder-b", sortOrder: 2000),
+            CreateFolder("folder-b", parentId: "folder-a", sortOrder: 1000)
+        });
+
+        var items = BookmarkTreeViewModelMapper.CreateViewModels(snapshot);
+
+        Assert.Equal(ExpectedPromotedCycleFolderIds, items.Select(item => item.Id));
+        Assert.All(items, item => Assert.Null(item.Parent));
+    }
+
+    [Fact]
     public void SampleBookmarkRecordsFactory_creates_expected_sample_shape()
     {
         var snapshot = SampleBookmarkRecordsFactory.Create();
@@ -146,4 +176,6 @@ public sealed class BookmarkTreeViewModelMapperTests
     }
 
     private static readonly string[] ExpectedDescendingItemIds = ["new", "old"];
+    private static readonly string[] ExpectedPromotedBookmarkIds = ["parent-bookmark", "child-bookmark"];
+    private static readonly string[] ExpectedPromotedCycleFolderIds = ["folder-a", "folder-b"];
 }

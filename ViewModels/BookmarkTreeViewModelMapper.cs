@@ -18,9 +18,16 @@ public static class BookmarkTreeViewModelMapper
         IReadOnlySet<string>? expandedFolderIds = null,
         BookmarkIconImageCache? iconImageCache = null)
     {
-        var itemsByParentId = snapshot.Items
+        var liveItems = snapshot.Items
             .Where(item => item.Metadata.DeletedAtUtc is null)
-            .GroupBy(item => GetParentKey(item.ParentId), StringComparer.Ordinal)
+            .ToList();
+        var liveItemsById = liveItems.ToDictionary(item => item.Id, StringComparer.Ordinal);
+        var displayParentIds = liveItems.ToDictionary(
+            item => item.Id,
+            item => GetDisplayParentId(item, liveItemsById),
+            StringComparer.Ordinal);
+        var itemsByParentId = liveItems
+            .GroupBy(item => GetParentKey(displayParentIds[item.Id]), StringComparer.Ordinal)
             .ToDictionary(
                 group => group.Key,
                 group => group
@@ -146,6 +153,45 @@ public static class BookmarkTreeViewModelMapper
     private static string GetParentKey(string? parentId)
     {
         return parentId ?? RootParentKey;
+    }
+
+    private static string? GetDisplayParentId(
+        BookmarkItemRecord item,
+        Dictionary<string, BookmarkItemRecord> liveItemsById)
+    {
+        if (item.ParentId is null)
+            return null;
+
+        if (!liveItemsById.TryGetValue(item.ParentId, out var parent) ||
+            parent.Kind != BookmarkItemKind.Folder ||
+            WouldCreateDisplayCycle(item.Id, item.ParentId, liveItemsById))
+        {
+            return null;
+        }
+
+        return item.ParentId;
+    }
+
+    private static bool WouldCreateDisplayCycle(
+        string itemId,
+        string? parentId,
+        Dictionary<string, BookmarkItemRecord> liveItemsById)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var currentParentId = parentId;
+
+        while (currentParentId is not null)
+        {
+            if (string.Equals(currentParentId, itemId, StringComparison.Ordinal) || !visited.Add(currentParentId))
+                return true;
+
+            if (!liveItemsById.TryGetValue(currentParentId, out var parent))
+                return false;
+
+            currentParentId = parent.ParentId;
+        }
+
+        return false;
     }
 
     private static readonly IReadOnlySet<string> EmptyExpandedFolderIds = new HashSet<string>(StringComparer.Ordinal);

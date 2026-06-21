@@ -441,6 +441,21 @@ remote object и ошибочным вторым remote object откатыва�
 - production WebDAV transport чистит stale `.tmp/` файлы с консервативным
   retention-порогом;
 - удаление quarantined remote file репортит финальное состояние в sync activity.
+- отсутствующий на WebDAV previously-synced clean object считается
+  восстановимой рассинхронизацией: pull помечает локальный объект dirty, push
+  загружает его обратно, и если других проблем нет, UI показывает успешный sync;
+- remote item graph валидируется перед применением: живой item может иметь
+  только живую папку-родителя, не может ссылаться на себя, folder move не может
+  создать цикл, а remote kind-change folder -> bookmark не применяется, если у
+  локальной папки есть живые дети;
+- такие graph-проблемы попадают в remote quarantine вместо записи в SQLite;
+- mapper видимого дерева дополнительно защищает UI от уже поврежденного
+  локального графа, поднимая проблемные элементы в корень;
+- malformed WebDAV `PROPFIND` XML обрабатывается как remote failure, а не как
+  неожиданный parser crash;
+- настройки и нижний sync-индикатор используют единую full-success semantics:
+  успех только если нет conflicts, pending dependencies, invalid remote objects,
+  errors и blocking reason.
 
 Последний закрытый шаг: полная SQLite-атомаризация `ApplyPullPlan(...)`.
 

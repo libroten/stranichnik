@@ -482,7 +482,7 @@ public partial class MainWindow : Window
         viewModel.RefreshSecretSessionConfigurationFromStorage();
         viewModel.ReloadVisibleTreeAndSearch();
 
-        if (!summary.Succeeded)
+        if (!IsFullySuccessfulSync(summary))
             return SettingsDialogResult.Failed(ToSyncSummaryErrorMessage(summary));
 
         var updatedSettings = AppSettingsService.Load();
@@ -596,6 +596,9 @@ public partial class MainWindow : Window
 
     private static string ToSyncSummaryErrorMessage(SyncRunSummary summary)
     {
+        if (summary.ConflictCount > 0)
+            return UiStrings.SettingsSyncNowConflictsDetected;
+
         return summary.BlockingReason switch
         {
             SyncBlockingReason.LocalOperationActive => UiStrings.SettingsSyncLocalOperationActive,
@@ -603,6 +606,17 @@ public partial class MainWindow : Window
             SyncBlockingReason.InvalidRepository => UiStrings.SettingsSyncInvalidRepository,
             _ => UiStrings.SettingsSyncNowCompletedWithIssues
         };
+    }
+
+    private static bool IsFullySuccessfulSync(SyncRunSummary summary)
+    {
+        return summary.Succeeded &&
+            summary.ConflictCount == 0 &&
+            summary.PendingAssetCount == 0 &&
+            summary.PendingCryptoProfileCount == 0 &&
+            summary.InvalidRemoteObjectCount == 0 &&
+            summary.ErrorCount == 0 &&
+            summary.BlockingReason == SyncBlockingReason.None;
     }
 
     private void OnMenuPopupClosed(object? sender, EventArgs e)

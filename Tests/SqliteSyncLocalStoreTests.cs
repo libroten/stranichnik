@@ -267,6 +267,86 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyRemoteChanges_quarantines_item_with_bookmark_parent()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var parentBookmark = CreateRemoteBookmark("remote-parent", parentId: null);
+        var childBookmark = CreateRemoteBookmark("remote-child", parentId: "remote-parent");
+        var batch = new SyncApplyBatch(
+            SecretResetEvents: [],
+            CryptoProfiles: [],
+            IconAssets: [],
+            SecretIconAssets: [],
+            Items:
+            [
+                Applied(SyncObjectKind.Item, parentBookmark.Id, parentBookmark),
+                Applied(SyncObjectKind.Item, childBookmark.Id, childBookmark)
+            ]);
+
+        database.SyncLocalStore.ApplyRemoteChanges(batch);
+
+        Assert.Contains(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "remote-parent");
+        Assert.DoesNotContain(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "remote-child");
+        var quarantine = Assert.Single(database.SyncMetadataStore.LoadQuarantinedRemoteObjects());
+        Assert.Equal("Item:remote-child", quarantine.Id);
+        Assert.Equal("invalid-parent", quarantine.ReasonCode);
+    }
+
+    [Fact]
+    public void ApplyRemoteChanges_quarantines_folder_move_to_descendant()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.InsertFolder("folder");
+        database.InsertFolder("child-folder", parentId: "folder");
+        var folderMovedIntoChild = CreateRemoteFolder("folder") with
+        {
+            ParentId = "child-folder",
+            ContentHash = "sha256:remote-folder-moved-content"
+        };
+        var batch = new SyncApplyBatch(
+            SecretResetEvents: [],
+            CryptoProfiles: [],
+            IconAssets: [],
+            SecretIconAssets: [],
+            Items: [Applied(SyncObjectKind.Item, folderMovedIntoChild.Id, folderMovedIntoChild)]);
+
+        database.SyncLocalStore.ApplyRemoteChanges(batch);
+
+        var storedFolder = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "folder");
+        Assert.Null(storedFolder.Item.ParentId);
+        var quarantine = Assert.Single(database.SyncMetadataStore.LoadQuarantinedRemoteObjects());
+        Assert.Equal("Item:folder", quarantine.Id);
+        Assert.Equal("parent-cycle", quarantine.ReasonCode);
+    }
+
+    [Fact]
+    public void ApplyRemoteChanges_quarantines_folder_changed_to_bookmark_when_children_exist()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.InsertFolder("folder");
+        database.InsertBookmark("child-bookmark", parentId: "folder");
+        var bookmarkReplacingFolder = CreateRemoteBookmark("folder", parentId: null) with
+        {
+            ContentHash = "sha256:remote-kind-change-content"
+        };
+        var batch = new SyncApplyBatch(
+            SecretResetEvents: [],
+            CryptoProfiles: [],
+            IconAssets: [],
+            SecretIconAssets: [],
+            Items: [Applied(SyncObjectKind.Item, bookmarkReplacingFolder.Id, bookmarkReplacingFolder)]);
+
+        database.SyncLocalStore.ApplyRemoteChanges(batch);
+
+        var storedFolder = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "folder");
+        Assert.Equal(BookmarkItemKind.Folder, storedFolder.Item.Kind);
+        Assert.Contains(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.ParentId == "folder");
+        var quarantine = Assert.Single(database.SyncMetadataStore.LoadQuarantinedRemoteObjects());
+        Assert.Equal("Item:folder", quarantine.Id);
+        Assert.Equal("kind-change-with-children", quarantine.ReasonCode);
+    }
+
+    [Fact]
     public void ApplyRemoteChanges_applies_plaintext_item_tombstone()
     {
         using var database = TempSqliteDatabase.Create();
@@ -1110,7 +1190,7 @@ public sealed class SqliteSyncLocalStoreTests
             return new TempSqliteDatabase(Path.Combine(Path.GetTempPath(), $"stranichnik-tests-{Guid.NewGuid():N}"));
         }
 
-        public void InsertFolder(string id)
+        public void InsertFolder(string id, string? parentId = null)
         {
             using var connection = _connectionFactory.OpenConnection();
             using var command = connection.CreateCommand();
@@ -1138,7 +1218,7 @@ public sealed class SqliteSyncLocalStoreTests
                     modified_device_id)
                 VALUES (
                     $id,
-                    NULL,
+                    $parentId,
                     'folder',
                     1100,
                     'Folder',
@@ -1159,6 +1239,7 @@ public sealed class SqliteSyncLocalStoreTests
                     'test-device');
                 """;
             command.Parameters.AddWithValue("$id", id);
+            command.Parameters.AddWithValue("$parentId", parentId is null ? DBNull.Value : parentId);
             command.ExecuteNonQuery();
         }
 

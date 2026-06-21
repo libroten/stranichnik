@@ -12,7 +12,10 @@ The project is not just a basic bookmark manager. Three strategic features are c
 2. Good bookmark search.
 3. WebDAV-based synchronization without a custom backend.
 
-Selective encryption and the first integrated search version are already implemented. WebDAV sync is still future work. These features must still be considered together because they affect data model, storage design, search indexing, sync format, and UI behavior.
+Selective encryption, the first integrated search version, and first-pass manual
+WebDAV sync are already implemented. These features must still be considered
+together because they affect data model, storage design, search indexing, sync
+format, and UI behavior.
 
 ## High-Level Direction
 
@@ -278,7 +281,7 @@ The detailed current WebDAV sync design is documented in:
 - `Notes/WEBDAV_SYNC_ARCHITECTURE.md`
 - `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`
 
-Current planned remote layout:
+Current implemented remote layout:
 
 ```text
 /stranichnik-sync-v1/
@@ -291,9 +294,10 @@ Current planned remote layout:
   secret-reset-events/
 ```
 
-Exact shape may still change during implementation, but the current design uses
-separate remote object categories for tree items, regular icons, encrypted
-secret icons, crypto profile metadata, and compact secret reset events.
+The current implementation uses separate remote object categories for tree
+items, regular icons, encrypted secret icons, crypto profile metadata, and
+compact secret reset events. The layout is versioned and may still evolve in a
+future incompatible sync format.
 
 Each sync item should contain enough metadata for conflict detection and merge:
 
@@ -315,8 +319,11 @@ data must not be uploaded.
 
 Initial conflict approach can be simple but explicit:
 
-- Item-level last-write-wins may be acceptable for non-conflicting changes.
-- If the same item changed independently on two devices, prefer creating a conflict copy over silently losing data.
+- Non-conflicting local/remote changes are synchronized object-by-object.
+- If the same item changed independently on two devices, the current
+  implementation detects and marks a conflict instead of silently overwriting.
+- Advanced user-facing conflict resolution and conflict-copy UX remain future
+  work.
 - Deletions should use tombstones, not immediate remote disappearance.
 
 Useful simplifying decision already made:
@@ -357,6 +364,10 @@ Risk reduction strategy:
 - Use WebDAV ETag/conditional writes where provider support is reliable.
 - Avoid relying only on wall-clock timestamps.
 - Keep the sync format versioned.
+- Quarantine malformed/invalid remote objects and invalid remote item graphs
+  instead of applying them.
+- Restore a missing previously synced remote object from the clean local copy by
+  marking it dirty and pushing it again.
 
 ## How These Features Fit Together
 
@@ -416,8 +427,8 @@ This prepares the app for:
 Recommended next steps, still flexible:
 
 1. Tune search quality if the user wants better ranking/tokenization.
-2. Design WebDAV item-level sync using the current SQLite, search, encryption, icon, encrypted secret icon, and reset data shapes.
-3. Implement WebDAV sync conservatively with stable IDs, conflict copies, ordinary item tombstones, encrypted icon blobs, and compact secret reset events.
+2. Continue WebDAV sync stabilization and cross-platform regression testing.
+3. Design and implement an explicit user-facing sync conflict resolution flow.
 
 ## References To Revisit
 

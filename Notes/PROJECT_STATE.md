@@ -165,6 +165,16 @@ Completed broad areas:
     progress, missing clean synced local objects are marked dirty for remote
     restoration, and create-only uploads use `.tmp/` plus WebDAV `MOVE` when
     supported;
+  - missing previously synced remote files are restored by marking the clean local
+    object dirty and uploading it again; if the restore succeeds in the same run,
+    the UI treats the run as successful;
+  - malformed remote item graphs are quarantined before apply: non-folder
+    parents, self-parenting, parent cycles, and folder-to-bookmark changes that
+    would hide live children are not written into SQLite;
+  - the visible tree mapper defensively promotes already-corrupt local graph
+    nodes to the visible root instead of silently dropping them from the UI;
+  - malformed WebDAV `PROPFIND` XML is handled as a normal remote failure instead
+    of an unexpected XML parsing crash;
   - pull apply also runs a reconciliation pass for already-downloaded icon
     assets and crypto profiles so pending icon references and deferred secret
     items can recover after an interrupted earlier apply;
@@ -176,6 +186,10 @@ Completed broad areas:
     whole pull plan through one shared `SqliteConnection`/`SqliteTransaction`,
     so a failure in the middle of apply rolls back the local batch instead of
     leaving partially applied pull state;
+  - sync UI reports success only when there are no conflicts, pending
+    dependencies, invalid remote objects, errors, or blocking reasons;
+  - conflicts are detected and surfaced as sync problems, but the advanced
+    user-facing conflict resolution UI is still future work;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 
 Not implemented yet:
@@ -378,7 +392,9 @@ Recently verified sync scenarios include:
 - pulling secret bookmarks, crypto profile data, and encrypted secret icons into an empty database;
 - unlocking downloaded secret bookmarks with `Cmd+P` after pull without restarting the app.
 - restoring a remote item that disappeared from WebDAV by marking the
-  previously synced clean local object dirty and uploading it again.
+  previously synced clean local object dirty and uploading it again;
+- verifying that the restore scenario ends with successful sync status when no
+  conflicts, invalid remote objects, pending dependencies, or errors remain.
 
 The user confirmed the first search integration works in the app. The current search quality is acceptable as a first pass, with possible future tuning.
 
@@ -411,7 +427,9 @@ dotnet format --verify-no-changes
 
 ## Recommended Next Steps
 
-The next broad area is likely stabilization and manual regression of the first-pass WebDAV sync implementation, unless the user chooses to pause sync and polish search, encryption, icons, or UI first.
+The next broad area is likely continued WebDAV sync stabilization, cross-platform
+manual regression, and conflict-resolution UX, unless the user chooses to pause
+sync and polish search, encryption, icons, or UI first.
 
 Likely order:
 

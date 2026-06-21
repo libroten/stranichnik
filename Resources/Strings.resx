@@ -327,6 +327,9 @@
   <data name="Settings_SyncNowAction" xml:space="preserve">
     <value>Sync now</value>
   </data>
+  <data name="Settings_SyncNowConflictsDetected" xml:space="preserve">
+    <value>Synchronization found conflicts. Resolve them before considering sync complete.</value>
+  </data>
   <data name="Settings_SyncNowCompletedWithIssues" xml:space="preserve">
     <value>Synchronization completed with issues.</value>
   </data>

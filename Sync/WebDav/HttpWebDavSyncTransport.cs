@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
 using Stranichnik.Diagnostics;
 using Stranichnik.Sync;
@@ -115,7 +116,17 @@ public sealed class HttpWebDavSyncTransport : IWebDavSyncTransport, IWebDavTempO
         response.EnsureSuccessStatusCode();
 
         var xml = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        var objects = ParsePropFindResponse(xml, relativeDirectory);
+        List<SyncRemoteObjectInfo> objects;
+        try
+        {
+            objects = ParsePropFindResponse(xml, relativeDirectory);
+        }
+        catch (XmlException exception)
+        {
+            _log("WebDAV list failed: invalid PROPFIND XML response.");
+            throw new HttpRequestException("WebDAV PROPFIND response is invalid.", exception);
+        }
+
         _log($"WebDAV list finished. Objects={objects.Count}; ResponseChars={xml.Length}.");
         return objects;
     }

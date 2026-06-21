@@ -327,6 +327,9 @@
   <data name="Settings_SyncNowAction" xml:space="preserve">
     <value>Синхронизировать сейчас</value>
   </data>
+  <data name="Settings_SyncNowConflictsDetected" xml:space="preserve">
+    <value>Синхронизация обнаружила конфликты. Их нужно разрешить, прежде чем считать синхронизацию завершённой.</value>
+  </data>
   <data name="Settings_SyncNowCompletedWithIssues" xml:space="preserve">
     <value>Синхронизация завершилась с проблемами.</value>
   </data>

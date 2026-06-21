@@ -100,6 +100,15 @@ public sealed class HttpWebDavSyncTransportTests
     }
 
     [Fact]
+    public async Task ListAsync_throws_http_request_exception_for_invalid_propfind_xml()
+    {
+        using var httpClient = CreateClient(_ => CreateXmlResponse("<D:multistatus"));
+        var transport = CreateTransport(httpClient);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => transport.ListAsync("items", CancellationToken.None));
+    }
+
+    [Fact]
     public async Task GetAsync_returns_null_for_not_found()
     {
         using var httpClient = CreateClient(_ => new HttpResponseMessage(HttpStatusCode.NotFound));

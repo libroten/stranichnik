@@ -106,6 +106,7 @@ public static class UiStrings
     public static string SettingsSyncInvalidRepository => TextResources.Get("Settings_SyncInvalidRepository");
     public static string SettingsSyncLocalOperationActive => TextResources.Get("Settings_SyncLocalOperationActive");
     public static string SettingsSyncNowAction => TextResources.Get("Settings_SyncNowAction");
+    public static string SettingsSyncNowConflictsDetected => TextResources.Get("Settings_SyncNowConflictsDetected");
     public static string SettingsSyncNowCompletedWithIssues => TextResources.Get("Settings_SyncNowCompletedWithIssues");
     public static string SettingsSyncNowFailed => TextResources.Get("Settings_SyncNowFailed");
     public static string SettingsSyncShortcutNotConfiguredMessage => TextResources.Get("Settings_SyncShortcutNotConfiguredMessage");

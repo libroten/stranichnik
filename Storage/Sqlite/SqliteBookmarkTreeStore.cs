@@ -871,6 +871,52 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         return command.ExecuteScalar() is not null;
     }
 
+    internal static bool TryGetLiveItemForSync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string itemId,
+        out BookmarkItemRecord item)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        return TryGetVisibleItem(connection, transaction, itemId, out item);
+    }
+
+    internal static bool HasLiveChildrenForSync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT 1
+            FROM items
+            WHERE parent_id = $itemId
+                AND deleted_at_utc IS NULL
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$itemId", itemId);
+
+        return command.ExecuteScalar() is not null;
+    }
+
+    internal static bool WouldCreateCycleForSync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string itemId,
+        string? parentId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+            throw new ArgumentException("Item ID cannot be empty.", nameof(itemId));
+
+        return IsDescendantOf(connection, transaction, parentId, itemId);
+    }
+
     internal void MarkSyncMetadata(
         SyncObjectKind kind,
         string objectId,

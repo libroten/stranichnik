@@ -270,6 +270,15 @@ Current implementation shape:
 - If a clean local object was previously synced but its remote JSON object is
   missing, pull marks it dirty so push can restore the remote file instead of
   treating the missing remote file as a local deletion.
+- Remote item graph invariants are validated before apply. A live remote item may
+  point only to a live folder parent, may not point to itself, and a folder move
+  may not create a parent cycle. A remote kind change from folder to bookmark is
+  rejected if the existing local folder still has live children, because applying
+  it would hide those children. These invalid graph cases are quarantined as
+  remote problems instead of being applied.
+- The visible tree mapper also defensively normalizes already-corrupt local
+  graphs for display: items with missing/non-folder/cyclic parents are promoted
+  to the visible root rather than silently disappearing from the UI.
 
 Important rules:
 
@@ -281,6 +290,9 @@ Important rules:
 - Remote object content hashes are recomputed and verified before apply.
 - Malformed remote JSON, invalid schema/format, invalid base64, and content-hash
   mismatches are quarantined instead of being applied.
+- Malformed WebDAV `PROPFIND` XML is treated as a remote/transport failure and is
+  surfaced through the normal sync error path instead of bubbling as an
+  unexpected XML parser exception.
 - An unchanged already-quarantined remote object is treated as a known problem,
   not a fresh sync failure. It remains visible in settings until the remote file
   is fixed, cleared locally, or explicitly deleted from WebDAV.
@@ -297,6 +309,10 @@ Important rules:
   the first sync uploads the full local dataset.
 - After sync changes profile availability, `MainWindowViewModel` refreshes the
   runtime secret-session state from storage.
+- A sync run is considered fully successful by the UI only when the engine
+  succeeded and there are no conflicts, pending dependencies, invalid remote
+  objects, errors, or blocking reasons. A missing previously synced remote file
+  that is restored during the same run is not considered a final problem.
 
 Current credential behavior:
 

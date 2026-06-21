@@ -711,13 +711,14 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         SqliteTransaction transaction)
     {
         var value = remoteItem.Value;
-        if (HasMissingParent(value, connection, transaction))
+        if (TryGetRemoteItemGraphProblem(value, connection, transaction, out var graphProblemReasonCode))
         {
+            _log($"Sync remote item quarantined: invalid item graph. ReasonCode={graphProblemReasonCode}.");
             QuarantineRemoteObject(
                 remoteItem.RemoteInfo,
                 remoteItem.Identity,
                 value.ContentHash,
-                reasonCode: "missing-parent",
+                graphProblemReasonCode,
                 syncedAtUtc,
                 connection,
                 transaction);
@@ -797,17 +798,63 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         return ordered;
     }
 
-    private static bool HasMissingParent(
+    private static bool TryGetRemoteItemGraphProblem(
         SyncItemDto item,
         SqliteConnection connection,
-        SqliteTransaction transaction)
+        SqliteTransaction transaction,
+        out string reasonCode)
     {
-        if (item.ParentId is null)
-            return false;
+        reasonCode = string.Empty;
 
-        return item.DeletedAtUtc is null
-            ? !SqliteBookmarkTreeStore.ItemExistsForSync(connection, transaction, item.ParentId)
-            : !SqliteBookmarkTreeStore.ItemExistsIncludingDeletedForSync(connection, transaction, item.ParentId);
+        if (item.DeletedAtUtc is not null)
+        {
+            if (item.ParentId is not null &&
+                !SqliteBookmarkTreeStore.ItemExistsIncludingDeletedForSync(connection, transaction, item.ParentId))
+            {
+                reasonCode = "missing-parent";
+                return true;
+            }
+
+            return false;
+        }
+
+        if (string.Equals(item.ParentId, item.Id, StringComparison.Ordinal))
+        {
+            reasonCode = "parent-cycle";
+            return true;
+        }
+
+        if (item.ParentId is not null)
+        {
+            if (!SqliteBookmarkTreeStore.TryGetLiveItemForSync(connection, transaction, item.ParentId, out var parent))
+            {
+                reasonCode = "missing-parent";
+                return true;
+            }
+
+            if (parent.Kind != BookmarkItemKind.Folder)
+            {
+                reasonCode = "invalid-parent";
+                return true;
+            }
+        }
+
+        var kind = ToBookmarkItemKind(item.Kind);
+        if (kind == BookmarkItemKind.Folder &&
+            SqliteBookmarkTreeStore.WouldCreateCycleForSync(connection, transaction, item.Id, item.ParentId))
+        {
+            reasonCode = "parent-cycle";
+            return true;
+        }
+
+        if (kind == BookmarkItemKind.Bookmark &&
+            SqliteBookmarkTreeStore.HasLiveChildrenForSync(connection, transaction, item.Id))
+        {
+            reasonCode = "kind-change-with-children";
+            return true;
+        }
+
+        return false;
     }
 
     private static string? ResolveRegularIconAssetId(
