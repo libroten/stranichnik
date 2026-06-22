@@ -24,7 +24,7 @@ Current storage:
 - The SQLite schema is documented in `Notes/DATA_SCHEMA.md`.
 - The storage/repository architecture is documented in `Notes/STORAGE_ARCHITECTURE.md`.
 - Search currently uses the standalone in-memory `Stranichnik.Search` library.
-- Future WebDAV sync should synchronize item-level objects, not the SQLite database file itself.
+- WebDAV sync synchronizes item-level objects, not the SQLite database file itself.
 
 ## Main UI Structure
 
@@ -501,7 +501,7 @@ Current crypto shape:
 
 - The app uses application-level encryption for secret bookmark payloads, not whole-database encryption.
 - A secret crypto profile is stored in SQLite table `crypto_profiles`.
-- Each secret crypto profile has a `secret_generation_id` for master-password reset and future sync.
+- Each secret crypto profile has a `secret_generation_id` for master-password reset and WebDAV sync.
 - The current profile uses PBKDF2-SHA256 with a per-profile salt and AES-256-GCM.
 - The implementation uses a DEK/KEK model:
   - a random Data Encryption Key encrypts bookmark payloads;

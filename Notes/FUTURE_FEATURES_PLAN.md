@@ -274,7 +274,7 @@ Direct SQLite file sync is risky:
 - Conflict resolution at whole-file level is poor.
 - Partial upload/download failures are harder to reason about.
 
-### Proposed WebDAV Shape
+### Current WebDAV Shape
 
 The detailed current WebDAV sync design is documented in:
 
@@ -286,6 +286,7 @@ Current implemented remote layout:
 ```text
 /stranichnik-sync-v1/
   manifest.json
+  .tmp/
   devices/
   items/
   icon-assets/

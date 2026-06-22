@@ -394,7 +394,10 @@ Recently verified sync scenarios include:
 - deleting the local SQLite database and pulling data back into a fresh empty database;
 - ensuring existing sample-data rows are uploaded during first sync after sync metadata migration;
 - pulling secret bookmarks, crypto profile data, and encrypted secret icons into an empty database;
-- unlocking downloaded secret bookmarks with `Cmd+P` after pull without restarting the app.
+- unlocking downloaded secret bookmarks with `Cmd+P` after pull without restarting the app;
+- changing the secret master password, syncing, deleting the local database,
+  pulling from WebDAV, and unlocking the downloaded secret bookmarks with the
+  new master password;
 - restoring a remote item that disappeared from WebDAV by marking the
   previously synced clean local object dirty and uploading it again;
 - verifying that the restore scenario ends with successful sync status when no

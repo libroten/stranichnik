@@ -14,10 +14,10 @@ The storage design should support:
 - SQLite persistence.
 - Selective secret bookmark encryption.
 - Future in-memory search indexing.
-- Future WebDAV item-level sync.
+- WebDAV item-level sync.
 - Tombstone-based deletes.
 - Secret crypto profile storage for selective encryption.
-- Compact secret reset events for master-password reset and future sync.
+- Compact secret reset events for master-password reset and WebDAV sync.
 
 The storage design should avoid:
 

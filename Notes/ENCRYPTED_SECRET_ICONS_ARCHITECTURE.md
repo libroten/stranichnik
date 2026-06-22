@@ -349,8 +349,8 @@ Current sync direction:
   generation;
 - never upload plaintext secret icon PNG bytes.
 
-Detailed WebDAV sync design now lives in `Notes/WEBDAV_SYNC_ARCHITECTURE.md`.
-Keep this data shape in mind when evolving future sync object formats.
+Detailed WebDAV sync design lives in `Notes/WEBDAV_SYNC_ARCHITECTURE.md`.
+Keep this data shape in mind when evolving later sync object format versions.
 
 ## Testing Requirements
 
@@ -372,8 +372,9 @@ Add tests for:
 - master-password reset physically deletes secret icon assets for the reset
   generation.
 
-## Implementation Preference
+## Implementation Status
 
-Implement this before WebDAV sync if the user chooses to support secret icons.
-That lets the later WebDAV design include the final icon model instead of the
-temporary default-icon restriction.
+Encrypted secret icons are implemented and are part of the current WebDAV sync
+model. Sync keeps regular icon assets and encrypted secret icon assets in
+separate remote categories, and secret reset events suppress obsolete secret
+icons from reset generations.

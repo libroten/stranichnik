@@ -1,11 +1,17 @@
 # WebDAV Sync Implementation Plan
 
+Current status: the core v1 manual WebDAV sync described here is implemented on
+the `ft-webdav-01` branch. Keep this file as historical implementation context
+and a checklist for future review. For the current architecture and invariants,
+prefer `Notes/WEBDAV_SYNC_ARCHITECTURE.md`, `Notes/ARCHITECTURE.md`, and
+`Notes/PROJECT_STATE.md`.
+
 This plan implements the sync architecture in
 `Notes/WEBDAV_SYNC_ARCHITECTURE.md`.
 
-It is a working plan for agents. Keep steps small, ask the user to run checks
-after meaningful slices, and update this document if implementation changes the
-architecture.
+It was written as a working plan for agents. If future sync work changes the
+architecture, update the architecture/state documents first and then refresh this
+file only if it is still useful as a checklist.
 
 ## Hard Rules
 

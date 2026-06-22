@@ -114,6 +114,9 @@ Stranichnik includes first-pass manual WebDAV synchronization. Configure it from
 Stranichnik -> Settings -> Sync
 ```
 
+Manual sync can also be started from the main window with `Cmd+S` on macOS or
+`Ctrl+S` on Windows/Linux.
+
 The settings UI stores the WebDAV URL, username, and non-secret credential
 metadata in `settings.json`. The raw WebDAV password is kept behind the sync
 credential abstraction. When the password is entered and settings are saved,

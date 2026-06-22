@@ -110,7 +110,7 @@ Why use DEK/KEK instead of deriving the bookmark encryption key directly from th
 
 - changing the master password only re-wraps the DEK;
 - secret bookmark rows do not need to be rewritten on password change;
-- future WebDAV sync does not need to upload every secret bookmark after password change;
+- WebDAV sync does not need to upload every secret bookmark after password change;
 - the design follows common key-management practice while still being understandable.
 
 Tradeoff:
@@ -118,7 +118,7 @@ Tradeoff:
 - there is more metadata and code than in the direct password-derived-key approach;
 - runtime unlock state must hold the DEK in memory until the user locks or exits.
 
-This tradeoff is acceptable because password changes and future sync matter to this project.
+This tradeoff is acceptable because password changes and WebDAV sync matter to this project.
 
 ## Terminology
 
@@ -775,7 +775,7 @@ Accepted reset direction:
 - Physically purge secret bookmark rows, encrypted payloads, and folders that only contained secret bookmark content from live storage.
 - Delete the old active crypto profile.
 - Do not keep full encrypted payload tombstones for every secret bookmark.
-- Future WebDAV sync should treat the reset event as authoritative and must not resurrect old secret items from that generation.
+- WebDAV sync should treat the reset event as authoritative and must not resurrect old secret items from that generation.
 
 Details are in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 

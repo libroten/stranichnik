@@ -13,7 +13,7 @@ The schema should support:
 - New and moved items being placed at the start of a folder.
 - Selective encryption for secret bookmarks.
 - Future in-memory search indexing.
-- Future WebDAV item-level sync.
+- WebDAV item-level sync.
 - Conservative delete behavior through tombstones.
 
 The schema should avoid:
@@ -192,7 +192,7 @@ Current direction:
 - Use application-level payload encryption.
 - Do not encrypt the whole database file by default.
 - Secret bookmarks hide sensitive fields inside `encrypted_payload`.
-- `secret_generation_id` identifies one generation of secret data for master-password reset and future sync.
+- `secret_generation_id` identifies one generation of secret data for master-password reset and WebDAV sync.
 - Maximum cryptographic sophistication is not the goal for the first version.
 - Do not invent custom cryptography.
 
@@ -363,7 +363,8 @@ CREATE INDEX idx_items_updated_at
 `content_hash`:
 
 - Optional hash of the normalized sync payload.
-- Useful later for detecting no-op changes and conflicts.
+- Used by WebDAV sync to detect no-op changes, matched dirty objects, and
+  conflicts.
 
 `sync_state`:
 
@@ -374,7 +375,10 @@ CREATE INDEX idx_items_updated_at
 `remote_etag`:
 
 - Stores WebDAV ETag for item-level remote object sync.
-- Exact semantics depend on the future remote object format.
+- Stores the last known remote object ETag for conditional WebDAV updates.
+- A dirty object may still keep `remote_etag`/`last_synced_at_utc` from the
+  previously synced revision so push can update the existing remote object
+  safely.
 
 ## Secret Bookmark Behavior
 

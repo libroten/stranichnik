@@ -2,7 +2,9 @@
 
 This note records the accepted design for resetting the secret-bookmark master password.
 
-Important: this is still a working architecture. It may change when WebDAV sync is implemented, but future changes should preserve the core privacy and storage-size goals described here.
+Important: this is still a working architecture. WebDAV sync is now implemented,
+and future changes should preserve the core privacy, sync-safety, and
+storage-size goals described here.
 
 ## Problem
 
@@ -14,7 +16,7 @@ The app needs a destructive reset operation:
 - remove all secret bookmarks that were encrypted with the old secret data key;
 - allow the user to configure a new master password later;
 - avoid keeping old encrypted payload blobs forever;
-- remain compatible with future WebDAV item-level sync.
+- remain compatible with WebDAV item-level sync.
 
 The naive approach is to tombstone every secret bookmark row in `items` and keep the encrypted payloads in those tombstones. That is not acceptable for master-password reset because it can make the SQLite database grow without bound.
 
@@ -43,7 +45,9 @@ Keep deletion intent, not deleted payload.
 
 `crypto_profiles.id` is not enough to identify a secret generation.
 
-The current app uses one active profile id. If reset deletes the profile and a later setup creates another active profile with the same id, old and new secrets would be hard to distinguish in future sync code.
+The current app uses one active profile id. If reset deletes the profile and a
+later setup creates another active profile with the same id, old and new secrets
+would be hard to distinguish in WebDAV sync code.
 
 Therefore each crypto profile has a separate `secret_generation_id`.
 
@@ -54,7 +58,7 @@ Meaning:
 - master-password reset creates a reset event for the current generation and deletes that profile;
 - the next first-time password setup creates a new profile with a new `secret_generation_id`.
 
-Future WebDAV sync can then interpret a reset event as:
+WebDAV sync can then interpret a reset event as:
 
 ```text
 All secret items from generation X are obsolete and must not be restored.
@@ -119,18 +123,18 @@ After commit:
 
 ## Why Physical Delete Is Acceptable Here
 
-Normal item deletion still needs tombstones so future sync can propagate individual deletes.
+Normal item deletion still needs tombstones so WebDAV sync can propagate individual deletes.
 
 Master-password reset is different:
 
 - it is a bulk destructive operation;
 - the user explicitly asks to discard all secret data;
 - keeping every old encrypted payload defeats the purpose of controlling database growth;
-- future sync can use one reset event to suppress old secret items from the same generation.
+- WebDAV sync can use one reset event to suppress old secret items from the same generation.
 
 Therefore master reset uses physical delete for secret bookmark rows and compact reset events for sync intent.
 
-## Future WebDAV Sync Behavior
+## WebDAV Sync Behavior
 
 When a device uploads a reset event:
 
@@ -143,12 +147,11 @@ When another device downloads a reset event:
 1. If it has secret bookmarks belonging to the reset generation, physically purge them locally.
 2. Physically purge local secret icon assets belonging to the reset generation.
 3. If its active crypto profile belongs to the reset generation, delete that profile and lock the session.
-4. Mark the reset event as applied/synced according to the future sync protocol.
+4. Mark the reset event as applied/synced according to the WebDAV sync protocol.
 5. Do not resurrect old secret bookmarks or old secret icon assets from remote objects that belong to the reset generation.
 
 Open sync details:
 
-- exact remote object format;
 - how devices acknowledge reset events;
 - when it is safe to garbage-collect old remote reset events;
 - whether remote secret item objects are deleted immediately or only after a conservative retention period.

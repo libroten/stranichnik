@@ -35,9 +35,11 @@
   повторной выгрузки.
 - Применение pull-плана централизовано в `ISyncLocalStore.ApplyPullPlan(...)`.
   SQLite-реализация использует один общий `SqliteConnection` и
-  `SqliteTransaction` для remote apply, matched dirty cleanup, conflict
-  marking, quarantine updates, missing remote marking, pending icon refs,
-  deferred secret items, reset events, icon assets, crypto profiles и items.
+  `SqliteTransaction` для remote apply, matched-dirty remote metadata refresh,
+  conflict marking, quarantine updates, missing remote marking, pending icon
+  refs, deferred secret items, reset events, icon assets, crypto profiles и
+  items. Matched-dirty объекты остаются dirty, чтобы последующий push не
+  потерял локальное изменение.
 - Create-only upload использует временный объект в `.tmp/` и WebDAV `MOVE` в
   финальный путь. Если провайдер не поддерживает `MOVE`, транспорт
   откатывается к прямому create-only `PUT`.
@@ -200,8 +202,9 @@ Push оставляем поштучным, потому что WebDAV не да
 Реализовано.
 
 `ISyncLocalStore.ApplyPullPlan(...)` введен и используется как единая точка
-применения pull-плана. Внутри него сгруппированы remote apply, matched dirty
-cleanup, conflict marking, quarantine updates и missing remote marking.
+применения pull-плана. Внутри него сгруппированы remote apply,
+matched-dirty remote metadata refresh, conflict marking, quarantine updates и
+missing remote marking.
 
 SQLite implementation протаскивает shared `SqliteConnection`/`SqliteTransaction`
 через задействованные store-операции, включая sync metadata, pending refs,

@@ -655,13 +655,13 @@ making secret data undecryptable is not acceptable.
 Current implementation note:
 
 - pull application is centralized in `ISyncLocalStore.ApplyPullPlan(...)`;
-- this keeps remote apply, matched-dirty cleanup, conflict state, quarantine
+- this keeps remote apply, matched-dirty remote metadata refresh, conflict state, quarantine
   state, and missing-remote dirty marks in one storage boundary;
 - the current SQLite implementation applies the whole pull plan through one
   shared `SqliteConnection`/`SqliteTransaction`, including remote object apply,
-  matched-dirty cleanup, conflict state, quarantine state, missing-remote dirty
-  marking, pending icon refs, deferred secret items, reset events, icon assets,
-  crypto profiles, and items;
+  matched-dirty remote metadata refresh, conflict state, quarantine state,
+  missing-remote dirty marking, pending icon refs, deferred secret items, reset
+  events, icon assets, crypto profiles, and items;
 - if local apply fails in the middle of a pull plan, SQLite rolls back the
   local batch so the next sync can retry from the previous consistent state.
 - push remains object-by-object because WebDAV has no repository-wide
@@ -1416,23 +1416,29 @@ Manual testing should cover:
 - sync attempt while an editor dialog is open;
 - remote unavailable / wrong credentials / wrong folder.
 
-## Open Questions
+## Remaining Open Questions
 
-Before implementation, confirm or refine:
+The current v1 direction is implemented as manual sync, JSON objects with
+base64 blobs, ETags plus content hashes, conservative conflicts, explicit
+quarantine for invalid remote files, and a coarse local operation gate while
+editor dialogs/local writes are active.
 
-- should v1 include automatic periodic sync, or manual sync only;
-- what user-facing conflict UI is acceptable for normal items;
-- how much crypto-profile conflict handling is required in v1;
-- whether remote obsolete secret objects are left forever or cleaned later;
-- how much pending/quarantine detail should be exposed to users in v1 settings;
-- whether sync should be fully blocked while any editor is open, or only block
-  the apply stage;
-- whether to use one JSON file per asset or split metadata and binary payload.
+Remaining sync questions:
+
+- automatic/background sync timing and UI;
+- user-facing conflict resolution for normal items;
+- richer crypto-profile conflict handling beyond conservative conflict marking;
+- remote garbage collection for obsolete/orphaned old sync objects;
+- whether remote obsolete secret objects should be deleted automatically after a
+  conservative retention period;
+- whether the coarse editor/write operation gate should later be replaced with
+  optimistic concurrency checks;
+- whether a future remote format should split metadata and binary payloads
+  instead of storing base64 blobs in one JSON object.
 
 Current recommendation:
 
-- implement manual sync first;
-- use JSON objects with base64 blobs;
-- use ETags plus content hashes;
-- make conflicts conservative;
+- keep manual sync as the only implemented sync trigger until cross-platform
+  regression is stable;
+- keep conflicts conservative;
 - defer aggressive remote cleanup and automatic background sync.
