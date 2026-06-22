@@ -79,7 +79,7 @@ public sealed class SecretMasterPasswordChangeService
         try
         {
             _profileStore.UpdateProfile(updatedProfile);
-            Logs.Print("Secret master password changed.");
+            Logs.Print("Secret master password changed; crypto profile marked dirty for sync.");
             return SecretMasterPasswordChangeResult.Changed();
         }
         catch (InvalidOperationException)

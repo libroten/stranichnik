@@ -1,7 +1,10 @@
 using System;
 using System.IO;
 using Stranichnik.Security;
+using Stranichnik.Storage;
 using Stranichnik.Storage.Sqlite;
+using Stranichnik.Sync.Local;
+using Stranichnik.Sync.Push;
 using Xunit;
 
 namespace Stranichnik.Tests;
@@ -63,6 +66,50 @@ public sealed class SqliteSecretProfileStoreTests
 
         AssertProfileEqual(updated, saved);
         AssertProfileEqual(updated, Assert.IsType<CryptoProfileRecord>(loaded));
+    }
+
+    [Fact]
+    public void UpdateProfile_marks_profile_dirty_for_sync()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var original = CreateProfile(updatedAtUtc: CreatedAt);
+        var updated = original with
+        {
+            KdfSalt = new byte[] { 31, 32, 33 },
+            WrappedDataKey = new byte[] { 34, 35, 36 },
+            WrappedDataKeyNonce = new byte[] { 37, 38, 39 },
+            PasswordCheckPayload = new byte[] { 40, 41, 42 },
+            PasswordCheckNonce = new byte[] { 43, 44, 45 },
+            UpdatedAtUtc = UpdatedAt
+        };
+
+        database.Store.SaveNewProfile(original);
+        database.Store.MarkSyncMetadata(
+            original.SecretGenerationId,
+            BookmarkSyncState.Clean,
+            "remote-etag",
+            CreatedAt,
+            "sha256:old-content");
+
+        database.Store.UpdateProfile(updated);
+
+        var storedProfile = Assert.Single(database.Store.LoadAllProfilesForSync());
+        Assert.Equal(BookmarkSyncState.Dirty, storedProfile.SyncMetadata.SyncState);
+        Assert.Equal("remote-etag", storedProfile.SyncMetadata.RemoteEtag);
+        Assert.Equal(CreatedAt, storedProfile.SyncMetadata.LastSyncedAtUtc);
+        Assert.Equal("sha256:old-content", storedProfile.SyncMetadata.ContentHash);
+
+        var pushPlan = SyncPushPlanner.Plan(new SyncLocalSnapshot(
+            new SyncLocalIdentity("database", "device"),
+            Items: [],
+            IconAssets: [],
+            SecretIconAssets: [],
+            CryptoProfiles: [storedProfile],
+            SecretResetEvents: [],
+            PendingAssetRefs: [],
+            DeferredSecretItems: [],
+            QuarantinedRemoteObjects: []));
+        Assert.Equal(updated.SecretGenerationId, Assert.Single(pushPlan.CryptoProfiles).Profile.SecretGenerationId);
     }
 
     [Fact]

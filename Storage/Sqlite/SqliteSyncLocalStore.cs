@@ -141,7 +141,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
 
         foreach (var matchedObject in plan.MatchedDirtyObjects)
         {
-            MarkUploaded(
+            RefreshDirtyRemoteMetadata(
                 matchedObject.Identity,
                 matchedObject.RemoteEtag,
                 matchedObject.ContentHash,
@@ -187,6 +187,28 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
 
         transaction.Commit();
         _log("SQLite sync apply pull plan finished.");
+    }
+
+    private void RefreshDirtyRemoteMetadata(
+        SyncObjectIdentity identity,
+        string? remoteEtag,
+        string contentHash,
+        DateTimeOffset syncedAtUtc,
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentHash);
+
+        MarkSyncMetadata(
+            identity,
+            BookmarkSyncState.Dirty,
+            remoteEtag,
+            syncedAtUtc,
+            contentHash,
+            connection,
+            transaction);
+        _log($"SQLite sync dirty metadata refreshed from unchanged remote object. Kind={identity.Kind}; RemoteEtagPresent={remoteEtag is not null}.");
     }
 
     public void MarkUploaded(

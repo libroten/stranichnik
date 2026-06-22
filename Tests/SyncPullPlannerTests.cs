@@ -490,6 +490,39 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
+    public void Plan_marks_dirty_crypto_profile_as_matched_when_remote_content_is_same()
+    {
+        var localProfile = CreateLocalProfile("generation") with
+        {
+            SyncMetadata = new SyncObjectMetadata(
+                BookmarkSyncState.Dirty,
+                RemoteEtag: "profile-etag",
+                LastSyncedAtUtc: Now,
+                ContentHash: "sha256:profile",
+                ModifiedDeviceId: "device")
+        };
+        var remoteProfile = CreateRemoteCryptoProfile("generation");
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles = [localProfile]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [Success(SyncObjectKind.CryptoProfile, "generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.Empty(plan.ApplyBatch.CryptoProfiles);
+        Assert.Empty(plan.Conflicts);
+        var match = Assert.Single(plan.MatchedDirtyObjects);
+        Assert.Equal(new SyncObjectIdentity(SyncObjectKind.CryptoProfile, "generation"), match.Identity);
+        Assert.Equal("sha256:profile", match.ContentHash);
+    }
+
+    [Fact]
     public void Plan_skips_secret_item_for_existing_reset_generation()
     {
         var snapshot = EmptySnapshot() with

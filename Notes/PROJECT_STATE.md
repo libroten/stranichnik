@@ -143,7 +143,9 @@ Completed broad areas:
   - `Stranichnik -> Settings` opens a scrollable settings dialog;
   - the first section is `Secret bookmarks`;
   - the section supports setting/changing the master password;
-  - changing the master password from a locked configured state asks for the current password first without forcing secrets to become visible.
+  - changing the master password from a locked configured state asks for the current password first without forcing secrets to become visible;
+  - changing the master password marks the crypto profile dirty for sync without
+    rewriting every secret bookmark payload.
 - First-pass manual WebDAV sync is implemented:
   - sync architecture and implementation plan are documented in `Notes/WEBDAV_SYNC_ARCHITECTURE.md` and `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`;
   - the app syncs logical JSON objects through WebDAV instead of uploading the SQLite database file;
@@ -181,11 +183,13 @@ Completed broad areas:
   - production WebDAV sync performs best-effort cleanup of stale files in the
     `.tmp/` service directory;
   - `ISyncLocalStore.ApplyPullPlan(...)` centralizes pull apply, conflict,
-    quarantine, matched-dirty cleanup, missing-remote dirty marking, and
+    quarantine, matched-dirty remote metadata refresh, missing-remote dirty marking, and
     pending dependency reconciliation. The SQLite implementation applies the
     whole pull plan through one shared `SqliteConnection`/`SqliteTransaction`,
     so a failure in the middle of apply rolls back the local batch instead of
-    leaving partially applied pull state;
+    leaving partially applied pull state. Matched dirty objects remain dirty so
+    the following push phase still uploads the local edit, including changed
+    secret crypto profiles after master-password changes;
   - sync UI reports success only when there are no conflicts, pending
     dependencies, invalid remote objects, errors, or blocking reasons;
   - conflicts are detected and surfaced as sync problems, but the advanced

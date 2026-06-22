@@ -223,8 +223,10 @@ Current implementation shape:
 - `Storage/Sqlite/SqliteSyncLocalStore.cs` bridges SQLite data to sync
   snapshots and applies remote changes in transactions.
 - `ISyncLocalStore.ApplyPullPlan(...)` is the storage boundary for applying a
-  completed pull plan: remote changes, matched dirty cleanup, conflict marking,
+  completed pull plan: remote changes, matched dirty metadata refresh, conflict marking,
   quarantine state, and missing-remote dirty marking are coordinated there.
+  Matched-dirty pull results must keep the local object dirty so the following
+  push phase still uploads the local edit.
   It also runs a post-apply reconciliation pass for pending icon asset refs and
   deferred secret items so interrupted earlier applies can recover when the
   needed asset/profile is already present locally. The SQLite implementation
@@ -270,6 +272,11 @@ Current implementation shape:
 - If a clean local object was previously synced but its remote JSON object is
   missing, pull marks it dirty so push can restore the remote file instead of
   treating the missing remote file as a local deletion.
+- If a local dirty object still matches the remote object's content hash during
+  pull, sync refreshes stored remote metadata but keeps the object dirty. Do not
+  mark such objects clean during pull; otherwise a local edit, including a
+  changed secret crypto profile after master-password change, can be skipped by
+  the following push phase.
 - Remote item graph invariants are validated before apply. A live remote item may
   point only to a live folder parent, may not point to itself, and a folder move
   may not create a parent cycle. A remote kind change from folder to bookmark is
@@ -501,6 +508,10 @@ Current crypto shape:
   - a Key Encryption Key is derived from the master password;
   - the KEK wraps the DEK in the crypto profile;
   - changing the master password rewraps the DEK and does not re-encrypt every bookmark payload.
+- Changing the master password marks the crypto profile dirty for WebDAV sync
+  while preserving the previous remote ETag, last-synced timestamp, and content
+  hash. Those fields describe the last synced remote revision and are needed so
+  pull can recognize an unchanged remote profile and push can update it safely.
 - `items.encrypted_payload`, `items.encryption_nonce`, `items.crypto_profile_id`, and `items.secret_payload_format_version` store encrypted bookmark payload metadata.
 - Secret bookmark plaintext `title` and `url` columns are `NULL`.
 - Secret bookmarks have `items.icon_asset_id = NULL` and may reference encrypted custom icons through `items.secret_icon_asset_id`.

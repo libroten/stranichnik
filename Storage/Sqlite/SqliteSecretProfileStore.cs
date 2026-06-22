@@ -129,10 +129,12 @@ public sealed class SqliteSecretProfileStore : ISecretProfileStore
                 password_check_nonce = $passwordCheckNonce,
                 created_at_utc = $createdAtUtc,
                 updated_at_utc = $updatedAtUtc,
-                secret_generation_id = $secretGenerationId
+                secret_generation_id = $secretGenerationId,
+                sync_state = $syncState
             WHERE id = $id;
             """;
         AddProfileParameters(command, profile);
+        command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(BookmarkSyncState.Dirty));
 
         if (command.ExecuteNonQuery() != 1)
             throw new InvalidOperationException("Secret crypto profile does not exist.");

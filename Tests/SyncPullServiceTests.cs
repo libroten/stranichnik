@@ -38,7 +38,7 @@ public sealed class SyncPullServiceTests
     }
 
     [Fact]
-    public async Task PullAsync_marks_dirty_same_content_object_as_uploaded()
+    public async Task PullAsync_refreshes_dirty_same_content_object_without_marking_uploaded()
     {
         var serializer = new SystemTextSyncJsonSerializer();
         var remoteItem = CreateRemoteItem("bookmark", serializer);
@@ -60,7 +60,8 @@ public sealed class SyncPullServiceTests
 
         Assert.True(summary.Succeeded);
         Assert.Equal(0, summary.DownloadedCount);
-        var mark = Assert.Single(localStore.UploadedMarks);
+        Assert.Empty(localStore.UploadedMarks);
+        var mark = Assert.Single(localStore.RefreshedDirtyMarks);
         Assert.Equal(new SyncObjectIdentity(SyncObjectKind.Item, "bookmark"), mark.Identity);
         Assert.Equal(remoteItem.ContentHash, mark.ContentHash);
         Assert.Empty(localStore.AppliedBatches.Single().Items);
@@ -332,6 +333,8 @@ public sealed class SyncPullServiceTests
 
         public List<UploadedMark> UploadedMarks { get; } = [];
 
+        public List<UploadedMark> RefreshedDirtyMarks { get; } = [];
+
         public List<ConflictMark> ConflictMarks { get; } = [];
 
         public List<SyncObjectIdentity> DirtyMarks { get; } = [];
@@ -356,11 +359,11 @@ public sealed class SyncPullServiceTests
 
             foreach (var matchedObject in plan.MatchedDirtyObjects)
             {
-                MarkUploaded(
+                RefreshedDirtyMarks.Add(new UploadedMark(
                     matchedObject.Identity,
                     matchedObject.RemoteEtag,
                     matchedObject.ContentHash,
-                    syncedAtUtc);
+                    syncedAtUtc));
             }
 
             foreach (var conflict in plan.Conflicts)

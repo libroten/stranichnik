@@ -1004,6 +1004,14 @@ Password change with DEK/KEK:
 
 - if the same profile row is updated, sync must propagate updated wrapped DEK/password-check metadata;
 - secret item payloads do not need to change.
+- changing the master password must mark the crypto profile `dirty` for sync;
+- when marking the crypto profile dirty, preserve its existing `remote_etag`,
+  `last_synced_at_utc`, and `content_hash` because those fields describe the
+  last successfully synced remote revision and allow conditional WebDAV update;
+- pull matched-dirty handling must not mark the crypto profile clean before push.
+  If it does, the updated wrapped DEK/password-check metadata will not be
+  uploaded, and a fresh pull from WebDAV may still unlock with the old master
+  password.
 
 Conflict copies:
 

@@ -748,7 +748,8 @@ local dirty, remote missing:
   keep local dirty; upload later
 
 local dirty, remote same content:
-  mark local clean and store remote ETag
+  keep local dirty; refresh remote ETag/content hash metadata so push can update
+  the existing remote object safely
 
 local dirty, remote different content:
   conflict
@@ -807,6 +808,14 @@ This matters for generated seed/sample data and any other locally-created object
 that starts as clean before its first sync. A first push to an empty WebDAV
 repository must still upload those objects, otherwise a later fresh database
 cannot restore the complete tree.
+
+Matched-dirty pull results are not uploads. They only prove that the current
+remote object still matches the local object's last synced revision. Applying a
+matched-dirty result may refresh `remote_etag`, `last_synced_at_utc`, and
+`content_hash`, but it must keep `sync_state = dirty` so the following push phase
+still uploads the local edit. This is especially important for crypto profiles:
+after a master-password change, marking the matched dirty profile clean before
+push would leave the old password wrapper on WebDAV.
 
 For each selected local object:
 

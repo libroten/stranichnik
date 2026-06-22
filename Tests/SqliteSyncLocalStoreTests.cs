@@ -880,6 +880,42 @@ public sealed class SqliteSyncLocalStoreTests
     }
 
     [Fact]
+    public void ApplyPullPlan_refreshes_matched_dirty_metadata_without_marking_clean()
+    {
+        using var database = TempSqliteDatabase.Create();
+        var identity = new SyncObjectIdentity(SyncObjectKind.Item, "bookmark");
+        database.InsertBookmark("bookmark");
+        database.SyncLocalStore.MarkUploaded(identity, "old-etag", "sha256:item-content", Now);
+        var plan = new SyncPullPlan(
+            ApplyBatch: new SyncApplyBatch(
+                SecretResetEvents: [],
+                CryptoProfiles: [],
+                IconAssets: [],
+                SecretIconAssets: [],
+                Items: []),
+            Conflicts: [],
+            MatchedDirtyObjects:
+            [
+                new SyncPullMatchedDirtyObject(
+                    identity,
+                    "fresh-etag",
+                    "sha256:item-content")
+            ],
+            QuarantinedRemoteObjects: [],
+            KnownQuarantinedRemoteObjects: [],
+            ResolvedQuarantinedRemoteObjectIds: [],
+            MissingRemoteObjects: []);
+
+        database.SyncLocalStore.ApplyPullPlan(plan, Now.AddMinutes(1));
+
+        var storedItem = Assert.Single(database.SyncLocalStore.LoadSnapshot().Items, item => item.Item.Id == "bookmark");
+        Assert.Equal(BookmarkSyncState.Dirty, storedItem.SyncMetadata.SyncState);
+        Assert.Equal("fresh-etag", storedItem.SyncMetadata.RemoteEtag);
+        Assert.Equal(Now.AddMinutes(1), storedItem.SyncMetadata.LastSyncedAtUtc);
+        Assert.Equal("sha256:item-content", storedItem.SyncMetadata.ContentHash);
+    }
+
+    [Fact]
     public void ApplyPullPlan_marks_missing_remote_item_dirty_and_clears_remote_etag()
     {
         using var database = TempSqliteDatabase.Create();
