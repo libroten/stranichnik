@@ -134,7 +134,7 @@ public sealed class SqliteBookmarkTreeStoreTests
         ]));
         var payload = CreateEncryptedPayload();
 
-        var bookmark = database.Store.AddSecretBookmarkToFolderStart("folder", "created-1", payload);
+        var bookmark = database.Store.AddSecretBookmarkToFolderStart("folder", "created-1", payload, "generation-1");
 
         Assert.True(bookmark.IsSecret);
         Assert.Null(bookmark.Title);
@@ -200,7 +200,7 @@ public sealed class SqliteBookmarkTreeStoreTests
         database.Store.SetItemIconAsset("bookmark", "icon");
         var payload = CreateEncryptedPayload();
 
-        var edited = database.Store.EditBookmarkAsSecret("bookmark", payload);
+        var edited = database.Store.EditBookmarkAsSecret("bookmark", payload, "generation-1");
 
         Assert.True(edited.IsSecret);
         Assert.Null(edited.Title);
@@ -271,7 +271,7 @@ public sealed class SqliteBookmarkTreeStoreTests
         ]));
 
         Assert.Throws<InvalidOperationException>(
-            () => database.Store.EditBookmarkAsSecret("folder", CreateEncryptedPayload()));
+            () => database.Store.EditBookmarkAsSecret("folder", CreateEncryptedPayload(), "generation-1"));
     }
 
     [Fact]
@@ -743,6 +743,7 @@ public sealed class SqliteBookmarkTreeStoreTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -760,6 +761,7 @@ public sealed class SqliteBookmarkTreeStoreTests
             $"https://{id}.example.com",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -777,6 +779,7 @@ public sealed class SqliteBookmarkTreeStoreTests
             Url: null,
             IsSecret: true,
             CreateEncryptedPayload(),
+            "generation",
             CreateMetadata());
     }
 

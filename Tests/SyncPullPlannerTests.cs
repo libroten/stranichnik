@@ -432,7 +432,7 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
-    public void Plan_skips_existing_secret_reset_event()
+    public void Plan_marks_dirty_existing_secret_reset_event_as_satisfied()
     {
         var snapshot = EmptySnapshot() with
         {
@@ -443,9 +443,9 @@ public sealed class SyncPullPlannerTests
                     "generation",
                     Now,
                     "device",
-                    BookmarkSyncState.Clean,
-                    "etag",
-                    Now)
+                    BookmarkSyncState.Dirty,
+                    RemoteEtag: null,
+                    LastSyncedAtUtc: null)
             ]
         };
         var remoteReset = new SyncSecretResetEventDto(
@@ -469,6 +469,58 @@ public sealed class SyncPullPlannerTests
             []);
 
         Assert.Empty(plan.ApplyBatch.SecretResetEvents);
+        var satisfied = Assert.Single(plan.SatisfiedResetEvents);
+        Assert.Equal("generation", satisfied.SecretGenerationId);
+        Assert.Equal("etag", satisfied.RemoteEtag);
+    }
+
+    [Fact]
+    public void Plan_applies_only_latest_crypto_profile_when_local_profile_is_missing()
+    {
+        var oldProfile = CreateRemoteCryptoProfile("old-generation") with
+        {
+            UpdatedAtUtc = Now.AddMinutes(-1),
+            ContentHash = "sha256:old-profile"
+        };
+        var newProfile = CreateRemoteCryptoProfile("new-generation") with
+        {
+            UpdatedAtUtc = Now.AddMinutes(1),
+            ContentHash = "sha256:new-profile"
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            EmptySnapshot(),
+            [],
+            [
+                Success(SyncObjectKind.CryptoProfile, "old-generation", oldProfile),
+                Success(SyncObjectKind.CryptoProfile, "new-generation", newProfile)
+            ],
+            [],
+            [],
+            []);
+
+        var profile = Assert.Single(plan.ApplyBatch.CryptoProfiles);
+        Assert.Equal("new-generation", profile.Value.SecretGenerationId);
+    }
+
+    [Fact]
+    public void Plan_does_not_apply_remote_crypto_profile_over_different_local_generation()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles = [CreateLocalProfile("local-generation")]
+        };
+        var remoteProfile = CreateRemoteCryptoProfile("remote-generation");
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [Success(SyncObjectKind.CryptoProfile, "remote-generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.Empty(plan.ApplyBatch.CryptoProfiles);
     }
 
     [Fact]
@@ -624,6 +676,7 @@ public sealed class SyncPullPlannerTests
             Url: "https://example.com/",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             new BookmarkItemMetadata(
                 Now,
                 Now,
@@ -665,6 +718,7 @@ public sealed class SyncPullPlannerTests
                 Payload: new byte[] { 1, 2, 3 },
                 Nonce: new byte[] { 4, 5, 6 },
                 CryptoProfileId: cryptoProfileId),
+            SecretGenerationId: "generation",
             new BookmarkItemMetadata(
                 Now,
                 Now,

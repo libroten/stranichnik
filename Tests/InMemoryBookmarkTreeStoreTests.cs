@@ -58,7 +58,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
         var store = CreateStore(folder);
         var payload = CreateEncryptedPayload();
 
-        var bookmark = store.AddSecretBookmarkToFolderStart("folder", "created-1", payload);
+        var bookmark = store.AddSecretBookmarkToFolderStart("folder", "created-1", payload, "generation-1");
 
         Assert.Equal(BookmarkItemKind.Bookmark, bookmark.Kind);
         Assert.Equal("folder", bookmark.ParentId);
@@ -98,7 +98,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
         store.GetOrCreateIconAsset(CreateIconAsset("icon", "hash"));
         var payload = CreateEncryptedPayload();
 
-        var edited = store.EditBookmarkAsSecret("bookmark", payload);
+        var edited = store.EditBookmarkAsSecret("bookmark", payload, "generation-1");
 
         Assert.True(edited.IsSecret);
         Assert.Null(edited.Title);
@@ -142,7 +142,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
         var store = CreateStore(folder);
 
         Assert.Throws<InvalidOperationException>(
-            () => store.EditBookmarkAsSecret("folder", CreateEncryptedPayload()));
+            () => store.EditBookmarkAsSecret("folder", CreateEncryptedPayload(), "generation-1"));
     }
 
     [Fact]
@@ -407,6 +407,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -424,6 +425,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
             $"https://{id}.example.com",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -441,6 +443,7 @@ public sealed class InMemoryBookmarkTreeStoreTests
             Url: null,
             IsSecret: true,
             CreateEncryptedPayload(),
+            "generation",
             CreateMetadata());
     }
 

@@ -301,6 +301,9 @@ Rules:
 - `cryptoProfileSecretGenerationId` is remote-stable and maps to local
   `crypto_profiles.secret_generation_id`;
 - local integer `crypto_profiles.id` must not be used remotely;
+- local secret item rows persist `items.secret_generation_id`; push uses this
+  item-level generation for `cryptoProfileSecretGenerationId` and only uses the
+  local crypto profile as a matching dependency check;
 - item tombstones keep enough metadata to propagate deletion, but should not
   keep secret encrypted payloads after a master-password reset;
 - normal delete tombstones may keep previous plaintext fields in v1, because

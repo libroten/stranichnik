@@ -215,8 +215,14 @@ public sealed class SyncRemoteDtoMapper
     {
         var encryptedPayload = item.EncryptedPayload
             ?? throw new InvalidOperationException("Secret item payload is missing.");
-        if (!secretGenerationByProfileId.TryGetValue(encryptedPayload.CryptoProfileId, out var secretGenerationId))
+        var secretGenerationId = item.SecretGenerationId;
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
+            throw new InvalidOperationException("Secret item generation is missing.");
+
+        if (!secretGenerationByProfileId.TryGetValue(encryptedPayload.CryptoProfileId, out var profileSecretGenerationId))
             throw new InvalidOperationException("Secret item crypto profile is missing.");
+        if (!string.Equals(profileSecretGenerationId, secretGenerationId, StringComparison.Ordinal))
+            throw new InvalidOperationException("Secret item generation does not match crypto profile generation.");
 
         return new SyncItemDto(
             SyncRemoteObjectConstants.ItemSchema,

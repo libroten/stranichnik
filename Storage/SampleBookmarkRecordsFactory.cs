@@ -91,6 +91,7 @@ public static class SampleBookmarkRecordsFactory
                 Url: null,
                 IsSecret: false,
                 EncryptedPayload: null,
+                SecretGenerationId: null,
                 CreateMetadata()));
         }
 
@@ -105,6 +106,7 @@ public static class SampleBookmarkRecordsFactory
                 url,
                 IsSecret: false,
                 EncryptedPayload: null,
+                SecretGenerationId: null,
                 CreateMetadata()));
         }
 

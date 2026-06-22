@@ -91,6 +91,7 @@ public sealed class BookmarkSearchServiceTests
             url,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 

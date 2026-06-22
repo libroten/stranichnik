@@ -148,16 +148,17 @@ public sealed class IconLibraryServiceTests
         string? iconAssetId)
     {
         return new(
-            id,
+            Id: id,
             ParentId: null,
-            BookmarkItemKind.Bookmark,
+            Kind: BookmarkItemKind.Bookmark,
             SortOrder: 0,
             Title: id,
             Url: url,
             IsSecret: false,
             EncryptedPayload: null,
-            CreateMetadata(),
-            iconAssetId);
+            SecretGenerationId: null,
+            Metadata: CreateMetadata(),
+            IconAssetId: iconAssetId);
     }
 
     private static BookmarkItemRecord CreateSecretBookmark(
@@ -165,32 +166,34 @@ public sealed class IconLibraryServiceTests
         string? secretIconAssetId)
     {
         return new(
-            id,
+            Id: id,
             ParentId: null,
-            BookmarkItemKind.Bookmark,
+            Kind: BookmarkItemKind.Bookmark,
             SortOrder: 0,
             Title: id,
             Url: "https://secret.example.com",
             IsSecret: true,
             EncryptedPayload: null,
-            CreateMetadata(),
+            SecretGenerationId: "generation",
+            Metadata: CreateMetadata(),
             IconAssetId: null,
-            secretIconAssetId);
+            SecretIconAssetId: secretIconAssetId);
     }
 
     private static BookmarkItemRecord CreateFolder(string id, string? iconAssetId)
     {
         return new(
-            id,
+            Id: id,
             ParentId: null,
-            BookmarkItemKind.Folder,
+            Kind: BookmarkItemKind.Folder,
             SortOrder: 0,
             Title: id,
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
-            CreateMetadata(),
-            iconAssetId);
+            SecretGenerationId: null,
+            Metadata: CreateMetadata(),
+            IconAssetId: iconAssetId);
     }
 
     private static BookmarkIconAssetRecord CreateIconAsset(

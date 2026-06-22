@@ -412,7 +412,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         var bookmarkId = Guid.NewGuid().ToString("N");
 
-        if (!TryCreateEncryptedBookmarkPayload(bookmarkId, title, url, out var encryptedPayload))
+        if (!TryCreateEncryptedBookmarkPayload(bookmarkId, title, url, out var encryptedPayload, out var secretGenerationId))
             return BookmarkTreeAddBookmarkResult.NotAdded(targetParent);
 
         BookmarkItemRecord record;
@@ -422,7 +422,8 @@ public partial class MainWindowViewModel : ViewModelBase
             record = _treeStore.AddSecretBookmarkToFolderStart(
                 GetStorageParentId(targetParent),
                 bookmarkId,
-                encryptedPayload);
+                encryptedPayload,
+                secretGenerationId);
         }
         catch (ArgumentException)
         {
@@ -562,14 +563,14 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!TryPrepareSecretIconSelection(iconSelection, currentRecord, out var secretIconAssetId, out var shouldSetIcon))
             return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
 
-        if (!TryCreateEncryptedBookmarkPayload(bookmark.Id, title, url, out var encryptedPayload))
+        if (!TryCreateEncryptedBookmarkPayload(bookmark.Id, title, url, out var encryptedPayload, out var secretGenerationId))
             return BookmarkTreeEditBookmarkResult.NotEdited(bookmark);
 
         BookmarkItemRecord record;
 
         try
         {
-            record = _treeStore.EditBookmarkAsSecret(bookmark.Id, encryptedPayload);
+            record = _treeStore.EditBookmarkAsSecret(bookmark.Id, encryptedPayload, secretGenerationId);
         }
         catch (ArgumentException)
         {
@@ -1254,14 +1255,18 @@ public partial class MainWindowViewModel : ViewModelBase
         string bookmarkId,
         string title,
         string url,
-        out EncryptedBookmarkPayloadRecord encryptedPayload)
+        out EncryptedBookmarkPayloadRecord encryptedPayload,
+        out string secretGenerationId)
     {
         encryptedPayload = null!;
+        secretGenerationId = string.Empty;
         var profile = _secretProfileStore.LoadActiveProfile();
         var dataKey = _secretSession.BorrowDataKey();
 
         if (profile is null || dataKey is null)
             return false;
+
+        secretGenerationId = profile.SecretGenerationId;
 
         try
         {

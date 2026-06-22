@@ -7,6 +7,7 @@ public sealed record SyncPullPlan(
     SyncApplyBatch ApplyBatch,
     IReadOnlyList<SyncPullConflict> Conflicts,
     IReadOnlyList<SyncPullMatchedDirtyObject> MatchedDirtyObjects,
+    IReadOnlyList<SyncPullSatisfiedResetEvent> SatisfiedResetEvents,
     IReadOnlyList<SyncPullQuarantineCandidate> QuarantinedRemoteObjects,
     IReadOnlyList<SyncPullQuarantineCandidate> KnownQuarantinedRemoteObjects,
     IReadOnlyList<string> ResolvedQuarantinedRemoteObjectIds,

@@ -66,7 +66,11 @@ public sealed class SyncPushPlannerTests
             ],
             Items =
             [
-                CreateSecretItem("reset-secret-item", cryptoProfileId: 1, BookmarkSyncState.Dirty)
+                CreateSecretItem(
+                    "reset-secret-item",
+                    cryptoProfileId: 1,
+                    BookmarkSyncState.Dirty,
+                    secretGenerationId: "reset-generation")
             ]
         };
 
@@ -438,6 +442,7 @@ public sealed class SyncPushPlannerTests
                 Url: "https://example.com/",
                 IsSecret: false,
                 EncryptedPayload: null,
+                SecretGenerationId: null,
                 Metadata: new BookmarkItemMetadata(
                     Now,
                     Now,
@@ -468,6 +473,7 @@ public sealed class SyncPushPlannerTests
                 Url: null,
                 IsSecret: false,
                 EncryptedPayload: null,
+                SecretGenerationId: null,
                 Metadata: new BookmarkItemMetadata(
                     Now,
                     Now,
@@ -486,7 +492,8 @@ public sealed class SyncPushPlannerTests
         long cryptoProfileId,
         BookmarkSyncState syncState,
         string? secretIconAssetId = null,
-        bool hasBeenSynced = true)
+        bool hasBeenSynced = true,
+        string secretGenerationId = "profile-generation")
     {
         return new SyncItemSnapshotRecord(
             new BookmarkItemRecord(
@@ -501,6 +508,7 @@ public sealed class SyncPushPlannerTests
                     Payload: new byte[] { 1, 2, 3 },
                     Nonce: new byte[] { 4, 5, 6 },
                     CryptoProfileId: cryptoProfileId),
+                SecretGenerationId: secretGenerationId,
                 Metadata: new BookmarkItemMetadata(
                     Now,
                     Now,

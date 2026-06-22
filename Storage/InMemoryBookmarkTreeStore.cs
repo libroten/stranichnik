@@ -131,6 +131,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             normalizedUrl,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata(now));
 
         _items.Add(bookmark);
@@ -141,9 +142,11 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
     public BookmarkItemRecord AddSecretBookmarkToFolderStart(
         string? parentId,
         string bookmarkId,
-        EncryptedBookmarkPayloadRecord encryptedPayload)
+        EncryptedBookmarkPayloadRecord encryptedPayload,
+        string secretGenerationId)
     {
         var normalizedBookmarkId = NormalizeRequired(bookmarkId, nameof(bookmarkId));
+        var normalizedSecretGenerationId = NormalizeRequired(secretGenerationId, nameof(secretGenerationId));
         ValidateEncryptedPayload(encryptedPayload);
         EnsureParentFolderExists(parentId);
 
@@ -157,6 +160,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             Url: null,
             IsSecret: true,
             encryptedPayload,
+            normalizedSecretGenerationId,
             CreateMetadata(now));
 
         _items.Add(bookmark);
@@ -181,6 +185,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata(now));
 
         _items.Add(folder);
@@ -213,8 +218,10 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
 
     public BookmarkItemRecord EditBookmarkAsSecret(
         string bookmarkId,
-        EncryptedBookmarkPayloadRecord encryptedPayload)
+        EncryptedBookmarkPayloadRecord encryptedPayload,
+        string secretGenerationId)
     {
+        var normalizedSecretGenerationId = NormalizeRequired(secretGenerationId, nameof(secretGenerationId));
         ValidateEncryptedPayload(encryptedPayload);
         var bookmark = GetVisibleItem(bookmarkId);
 
@@ -227,6 +234,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             Url = null,
             IsSecret = true,
             EncryptedPayload = encryptedPayload,
+            SecretGenerationId = normalizedSecretGenerationId,
             IconAssetId = null,
             Metadata = Touch(bookmark.Metadata)
         });
@@ -253,6 +261,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
             Url = normalizedUrl,
             IsSecret = false,
             EncryptedPayload = null,
+            SecretGenerationId = null,
             SecretIconAssetId = null,
             IconAssetId = null,
             Metadata = Touch(bookmark.Metadata)
@@ -345,15 +354,20 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         }
     }
 
-    internal int PurgeSecretBookmarksForMasterPasswordReset()
+    internal int PurgeSecretBookmarksForMasterPasswordReset(string secretGenerationId)
     {
-        var folderIdsToPurge = FindSecretOnlyFolderIdsForMasterPasswordReset();
-        var purgedSecretBookmarkCount = _items.Count(item => item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true });
+        var normalizedSecretGenerationId = NormalizeRequired(secretGenerationId, nameof(secretGenerationId));
+        var folderIdsToPurge = FindSecretOnlyFolderIdsForMasterPasswordReset(normalizedSecretGenerationId);
+        var purgedSecretBookmarkCount = _items.Count(item =>
+            item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } &&
+            string.Equals(item.SecretGenerationId, normalizedSecretGenerationId, StringComparison.Ordinal));
 
         _items.RemoveAll(item =>
-            item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } ||
+            (item is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } &&
+                string.Equals(item.SecretGenerationId, normalizedSecretGenerationId, StringComparison.Ordinal)) ||
             folderIdsToPurge.Contains(item.Id));
-        _secretIconAssets.Clear();
+        _secretIconAssets.RemoveAll(iconAsset =>
+            string.Equals(iconAsset.SecretGenerationId, normalizedSecretGenerationId, StringComparison.Ordinal));
 
         return purgedSecretBookmarkCount;
     }
@@ -471,7 +485,7 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         }
     }
 
-    private HashSet<string> FindSecretOnlyFolderIdsForMasterPasswordReset()
+    private HashSet<string> FindSecretOnlyFolderIdsForMasterPasswordReset(string secretGenerationId)
     {
         var liveChildrenByParentId = _items
             .Where(item => IsVisible(item) && item.ParentId is not null)
@@ -488,13 +502,14 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
 
         return folderIds
             .Where(folderId =>
-                HasSecretBookmarkDescendant(folderId, liveChildrenByParentId, secretDescendants) &&
-                !IsVisibleWhenSecretsAreHidden(folderId, liveChildrenByParentId, visibility))
+                HasTargetSecretBookmarkDescendant(folderId, secretGenerationId, liveChildrenByParentId, secretDescendants) &&
+                !IsVisibleAfterTargetSecretsRemoved(folderId, secretGenerationId, liveChildrenByParentId, visibility))
             .ToHashSet(StringComparer.Ordinal);
     }
 
-    private static bool HasSecretBookmarkDescendant(
+    private static bool HasTargetSecretBookmarkDescendant(
         string folderId,
+        string secretGenerationId,
         Dictionary<string, List<BookmarkItemRecord>> childrenByParentId,
         Dictionary<string, bool> cache)
     {
@@ -508,16 +523,18 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         }
 
         var hasSecretBookmark = children.Any(child =>
-            child is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } ||
+            child is { Kind: BookmarkItemKind.Bookmark, IsSecret: true } &&
+            string.Equals(child.SecretGenerationId, secretGenerationId, StringComparison.Ordinal) ||
             child.Kind == BookmarkItemKind.Folder &&
-            HasSecretBookmarkDescendant(child.Id, childrenByParentId, cache));
+            HasTargetSecretBookmarkDescendant(child.Id, secretGenerationId, childrenByParentId, cache));
 
         cache[folderId] = hasSecretBookmark;
         return hasSecretBookmark;
     }
 
-    private static bool IsVisibleWhenSecretsAreHidden(
+    private static bool IsVisibleAfterTargetSecretsRemoved(
         string folderId,
+        string secretGenerationId,
         Dictionary<string, List<BookmarkItemRecord>> childrenByParentId,
         Dictionary<string, bool> cache)
     {
@@ -531,9 +548,10 @@ public sealed class InMemoryBookmarkTreeStore : IBookmarkTreeStore
         }
 
         var isVisible = children.Any(child =>
-            child is { Kind: BookmarkItemKind.Bookmark, IsSecret: false } ||
+            child.Kind == BookmarkItemKind.Bookmark &&
+            (!child.IsSecret || !string.Equals(child.SecretGenerationId, secretGenerationId, StringComparison.Ordinal)) ||
             child.Kind == BookmarkItemKind.Folder &&
-            IsVisibleWhenSecretsAreHidden(child.Id, childrenByParentId, cache));
+            IsVisibleAfterTargetSecretsRemoved(child.Id, secretGenerationId, childrenByParentId, cache));
 
         cache[folderId] = isVisible;
         return isVisible;

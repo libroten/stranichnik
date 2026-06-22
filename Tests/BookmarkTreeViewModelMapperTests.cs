@@ -141,6 +141,7 @@ public sealed class BookmarkTreeViewModelMapperTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -158,6 +159,7 @@ public sealed class BookmarkTreeViewModelMapperTests
             $"https://{id}.example.com",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 

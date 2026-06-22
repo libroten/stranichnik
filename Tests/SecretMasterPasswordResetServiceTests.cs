@@ -111,6 +111,7 @@ public sealed class SecretMasterPasswordResetServiceTests
             isSecret
                 ? new EncryptedBookmarkPayloadRecord(EncryptedPayload, EncryptedNonce, 1, 1)
                 : null,
+            isSecret ? "generation" : null,
             new BookmarkItemMetadata(
                 Now,
                 Now,
@@ -134,6 +135,7 @@ public sealed class SecretMasterPasswordResetServiceTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             new BookmarkItemMetadata(
                 Now,
                 Now,

@@ -70,6 +70,7 @@ public sealed class BookmarkSearchDocumentMapperTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -87,6 +88,7 @@ public sealed class BookmarkSearchDocumentMapperTests
             url,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 

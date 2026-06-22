@@ -262,6 +262,7 @@ public sealed class SyncApplicationServiceTests
             Url: "https://example.com/",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             Metadata: new BookmarkItemMetadata(
                 Now,
                 Now,

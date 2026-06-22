@@ -150,6 +150,19 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
                 transaction);
         }
 
+        foreach (var satisfiedResetEvent in plan.SatisfiedResetEvents)
+        {
+            MarkSyncMetadata(
+                new SyncObjectIdentity(SyncObjectKind.SecretResetEvent, satisfiedResetEvent.SecretGenerationId),
+                BookmarkSyncState.Clean,
+                satisfiedResetEvent.RemoteEtag,
+                syncedAtUtc,
+                contentHash: null,
+                connection,
+                transaction);
+            _log("SQLite sync secret reset event satisfied by remote object.");
+        }
+
         foreach (var conflict in plan.Conflicts)
             MarkConflict(conflict.Identity, conflict.ReasonCode, connection, transaction);
 
@@ -694,6 +707,14 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         if (IsSecretGenerationReset(value.SecretGenerationId, connection, transaction))
             return;
 
+        var activeProfile = SqliteSecretProfileStore.LoadActiveProfile(connection, transaction);
+        if (activeProfile is not null &&
+            !string.Equals(activeProfile.SecretGenerationId, value.SecretGenerationId, StringComparison.Ordinal))
+        {
+            _log("SQLite sync remote crypto profile skipped: active local generation differs.");
+            return;
+        }
+
         var profile = new CryptoProfileRecord(
             SecretCryptoProfileIds.ActiveProfileId,
             value.ProfileVersion,
@@ -763,6 +784,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
             value.Url,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             new BookmarkItemMetadata(
                 value.CreatedAtUtc,
                 value.UpdatedAtUtc,
@@ -988,6 +1010,7 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
                 Convert.FromBase64String(value.EncryptionNonce),
                 profile.Id,
                 value.SecretPayloadFormatVersion.Value),
+            value.CryptoProfileSecretGenerationId,
             new BookmarkItemMetadata(
                 value.CreatedAtUtc,
                 value.UpdatedAtUtc,

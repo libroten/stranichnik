@@ -230,6 +230,7 @@ CREATE TABLE items (
     encryption_nonce BLOB NULL,
     crypto_profile_id INTEGER NULL REFERENCES crypto_profiles(id),
     secret_payload_format_version INTEGER NULL,
+    secret_generation_id TEXT NULL,
 
     created_at_utc TEXT NOT NULL,
     updated_at_utc TEXT NOT NULL,
@@ -256,6 +257,7 @@ CREATE TABLE items (
             AND encryption_nonce IS NULL
             AND crypto_profile_id IS NULL
             AND secret_payload_format_version IS NULL
+            AND secret_generation_id IS NULL
             AND secret_icon_asset_id IS NULL)
 
         OR
@@ -268,6 +270,7 @@ CREATE TABLE items (
             AND encryption_nonce IS NULL
             AND crypto_profile_id IS NULL
             AND secret_payload_format_version IS NULL
+            AND secret_generation_id IS NULL
             AND secret_icon_asset_id IS NULL)
 
         OR
@@ -280,7 +283,8 @@ CREATE TABLE items (
             AND encrypted_payload IS NOT NULL
             AND encryption_nonce IS NOT NULL
             AND crypto_profile_id IS NOT NULL
-            AND secret_payload_format_version IS NOT NULL)
+            AND secret_payload_format_version IS NOT NULL
+            AND secret_generation_id IS NOT NULL)
     )
 );
 ```

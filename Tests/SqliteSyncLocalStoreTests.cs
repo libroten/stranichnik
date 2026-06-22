@@ -901,6 +901,7 @@ public sealed class SqliteSyncLocalStoreTests
                     "fresh-etag",
                     "sha256:item-content")
             ],
+            SatisfiedResetEvents: [],
             QuarantinedRemoteObjects: [],
             KnownQuarantinedRemoteObjects: [],
             ResolvedQuarantinedRemoteObjectIds: [],
@@ -913,6 +914,31 @@ public sealed class SqliteSyncLocalStoreTests
         Assert.Equal("fresh-etag", storedItem.SyncMetadata.RemoteEtag);
         Assert.Equal(Now.AddMinutes(1), storedItem.SyncMetadata.LastSyncedAtUtc);
         Assert.Equal("sha256:item-content", storedItem.SyncMetadata.ContentHash);
+    }
+
+    [Fact]
+    public void ApplyPullPlan_marks_satisfied_reset_event_as_clean()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.ProfileStore.SaveNewProfile(CreateProfile("generation"));
+        database.ResetStore.ResetMasterPasswordAndPurgeSecrets("generation");
+
+        var plan = EmptyPullPlan() with
+        {
+            SatisfiedResetEvents =
+            [
+                new SyncPullSatisfiedResetEvent(
+                    "generation",
+                    "remote-reset-etag")
+            ]
+        };
+
+        database.SyncLocalStore.ApplyPullPlan(plan, Now.AddMinutes(1));
+
+        var resetEvent = Assert.Single(database.ResetStore.LoadResetEvents());
+        Assert.Equal(BookmarkSyncState.Clean, resetEvent.SyncState);
+        Assert.Equal("remote-reset-etag", resetEvent.RemoteEtag);
+        Assert.Equal(Now.AddMinutes(1), resetEvent.LastSyncedAtUtc);
     }
 
     [Fact]
@@ -931,6 +957,7 @@ public sealed class SqliteSyncLocalStoreTests
                 Items: []),
             Conflicts: [],
             MatchedDirtyObjects: [],
+            SatisfiedResetEvents: [],
             QuarantinedRemoteObjects: [],
             KnownQuarantinedRemoteObjects: [],
             ResolvedQuarantinedRemoteObjectIds: [],
@@ -1166,6 +1193,7 @@ public sealed class SqliteSyncLocalStoreTests
                 Items: []),
             Conflicts: [],
             MatchedDirtyObjects: [],
+            SatisfiedResetEvents: [],
             QuarantinedRemoteObjects: [],
             KnownQuarantinedRemoteObjects: [],
             ResolvedQuarantinedRemoteObjectIds: [],
@@ -1243,6 +1271,7 @@ public sealed class SqliteSyncLocalStoreTests
                     encryption_nonce,
                     crypto_profile_id,
                     secret_payload_format_version,
+                    secret_generation_id,
                     created_at_utc,
                     updated_at_utc,
                     deleted_at_utc,
@@ -1260,6 +1289,7 @@ public sealed class SqliteSyncLocalStoreTests
                     'Folder',
                     NULL,
                     0,
+                    NULL,
                     NULL,
                     NULL,
                     NULL,
@@ -1296,6 +1326,7 @@ public sealed class SqliteSyncLocalStoreTests
                     encryption_nonce,
                     crypto_profile_id,
                     secret_payload_format_version,
+                    secret_generation_id,
                     created_at_utc,
                     updated_at_utc,
                     deleted_at_utc,
@@ -1313,6 +1344,7 @@ public sealed class SqliteSyncLocalStoreTests
                     'Title',
                     'https://example.com',
                     0,
+                    NULL,
                     NULL,
                     NULL,
                     NULL,
@@ -1456,6 +1488,7 @@ public sealed class SqliteSyncLocalStoreTests
                     encryption_nonce,
                     crypto_profile_id,
                     secret_payload_format_version,
+                    secret_generation_id,
                     created_at_utc,
                     updated_at_utc,
                     deleted_at_utc,
@@ -1481,6 +1514,7 @@ public sealed class SqliteSyncLocalStoreTests
                         WHERE secret_generation_id = $secretGenerationId
                     ),
                     1,
+                    $secretGenerationId,
                     '2026-01-01T00:00:00.0000000Z',
                     '2026-01-01T00:00:00.0000000Z',
                     NULL,

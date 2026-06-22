@@ -112,6 +112,7 @@ public sealed class SqliteSecretResetStoreTests
             isSecret
                 ? new EncryptedBookmarkPayloadRecord(EncryptedPayload, EncryptedNonce, 1, 1)
                 : null,
+            isSecret ? "generation" : null,
             new BookmarkItemMetadata(
                 Now,
                 Now,
@@ -135,6 +136,7 @@ public sealed class SqliteSecretResetStoreTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             new BookmarkItemMetadata(
                 Now,
                 Now,

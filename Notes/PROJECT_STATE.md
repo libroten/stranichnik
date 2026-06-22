@@ -146,6 +146,14 @@ Completed broad areas:
   - changing the master password from a locked configured state asks for the current password first without forcing secrets to become visible;
   - changing the master password marks the crypto profile dirty for sync without
     rewriting every secret bookmark payload.
+  - secret bookmark rows now persist their own `secret_generation_id`; WebDAV
+    push uses this item-level generation instead of deriving it from the current
+    active profile.
+  - reset events are treated idempotently by generation during pull: a matching
+    remote reset can satisfy a local dirty reset intent.
+  - pull does not automatically apply a remote crypto profile from another
+    generation over an existing local active profile; on an empty local database,
+    the newest non-reset remote profile is selected.
 - First-pass manual WebDAV sync is implemented:
   - sync architecture and implementation plan are documented in `Notes/WEBDAV_SYNC_ARCHITECTURE.md` and `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`;
   - the app syncs logical JSON objects through WebDAV instead of uploading the SQLite database file;

@@ -5,7 +5,7 @@ namespace Stranichnik.Storage.Sqlite;
 
 public sealed class SqliteDatabaseMigrator
 {
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
     private const string LegacySecretGenerationId = "legacy-generation";
 
     private readonly SqliteConnectionFactory _connectionFactory;
@@ -68,6 +68,13 @@ public sealed class SqliteDatabaseMigrator
             ApplyVersion6(connection, GetMetadataValue(connection, "device_id"));
             migrationApplied = true;
             currentVersion = 6;
+        }
+
+        if (currentVersion == 6)
+        {
+            ApplyVersion7(connection);
+            migrationApplied = true;
+            currentVersion = 7;
         }
 
         if (currentVersion > CurrentVersion)
@@ -844,6 +851,45 @@ public sealed class SqliteDatabaseMigrator
             CREATE INDEX idx_secret_reset_events_sync_state
                 ON secret_reset_events(sync_state);
             """);
+    }
+
+    private static void ApplyVersion7(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction();
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            ALTER TABLE items
+                ADD COLUMN secret_generation_id TEXT NULL;
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            UPDATE items
+            SET secret_generation_id = (
+                SELECT crypto_profiles.secret_generation_id
+                FROM crypto_profiles
+                WHERE crypto_profiles.id = items.crypto_profile_id
+            )
+            WHERE is_secret = 1
+                AND crypto_profile_id IS NOT NULL;
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            CREATE INDEX idx_items_secret_generation
+                ON items(secret_generation_id);
+            """);
+
+        ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 7;");
+
+        transaction.Commit();
     }
 }
 

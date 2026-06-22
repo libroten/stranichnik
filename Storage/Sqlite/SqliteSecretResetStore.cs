@@ -40,9 +40,9 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
 
             EnsureActiveProfileGenerationExists(connection, transaction, secretGenerationId);
             InsertResetEvent(connection, transaction, secretGenerationId);
-            var purgedCount = CountSecretBookmarks(connection, transaction);
-            var folderIdsToPurge = SelectSecretOnlyFolderIds(connection, transaction);
-            DeleteSecretBookmarks(connection, transaction);
+            var purgedCount = CountSecretBookmarksForGeneration(connection, transaction, secretGenerationId);
+            var folderIdsToPurge = SelectSecretOnlyFolderIdsForGeneration(connection, transaction, secretGenerationId);
+            DeleteSecretBookmarksForGeneration(connection, transaction, secretGenerationId);
             DeleteFolders(connection, transaction, folderIdsToPurge);
             DeleteSecretIconAssets(connection, transaction, secretGenerationId);
             DeleteActiveProfile(connection, transaction, secretGenerationId);
@@ -273,9 +273,10 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         command.ExecuteNonQuery();
     }
 
-    private static int CountSecretBookmarks(
+    private static int CountSecretBookmarksForGeneration(
         SqliteConnection connection,
-        SqliteTransaction transaction)
+        SqliteTransaction transaction,
+        string secretGenerationId)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -283,101 +284,11 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             SELECT COUNT(*)
             FROM items
             WHERE item_type = 'bookmark'
-                AND is_secret = 1;
+                AND is_secret = 1
+                AND secret_generation_id = $secretGenerationId;
             """;
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
         return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
-    }
-
-    private static List<string> SelectSecretOnlyFolderIds(
-        SqliteConnection connection,
-        SqliteTransaction transaction)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            WITH RECURSIVE
-                visible_folders(id) AS (
-                    SELECT folder.id
-                    FROM items folder
-                    WHERE folder.item_type = 'folder'
-                        AND folder.deleted_at_utc IS NULL
-                        AND (
-                            NOT EXISTS (
-                                SELECT 1
-                                FROM items child
-                                WHERE child.parent_id = folder.id
-                                    AND child.deleted_at_utc IS NULL
-                            )
-                            OR EXISTS (
-                                SELECT 1
-                                FROM items child
-                                WHERE child.parent_id = folder.id
-                                    AND child.deleted_at_utc IS NULL
-                                    AND child.item_type = 'bookmark'
-                                    AND child.is_secret = 0
-                            )
-                        )
-
-                    UNION
-
-                    SELECT parent.id
-                    FROM items parent
-                    INNER JOIN items child
-                        ON child.parent_id = parent.id
-                        AND child.deleted_at_utc IS NULL
-                        AND child.item_type = 'folder'
-                    INNER JOIN visible_folders visible_child
-                        ON visible_child.id = child.id
-                    WHERE parent.item_type = 'folder'
-                        AND parent.deleted_at_utc IS NULL
-                ),
-                folder_depths(id, depth) AS (
-                    SELECT id, 0
-                    FROM items
-                    WHERE item_type = 'folder'
-                        AND parent_id IS NULL
-
-                    UNION ALL
-
-                    SELECT child.id, parent.depth + 1
-                    FROM items child
-                    INNER JOIN folder_depths parent
-                        ON parent.id = child.parent_id
-                    WHERE child.item_type = 'folder'
-                ),
-                secret_ancestor_folders(id) AS (
-                    SELECT parent_id
-                    FROM items
-                    WHERE item_type = 'bookmark'
-                        AND is_secret = 1
-                        AND parent_id IS NOT NULL
-
-                    UNION
-
-                    SELECT parent.parent_id
-                    FROM items parent
-                    INNER JOIN secret_ancestor_folders child_folder
-                        ON parent.id = child_folder.id
-                    WHERE parent.parent_id IS NOT NULL
-                ),
-                folders_to_purge(id) AS (
-                    SELECT id
-                    FROM secret_ancestor_folders
-                    WHERE id NOT IN (SELECT id FROM visible_folders)
-                )
-            SELECT folder.id
-            FROM folders_to_purge folder
-            INNER JOIN folder_depths depth
-                ON depth.id = folder.id
-            ORDER BY depth.depth DESC;
-            """;
-        using var reader = command.ExecuteReader();
-        var folderIds = new List<string>();
-
-        while (reader.Read())
-            folderIds.Add(reader.GetString(0));
-
-        return folderIds;
     }
 
     private static List<string> SelectSecretOnlyFolderIdsForGeneration(
@@ -392,49 +303,9 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 target_secret_bookmarks(id, parent_id) AS (
                     SELECT item.id, item.parent_id
                     FROM items item
-                    INNER JOIN crypto_profiles profile
-                        ON profile.id = item.crypto_profile_id
                     WHERE item.item_type = 'bookmark'
                         AND item.is_secret = 1
-                        AND profile.secret_generation_id = $secretGenerationId
-                ),
-                visible_folders(id) AS (
-                    SELECT folder.id
-                    FROM items folder
-                    WHERE folder.item_type = 'folder'
-                        AND folder.deleted_at_utc IS NULL
-                        AND (
-                            NOT EXISTS (
-                                SELECT 1
-                                FROM items child
-                                WHERE child.parent_id = folder.id
-                                    AND child.deleted_at_utc IS NULL
-                            )
-                            OR EXISTS (
-                                SELECT 1
-                                FROM items child
-                                WHERE child.parent_id = folder.id
-                                    AND child.deleted_at_utc IS NULL
-                                    AND (
-                                        child.item_type = 'folder'
-                                        OR child.is_secret = 0
-                                        OR child.id NOT IN (SELECT id FROM target_secret_bookmarks)
-                                    )
-                            )
-                        )
-
-                    UNION
-
-                    SELECT parent.id
-                    FROM items parent
-                    INNER JOIN items child
-                        ON child.parent_id = parent.id
-                        AND child.deleted_at_utc IS NULL
-                        AND child.item_type = 'folder'
-                    INNER JOIN visible_folders visible_child
-                        ON visible_child.id = child.id
-                    WHERE parent.item_type = 'folder'
-                        AND parent.deleted_at_utc IS NULL
+                        AND item.secret_generation_id = $secretGenerationId
                 ),
                 folder_depths(id, depth) AS (
                     SELECT id, 0
@@ -450,7 +321,7 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                         ON parent.id = child.parent_id
                     WHERE child.item_type = 'folder'
                 ),
-                secret_ancestor_folders(id) AS (
+                folders_to_purge(id) AS (
                     SELECT parent_id
                     FROM target_secret_bookmarks
                     WHERE parent_id IS NOT NULL
@@ -459,14 +330,9 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
 
                     SELECT parent.parent_id
                     FROM items parent
-                    INNER JOIN secret_ancestor_folders child_folder
+                    INNER JOIN folders_to_purge child_folder
                         ON parent.id = child_folder.id
                     WHERE parent.parent_id IS NOT NULL
-                ),
-                folders_to_purge(id) AS (
-                    SELECT id
-                    FROM secret_ancestor_folders
-                    WHERE id NOT IN (SELECT id FROM visible_folders)
                 )
             SELECT folder.id
             FROM folders_to_purge folder
@@ -485,20 +351,6 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         return folderIds;
     }
 
-    private static void DeleteSecretBookmarks(
-        SqliteConnection connection,
-        SqliteTransaction transaction)
-    {
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        command.CommandText = """
-            DELETE FROM items
-            WHERE item_type = 'bookmark'
-                AND is_secret = 1;
-            """;
-        command.ExecuteNonQuery();
-    }
-
     private static void DeleteSecretBookmarksForGeneration(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -510,11 +362,7 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             DELETE FROM items
             WHERE item_type = 'bookmark'
                 AND is_secret = 1
-                AND crypto_profile_id IN (
-                    SELECT id
-                    FROM crypto_profiles
-                    WHERE secret_generation_id = $secretGenerationId
-                );
+                AND secret_generation_id = $secretGenerationId;
             """;
         command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
         command.ExecuteNonQuery();

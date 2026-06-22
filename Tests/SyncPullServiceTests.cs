@@ -269,6 +269,7 @@ public sealed class SyncPullServiceTests
             Url: "https://example.com/",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             new BookmarkItemMetadata(
                 Now,
                 Now,

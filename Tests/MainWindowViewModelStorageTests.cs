@@ -693,7 +693,8 @@ public sealed class MainWindowViewModelStorageTests
                 encrypted.Payload,
                 encrypted.Nonce,
                 encrypted.CryptoProfileId,
-                encrypted.PayloadFormatVersion));
+                encrypted.PayloadFormatVersion),
+            secretGenerationId: profile.SecretGenerationId);
         session.LockAndForgetKey();
 
         var result = viewModel.UnlockSecrets("password", showSecrets: true);
@@ -892,6 +893,7 @@ public sealed class MainWindowViewModelStorageTests
                 encrypted.Nonce,
                 encrypted.CryptoProfileId,
                 encrypted.PayloadFormatVersion),
+            created.Profile.SecretGenerationId,
             CreateMetadata());
 
         return session;
@@ -908,6 +910,7 @@ public sealed class MainWindowViewModelStorageTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -926,6 +929,7 @@ public sealed class MainWindowViewModelStorageTests
             url,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 

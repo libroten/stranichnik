@@ -210,6 +210,7 @@ public sealed class SyncPushServiceTests
             Url: "https://example.com/",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             Metadata: new BookmarkItemMetadata(
                 Now,
                 Now,
@@ -238,6 +239,7 @@ public sealed class SyncPushServiceTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             Metadata: new BookmarkItemMetadata(
                 Now,
                 Now,

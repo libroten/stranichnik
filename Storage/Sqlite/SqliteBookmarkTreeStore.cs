@@ -48,6 +48,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce,
                 crypto_profile_id,
                 secret_payload_format_version,
+                secret_generation_id,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -98,6 +99,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce,
                 crypto_profile_id,
                 secret_payload_format_version,
+                secret_generation_id,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -404,6 +406,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             normalizedUrl,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata(now));
 
         InsertRecord(connection, transaction, record);
@@ -415,9 +418,11 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
     public BookmarkItemRecord AddSecretBookmarkToFolderStart(
         string? parentId,
         string bookmarkId,
-        EncryptedBookmarkPayloadRecord encryptedPayload)
+        EncryptedBookmarkPayloadRecord encryptedPayload,
+        string secretGenerationId)
     {
         var normalizedBookmarkId = NormalizeRequired(bookmarkId, nameof(bookmarkId));
+        var normalizedSecretGenerationId = NormalizeRequired(secretGenerationId, nameof(secretGenerationId));
         ValidateEncryptedPayload(encryptedPayload);
 
         using var connection = _connectionFactory.OpenConnection();
@@ -435,6 +440,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             Url: null,
             IsSecret: true,
             encryptedPayload,
+            normalizedSecretGenerationId,
             CreateMetadata(now));
 
         InsertRecord(connection, transaction, record);
@@ -464,6 +470,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata(now));
 
         InsertRecord(connection, transaction, record);
@@ -506,8 +513,10 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
 
     public BookmarkItemRecord EditBookmarkAsSecret(
         string bookmarkId,
-        EncryptedBookmarkPayloadRecord encryptedPayload)
+        EncryptedBookmarkPayloadRecord encryptedPayload,
+        string secretGenerationId)
     {
+        var normalizedSecretGenerationId = NormalizeRequired(secretGenerationId, nameof(secretGenerationId));
         ValidateEncryptedPayload(encryptedPayload);
 
         using var connection = _connectionFactory.OpenConnection();
@@ -524,6 +533,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             Url = null,
             IsSecret = true,
             EncryptedPayload = encryptedPayload,
+            SecretGenerationId = normalizedSecretGenerationId,
             IconAssetId = null,
             Metadata = Touch(bookmark.Metadata)
         };
@@ -559,6 +569,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             Url = normalizedUrl,
             IsSecret = false,
             EncryptedPayload = null,
+            SecretGenerationId = null,
             IconAssetId = null,
             SecretIconAssetId = null,
             Metadata = Touch(bookmark.Metadata)
@@ -1080,6 +1091,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
             SqliteBookmarkItemMapper.ReadNullableString(reader, "url"),
             reader.GetInt64(reader.GetOrdinal("is_secret")) == 1,
             payload,
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "secret_generation_id"),
             new BookmarkItemMetadata(
                 SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("created_at_utc"))),
                 SqliteBookmarkItemMapper.ParseDateTime(reader.GetString(reader.GetOrdinal("updated_at_utc"))),
@@ -1172,6 +1184,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce,
                 crypto_profile_id,
                 secret_payload_format_version,
+                secret_generation_id,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -1195,6 +1208,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 $encryptionNonce,
                 $cryptoProfileId,
                 $secretPayloadFormatVersion,
+                $secretGenerationId,
                 $createdAtUtc,
                 $updatedAtUtc,
                 $deletedAtUtc,
@@ -1231,6 +1245,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce = $encryptionNonce,
                 crypto_profile_id = $cryptoProfileId,
                 secret_payload_format_version = $secretPayloadFormatVersion,
+                secret_generation_id = $secretGenerationId,
                 created_at_utc = $createdAtUtc,
                 updated_at_utc = $updatedAtUtc,
                 deleted_at_utc = $deletedAtUtc,
@@ -1270,6 +1285,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce,
                 crypto_profile_id,
                 secret_payload_format_version,
+                secret_generation_id,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,
@@ -1293,6 +1309,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 $encryptionNonce,
                 $cryptoProfileId,
                 $secretPayloadFormatVersion,
+                $secretGenerationId,
                 $createdAtUtc,
                 $updatedAtUtc,
                 $deletedAtUtc,
@@ -1315,6 +1332,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce = excluded.encryption_nonce,
                 crypto_profile_id = excluded.crypto_profile_id,
                 secret_payload_format_version = excluded.secret_payload_format_version,
+                secret_generation_id = excluded.secret_generation_id,
                 created_at_utc = excluded.created_at_utc,
                 updated_at_utc = excluded.updated_at_utc,
                 deleted_at_utc = excluded.deleted_at_utc,
@@ -1344,6 +1362,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
         command.Parameters.AddWithValue("$encryptionNonce", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.Nonce.ToArray()));
         command.Parameters.AddWithValue("$cryptoProfileId", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.CryptoProfileId));
         command.Parameters.AddWithValue("$secretPayloadFormatVersion", SqliteBookmarkItemMapper.ToDatabaseValue(record.EncryptedPayload?.PayloadFormatVersion));
+        command.Parameters.AddWithValue("$secretGenerationId", SqliteBookmarkItemMapper.ToDatabaseValue(record.SecretGenerationId));
         command.Parameters.AddWithValue("$createdAtUtc", SqliteBookmarkItemMapper.FormatDateTime(record.Metadata.CreatedAtUtc));
         command.Parameters.AddWithValue("$updatedAtUtc", SqliteBookmarkItemMapper.FormatDateTime(record.Metadata.UpdatedAtUtc));
         command.Parameters.AddWithValue("$deletedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(record.Metadata.DeletedAtUtc));
@@ -1441,6 +1460,7 @@ public sealed class SqliteBookmarkTreeStore : IBookmarkTreeStore
                 encryption_nonce,
                 crypto_profile_id,
                 secret_payload_format_version,
+                secret_generation_id,
                 created_at_utc,
                 updated_at_utc,
                 deleted_at_utc,

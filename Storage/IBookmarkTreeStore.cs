@@ -28,7 +28,8 @@ public interface IBookmarkTreeStore
     BookmarkItemRecord AddSecretBookmarkToFolderStart(
         string? parentId,
         string bookmarkId,
-        EncryptedBookmarkPayloadRecord encryptedPayload);
+        EncryptedBookmarkPayloadRecord encryptedPayload,
+        string secretGenerationId);
 
     BookmarkItemRecord AddFolderToFolderStart(
         string? parentId,
@@ -41,7 +42,8 @@ public interface IBookmarkTreeStore
 
     BookmarkItemRecord EditBookmarkAsSecret(
         string bookmarkId,
-        EncryptedBookmarkPayloadRecord encryptedPayload);
+        EncryptedBookmarkPayloadRecord encryptedPayload,
+        string secretGenerationId);
 
     BookmarkItemRecord EditSecretBookmarkAsPlaintext(
         string bookmarkId,

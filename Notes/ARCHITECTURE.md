@@ -512,7 +512,12 @@ Current crypto shape:
   while preserving the previous remote ETag, last-synced timestamp, and content
   hash. Those fields describe the last synced remote revision and are needed so
   pull can recognize an unchanged remote profile and push can update it safely.
-- `items.encrypted_payload`, `items.encryption_nonce`, `items.crypto_profile_id`, and `items.secret_payload_format_version` store encrypted bookmark payload metadata.
+- `items.encrypted_payload`, `items.encryption_nonce`, `items.crypto_profile_id`,
+  `items.secret_payload_format_version`, and `items.secret_generation_id` store
+  encrypted bookmark payload metadata.
+- Secret bookmark sync generation is persisted on the item row. Push must use
+  `items.secret_generation_id`, not derive the generation from the currently
+  active local crypto profile.
 - Secret bookmark plaintext `title` and `url` columns are `NULL`.
 - Secret bookmarks have `items.icon_asset_id = NULL` and may reference encrypted custom icons through `items.secret_icon_asset_id`.
 - Secret icon assets are stored in `secret_icon_assets`; the design is documented in `Notes/ENCRYPTED_SECRET_ICONS_ARCHITECTURE.md`.

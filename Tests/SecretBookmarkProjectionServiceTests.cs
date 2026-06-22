@@ -244,6 +244,7 @@ public sealed class SecretBookmarkProjectionServiceTests
             Url: null,
             IsSecret: true,
             encryptedPayload,
+            SecretGenerationId: "generation-1",
             CreateMetadata());
     }
 
@@ -273,6 +274,7 @@ public sealed class SecretBookmarkProjectionServiceTests
             $"https://example.com/{id}",
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 
@@ -287,6 +289,7 @@ public sealed class SecretBookmarkProjectionServiceTests
             Url: null,
             IsSecret: false,
             EncryptedPayload: null,
+            SecretGenerationId: null,
             CreateMetadata());
     }
 

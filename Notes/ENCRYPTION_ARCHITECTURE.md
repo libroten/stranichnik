@@ -330,7 +330,8 @@ is_secret INTEGER NOT NULL DEFAULT 0 CHECK (is_secret IN (0, 1)),
 encrypted_payload BLOB NULL,
 encryption_nonce BLOB NULL,
 crypto_profile_id INTEGER NULL REFERENCES crypto_profiles(id),
-secret_payload_format_version INTEGER NULL
+secret_payload_format_version INTEGER NULL,
+secret_generation_id TEXT NULL
 ```
 
 For normal bookmarks:
@@ -343,6 +344,7 @@ encrypted_payload IS NULL
 encryption_nonce IS NULL
 crypto_profile_id IS NULL
 secret_payload_format_version IS NULL
+secret_generation_id IS NULL
 ```
 
 For secret bookmarks:
@@ -355,7 +357,12 @@ encrypted_payload IS NOT NULL
 encryption_nonce IS NOT NULL
 crypto_profile_id IS NOT NULL
 secret_payload_format_version = 1
+secret_generation_id IS NOT NULL
 ```
+
+`secret_generation_id` is persisted on every secret bookmark. Sync must use
+the item-level generation when exporting secret item DTOs; it must not infer the
+item generation from whatever crypto profile is currently active locally.
 
 ### Icon Policy For Secret Bookmarks
 

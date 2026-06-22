@@ -82,7 +82,7 @@ public sealed class SyncPushPlanner
         var itemsById = items.ToDictionary(item => item.Item.Id, StringComparer.Ordinal);
         var selectedIds = items
             .Where(item => ShouldPush(item.SyncMetadata))
-            .Where(item => !IsResetSecretItem(item, profileGenerationById, resetGenerationIds))
+            .Where(item => !IsUnpushableSecretItem(item, profileGenerationById, resetGenerationIds))
             .Select(item => item.Item.Id)
             .ToHashSet(StringComparer.Ordinal);
 
@@ -149,7 +149,7 @@ public sealed class SyncPushPlanner
         return depth;
     }
 
-    private static bool IsResetSecretItem(
+    private static bool IsUnpushableSecretItem(
         SyncItemSnapshotRecord item,
         Dictionary<long, string> profileGenerationById,
         HashSet<string> resetGenerationIds)
@@ -157,11 +157,18 @@ public sealed class SyncPushPlanner
         if (!item.Item.IsSecret)
             return false;
 
-        var cryptoProfileId = item.Item.EncryptedPayload?.CryptoProfileId;
-        if (cryptoProfileId is null)
+        var secretGenerationId = item.Item.SecretGenerationId;
+        if (string.IsNullOrWhiteSpace(secretGenerationId))
             return true;
 
-        return !profileGenerationById.TryGetValue(cryptoProfileId.Value, out var secretGenerationId) ||
+        var cryptoProfileId = item.Item.EncryptedPayload?.CryptoProfileId;
+        if (cryptoProfileId is null ||
+            !profileGenerationById.TryGetValue(cryptoProfileId.Value, out var profileSecretGenerationId))
+        {
+            return true;
+        }
+
+        return !string.Equals(profileSecretGenerationId, secretGenerationId, StringComparison.Ordinal) ||
             resetGenerationIds.Contains(secretGenerationId);
     }
 

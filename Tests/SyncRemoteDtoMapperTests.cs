@@ -173,6 +173,7 @@ public sealed class SyncRemoteDtoMapperTests
                 Url: "https://example.com/",
                 IsSecret: false,
                 EncryptedPayload: null,
+                SecretGenerationId: null,
                 Metadata: new BookmarkItemMetadata(
                     Now,
                     Now,
@@ -205,6 +206,7 @@ public sealed class SyncRemoteDtoMapperTests
                     Payload: new byte[] { 1, 2, 3 },
                     Nonce: new byte[] { 4, 5, 6 },
                     CryptoProfileId: cryptoProfileId),
+                SecretGenerationId: "generation",
                 Metadata: new BookmarkItemMetadata(
                     Now,
                     Now,

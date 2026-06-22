@@ -57,7 +57,7 @@ public sealed class InMemorySecretResetStore : ISecretResetStore
             RemoteEtag: null,
             LastSyncedAtUtc: null));
 
-        var purgedCount = _treeStore.PurgeSecretBookmarksForMasterPasswordReset();
+        var purgedCount = _treeStore.PurgeSecretBookmarksForMasterPasswordReset(secretGenerationId);
         if (!_profileStore.DeleteActiveProfileForMasterPasswordReset(secretGenerationId))
             throw new InvalidOperationException("Secret crypto profile was not found.");
 
@@ -69,4 +69,3 @@ public sealed class InMemorySecretResetStore : ISecretResetStore
         return _resetEvents.ToList();
     }
 }
-
