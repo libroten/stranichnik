@@ -39,6 +39,7 @@ public sealed class SyncPullPlanner
             cryptoProfiles,
             resetGenerationIds,
             context);
+        var blockedSecretGenerationIds = BlockedSecretGenerationIds(snapshot, context, resetGenerationIds);
         var iconAssetsToApply = PlanObjects(
             iconAssets,
             snapshot.IconAssets.ToDictionary(
@@ -59,7 +60,7 @@ public sealed class SyncPullPlanner
             asset => asset.Id,
             asset => asset.ContentHash,
             context)
-            .Where(asset => !resetGenerationIds.Contains(asset.Value.SecretGenerationId))
+            .Where(asset => !blockedSecretGenerationIds.Contains(asset.Value.SecretGenerationId))
             .ToList();
         var itemsToApply = PlanObjects(
             items,
@@ -71,7 +72,7 @@ public sealed class SyncPullPlanner
             item => item.Id,
             item => item.ContentHash,
             context)
-            .Where(item => !IsResetSecretItem(item.Value, resetGenerationIds))
+            .Where(item => !IsBlockedSecretItem(item.Value, blockedSecretGenerationIds))
             .ToList();
         var missingRemoteObjects = PlanMissingRemoteObjects(
             snapshot,
@@ -80,7 +81,7 @@ public sealed class SyncPullPlanner
             iconAssets,
             secretIconAssets,
             items,
-            resetGenerationIds);
+            blockedSecretGenerationIds);
 
         return new SyncPullPlan(
             new SyncApplyBatch(
@@ -148,13 +149,26 @@ public sealed class SyncPullPlanner
         return resetEventsToApply;
     }
 
-    private static bool IsResetSecretItem(
-        SyncItemDto item,
+    private static HashSet<string> BlockedSecretGenerationIds(
+        SyncLocalSnapshot snapshot,
+        PlanningContext context,
         HashSet<string> resetGenerationIds)
     {
-        return item.IsSecret &&
-            item.CryptoProfileSecretGenerationId is not null &&
-            resetGenerationIds.Contains(item.CryptoProfileSecretGenerationId);
+        var blockedGenerationIds = resetGenerationIds.ToHashSet(StringComparer.Ordinal);
+
+        foreach (var profile in snapshot.CryptoProfiles)
+        {
+            if (profile.SyncMetadata.SyncState == BookmarkSyncState.Conflict)
+                blockedGenerationIds.Add(profile.Profile.SecretGenerationId);
+        }
+
+        foreach (var conflict in context.Conflicts)
+        {
+            if (conflict.Identity.Kind == SyncObjectKind.CryptoProfile)
+                blockedGenerationIds.Add(conflict.Identity.Id);
+        }
+
+        return blockedGenerationIds;
     }
 
     private static List<SyncAppliedRemoteObject<SyncCryptoProfileDto>> PlanCryptoProfiles(
@@ -289,7 +303,7 @@ public sealed class SyncPullPlanner
         IReadOnlyList<SyncRemoteReadResult<SyncIconAssetDto>> iconAssets,
         IReadOnlyList<SyncRemoteReadResult<SyncSecretIconAssetDto>> secretIconAssets,
         IReadOnlyList<SyncRemoteReadResult<SyncItemDto>> items,
-        HashSet<string> resetGenerationIds)
+        HashSet<string> blockedSecretGenerationIds)
     {
         var missingObjects = new List<SyncObjectIdentity>();
 
@@ -307,7 +321,7 @@ public sealed class SyncPullPlanner
             missingObjects);
         AddMissingRemoteObjects(
             snapshot.CryptoProfiles
-                .Where(profile => !resetGenerationIds.Contains(profile.Profile.SecretGenerationId))
+                .Where(profile => !blockedSecretGenerationIds.Contains(profile.Profile.SecretGenerationId))
                 .Select(profile => (
                     Id: profile.Profile.SecretGenerationId,
                     profile.SyncMetadata)),
@@ -323,7 +337,7 @@ public sealed class SyncPullPlanner
             missingObjects);
         AddMissingRemoteObjects(
             snapshot.SecretIconAssets
-                .Where(asset => !resetGenerationIds.Contains(asset.Asset.SecretGenerationId))
+                .Where(asset => !blockedSecretGenerationIds.Contains(asset.Asset.SecretGenerationId))
                 .Select(asset => (
                     Id: asset.Asset.Id,
                     asset.SyncMetadata)),
@@ -332,7 +346,7 @@ public sealed class SyncPullPlanner
             missingObjects);
         AddMissingRemoteObjects(
             snapshot.Items
-                .Where(item => !IsResetSecretItem(item.Item, resetGenerationIds))
+                .Where(item => !IsBlockedSecretItem(item.Item, blockedSecretGenerationIds))
                 .Select(item => (
                     Id: item.Item.Id,
                     item.SyncMetadata)),
@@ -413,15 +427,24 @@ public sealed class SyncPullPlanner
             reasonCode);
     }
 
-    private static bool IsResetSecretItem(
+    private static bool IsBlockedSecretItem(
+        SyncItemDto item,
+        HashSet<string> blockedSecretGenerationIds)
+    {
+        return item.IsSecret &&
+            item.CryptoProfileSecretGenerationId is not null &&
+            blockedSecretGenerationIds.Contains(item.CryptoProfileSecretGenerationId);
+    }
+
+    private static bool IsBlockedSecretItem(
         BookmarkItemRecord item,
-        HashSet<string> resetGenerationIds)
+        HashSet<string> blockedSecretGenerationIds)
     {
         if (!item.IsSecret)
             return false;
 
         return item.SecretGenerationId is not null &&
-            resetGenerationIds.Contains(item.SecretGenerationId);
+            blockedSecretGenerationIds.Contains(item.SecretGenerationId);
     }
 
     private static string ToReasonCode(SyncRemoteReadStatus status)

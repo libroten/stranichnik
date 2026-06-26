@@ -575,6 +575,42 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
+    public void Plan_skips_secret_objects_for_conflicted_crypto_profile_generation()
+    {
+        var localProfile = CreateLocalProfile("generation") with
+        {
+            SyncMetadata = new SyncObjectMetadata(
+                BookmarkSyncState.Dirty,
+                RemoteEtag: "profile-etag",
+                LastSyncedAtUtc: Now,
+                ContentHash: "sha256:local-profile",
+                ModifiedDeviceId: "device")
+        };
+        var remoteProfile = CreateRemoteCryptoProfile("generation") with
+        {
+            ContentHash = "sha256:remote-profile"
+        };
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles = [localProfile]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [Success(SyncObjectKind.CryptoProfile, "generation", remoteProfile)],
+            [],
+            [Success(SyncObjectKind.SecretIconAsset, "secret-icon", CreateRemoteSecretIconAsset("secret-icon", "generation"))],
+            [Success(SyncObjectKind.Item, "secret", CreateRemoteSecretItem("secret", "generation"))]);
+
+        Assert.Empty(plan.ApplyBatch.CryptoProfiles);
+        Assert.Empty(plan.ApplyBatch.SecretIconAssets);
+        Assert.Empty(plan.ApplyBatch.Items);
+        var conflict = Assert.Single(plan.Conflicts);
+        Assert.Equal(new SyncObjectIdentity(SyncObjectKind.CryptoProfile, "generation"), conflict.Identity);
+    }
+
+    [Fact]
     public void Plan_skips_secret_item_for_existing_reset_generation()
     {
         var snapshot = EmptySnapshot() with
@@ -856,6 +892,30 @@ public sealed class SyncPullPlannerTests
             Revision: 1,
             ModifiedDeviceId: "device",
             ContentHash: "sha256:secret");
+    }
+
+    private static SyncSecretIconAssetDto CreateRemoteSecretIconAsset(
+        string id,
+        string secretGenerationId)
+    {
+        return new SyncSecretIconAssetDto(
+            SyncRemoteObjectConstants.SecretIconAssetSchema,
+            SyncRemoteObjectConstants.FormatVersion,
+            id,
+            "sha256",
+            "remote-secret-source-hash",
+            SourceSizeBytes: 3,
+            ProcessedMimeType: "image/png",
+            ProcessedWidth: 32,
+            ProcessedHeight: 32,
+            EncryptedProcessedBytes: Convert.ToBase64String([1, 2, 3]),
+            EncryptionNonce: Convert.ToBase64String([4, 5, 6]),
+            PayloadFormatVersion: 1,
+            SecretGenerationId: secretGenerationId,
+            CreatedAtUtc: Now,
+            UpdatedAtUtc: Now,
+            ModifiedDeviceId: "device",
+            ContentHash: "sha256:secret-icon");
     }
 
     private static SyncCryptoProfileDto CreateRemoteCryptoProfile(string secretGenerationId)

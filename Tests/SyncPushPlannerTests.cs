@@ -99,6 +99,36 @@ public sealed class SyncPushPlannerTests
     }
 
     [Fact]
+    public void Plan_skips_secret_objects_when_matching_profile_is_conflicted()
+    {
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles =
+            [
+                CreateProfile("profile-generation", BookmarkSyncState.Conflict, hasBeenSynced: false)
+            ],
+            SecretIconAssets =
+            [
+                CreateSecretIconAsset("secret-icon", "profile-generation", BookmarkSyncState.Dirty)
+            ],
+            Items =
+            [
+                CreateSecretItem(
+                    "secret-item",
+                    cryptoProfileId: 1,
+                    BookmarkSyncState.Dirty,
+                    secretGenerationId: "profile-generation")
+            ]
+        };
+
+        var plan = SyncPushPlanner.Plan(snapshot);
+
+        Assert.Empty(plan.CryptoProfiles);
+        Assert.Empty(plan.SecretIconAssets);
+        Assert.Empty(plan.Items);
+    }
+
+    [Fact]
     public void Plan_skips_clean_synced_parent_folders_for_dirty_child()
     {
         var snapshot = EmptySnapshot() with

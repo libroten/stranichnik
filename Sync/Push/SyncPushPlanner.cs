@@ -15,12 +15,17 @@ public sealed class SyncPushPlanner
         var resetGenerationIds = snapshot.SecretResetEvents
             .Select(resetEvent => resetEvent.SecretGenerationId)
             .ToHashSet(StringComparer.Ordinal);
-        var profileGenerationById = snapshot.CryptoProfiles
-            .ToDictionary(profile => profile.Profile.Id, profile => profile.Profile.SecretGenerationId);
-        var plannedItems = ItemsToPush(snapshot.Items, profileGenerationById, resetGenerationIds);
+        var profilesById = snapshot.CryptoProfiles
+            .ToDictionary(profile => profile.Profile.Id);
+        var conflictedGenerationIds = snapshot.CryptoProfiles
+            .Where(profile => profile.SyncMetadata.SyncState == BookmarkSyncState.Conflict)
+            .Select(profile => profile.Profile.SecretGenerationId)
+            .ToHashSet(StringComparer.Ordinal);
+        var plannedItems = ItemsToPush(snapshot.Items, profilesById, resetGenerationIds, conflictedGenerationIds);
         var plannedSecretIconAssets = SecretIconAssetsToPush(
             snapshot.SecretIconAssets,
-            resetGenerationIds);
+            resetGenerationIds,
+            conflictedGenerationIds);
 
         return new SyncPushPlan(
             SecretResetEvents: ResetEventsToPush(snapshot.SecretResetEvents),
@@ -46,6 +51,7 @@ public sealed class SyncPushPlanner
     {
         return profiles
             .Where(profile => ShouldPush(profile.SyncMetadata))
+            .Where(profile => profile.SyncMetadata.SyncState != BookmarkSyncState.Conflict)
             .Where(profile => !resetGenerationIds.Contains(profile.Profile.SecretGenerationId))
             .OrderBy(profile => profile.Profile.UpdatedAtUtc)
             .ThenBy(profile => profile.Profile.SecretGenerationId, StringComparer.Ordinal)
@@ -64,11 +70,13 @@ public sealed class SyncPushPlanner
 
     private static List<SyncSecretIconAssetSnapshotRecord> SecretIconAssetsToPush(
         IReadOnlyList<SyncSecretIconAssetSnapshotRecord> secretIconAssets,
-        HashSet<string> resetGenerationIds)
+        HashSet<string> resetGenerationIds,
+        HashSet<string> conflictedGenerationIds)
     {
         return secretIconAssets
             .Where(asset => ShouldPush(asset.SyncMetadata))
             .Where(asset => !resetGenerationIds.Contains(asset.Asset.SecretGenerationId))
+            .Where(asset => !conflictedGenerationIds.Contains(asset.Asset.SecretGenerationId))
             .OrderBy(asset => asset.Asset.CreatedAtUtc)
             .ThenBy(asset => asset.Asset.Id, StringComparer.Ordinal)
             .ToList();
@@ -76,13 +84,14 @@ public sealed class SyncPushPlanner
 
     private static List<SyncItemSnapshotRecord> ItemsToPush(
         IReadOnlyList<SyncItemSnapshotRecord> items,
-        Dictionary<long, string> profileGenerationById,
-        HashSet<string> resetGenerationIds)
+        Dictionary<long, SyncCryptoProfileSnapshotRecord> profilesById,
+        HashSet<string> resetGenerationIds,
+        HashSet<string> conflictedGenerationIds)
     {
         var itemsById = items.ToDictionary(item => item.Item.Id, StringComparer.Ordinal);
         var selectedIds = items
             .Where(item => ShouldPush(item.SyncMetadata))
-            .Where(item => !IsUnpushableSecretItem(item, profileGenerationById, resetGenerationIds))
+            .Where(item => !IsUnpushableSecretItem(item, profilesById, resetGenerationIds, conflictedGenerationIds))
             .Select(item => item.Item.Id)
             .ToHashSet(StringComparer.Ordinal);
 
@@ -151,8 +160,9 @@ public sealed class SyncPushPlanner
 
     private static bool IsUnpushableSecretItem(
         SyncItemSnapshotRecord item,
-        Dictionary<long, string> profileGenerationById,
-        HashSet<string> resetGenerationIds)
+        Dictionary<long, SyncCryptoProfileSnapshotRecord> profilesById,
+        HashSet<string> resetGenerationIds,
+        HashSet<string> conflictedGenerationIds)
     {
         if (!item.Item.IsSecret)
             return false;
@@ -163,13 +173,14 @@ public sealed class SyncPushPlanner
 
         var cryptoProfileId = item.Item.EncryptedPayload?.CryptoProfileId;
         if (cryptoProfileId is null ||
-            !profileGenerationById.TryGetValue(cryptoProfileId.Value, out var profileSecretGenerationId))
+            !profilesById.TryGetValue(cryptoProfileId.Value, out var profile))
         {
             return true;
         }
 
-        return !string.Equals(profileSecretGenerationId, secretGenerationId, StringComparison.Ordinal) ||
-            resetGenerationIds.Contains(secretGenerationId);
+        return !string.Equals(profile.Profile.SecretGenerationId, secretGenerationId, StringComparison.Ordinal) ||
+            resetGenerationIds.Contains(secretGenerationId) ||
+            conflictedGenerationIds.Contains(secretGenerationId);
     }
 
     private static bool ShouldPush(SyncObjectMetadata metadata)
