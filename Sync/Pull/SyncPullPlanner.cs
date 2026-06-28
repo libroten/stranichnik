@@ -82,6 +82,11 @@ public sealed class SyncPullPlanner
             secretIconAssets,
             items,
             blockedSecretGenerationIds);
+        var secretConflictConfirmation = PlanSecretConflictConfirmation(
+            snapshot,
+            resetsToApply,
+            cryptoProfiles,
+            context);
 
         return new SyncPullPlan(
             new SyncApplyBatch(
@@ -96,7 +101,80 @@ public sealed class SyncPullPlanner
             context.QuarantinedRemoteObjects.ToArray(),
             context.KnownQuarantinedRemoteObjects.ToArray(),
             context.ResolvedQuarantinedRemoteObjectIds.ToArray(),
-            missingRemoteObjects);
+            missingRemoteObjects,
+            secretConflictConfirmation);
+    }
+
+    private static SyncSecretConflictConfirmation? PlanSecretConflictConfirmation(
+        SyncLocalSnapshot snapshot,
+        IReadOnlyList<SyncAppliedRemoteObject<SyncSecretResetEventDto>> resetsToApply,
+        IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles,
+        PlanningContext context)
+    {
+        if (resetsToApply.Any(resetEvent =>
+                HasLocalSecretStateForGeneration(snapshot, resetEvent.Value.SecretGenerationId)))
+        {
+            return new SyncSecretConflictConfirmation(
+                SyncSecretConflictConfirmationReason.RemoteSecretReset);
+        }
+
+        if (context.Conflicts.Any(conflict => conflict.Identity.Kind == SyncObjectKind.CryptoProfile))
+        {
+            return new SyncSecretConflictConfirmation(
+                SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange);
+        }
+
+        if (HasNewerRemoteCryptoProfileFromAnotherGeneration(snapshot, cryptoProfiles))
+        {
+            return new SyncSecretConflictConfirmation(
+                SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange);
+        }
+
+        return null;
+    }
+
+    private static bool HasLocalSecretStateForGeneration(
+        SyncLocalSnapshot snapshot,
+        string secretGenerationId)
+    {
+        return snapshot.Items.Any(item =>
+                item.Item.IsSecret &&
+                string.Equals(item.Item.SecretGenerationId, secretGenerationId, StringComparison.Ordinal)) ||
+            snapshot.SecretIconAssets.Any(asset =>
+                string.Equals(asset.Asset.SecretGenerationId, secretGenerationId, StringComparison.Ordinal)) ||
+            snapshot.CryptoProfiles.Any(profile =>
+                string.Equals(profile.Profile.SecretGenerationId, secretGenerationId, StringComparison.Ordinal)) ||
+            snapshot.DeferredSecretItems.Any(item =>
+                string.Equals(item.SecretGenerationId, secretGenerationId, StringComparison.Ordinal));
+    }
+
+    private static bool HasAnyLocalSecretState(SyncLocalSnapshot snapshot)
+    {
+        return snapshot.Items.Any(item => item.Item.IsSecret) ||
+            snapshot.SecretIconAssets.Count > 0 ||
+            snapshot.CryptoProfiles.Count > 0 ||
+            snapshot.DeferredSecretItems.Count > 0;
+    }
+
+    private static bool HasNewerRemoteCryptoProfileFromAnotherGeneration(
+        SyncLocalSnapshot snapshot,
+        IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles)
+    {
+        if (!HasAnyLocalSecretState(snapshot) || snapshot.CryptoProfiles.Count == 0)
+            return false;
+
+        var localActiveProfile = snapshot.CryptoProfiles
+            .OrderByDescending(profile => profile.Profile.UpdatedAtUtc)
+            .First();
+
+        return cryptoProfiles.Any(result =>
+            result is { Status: SyncRemoteReadStatus.Success, Value: not null, Identity: { Kind: SyncObjectKind.CryptoProfile } } &&
+            string.Equals(result.Identity.Id, result.Value.SecretGenerationId, StringComparison.Ordinal) &&
+            !string.Equals(
+                result.Value.SecretGenerationId,
+                localActiveProfile.Profile.SecretGenerationId,
+                StringComparison.Ordinal) &&
+            result.Value.UpdatedAtUtc > localActiveProfile.Profile.UpdatedAtUtc);
     }
 
     private static List<SyncAppliedRemoteObject<SyncSecretResetEventDto>> PlanResetEvents(

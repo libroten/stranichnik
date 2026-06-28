@@ -212,6 +212,38 @@ public sealed class SyncPullServiceTests
         Assert.Empty(localStore.AppliedBatches.Single().Items);
     }
 
+    [Fact]
+    public async Task PullAsync_stops_before_apply_when_secret_confirmation_is_required()
+    {
+        var localStore = new FakeSyncLocalStore(EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalSecretItem("secret", "generation")
+            ]
+        });
+        var transport = new InMemoryWebDavSyncTransport();
+        var serializer = new SystemTextSyncJsonSerializer();
+        var resetEvent = CreateRemoteResetEvent("generation");
+        await PutRemoteObjectAsync(
+            transport,
+            serializer,
+            SyncObjectKind.SecretResetEvent,
+            resetEvent.SecretGenerationId,
+            resetEvent);
+        var service = CreateService(localStore, transport, serializer);
+
+        var summary = await service.PullAsync(CancellationToken.None);
+
+        Assert.False(summary.Succeeded);
+        Assert.Equal(SyncBlockingReason.NeedsSecretConflictConfirmation, summary.BlockingReason);
+        Assert.Equal(
+            SyncSecretConflictConfirmationReason.RemoteSecretReset,
+            summary.SecretConflictConfirmationReason);
+        Assert.Empty(localStore.AppliedBatches);
+        Assert.Empty(localStore.ConflictMarks);
+    }
+
     private static SyncPullService CreateService(
         FakeSyncLocalStore localStore,
         InMemoryWebDavSyncTransport transport,
@@ -291,6 +323,44 @@ public sealed class SyncPullServiceTests
                 ModifiedDeviceId: "device"));
     }
 
+    private static SyncItemSnapshotRecord CreateLocalSecretItem(
+        string id,
+        string secretGenerationId)
+    {
+        var item = new BookmarkItemRecord(
+            id,
+            ParentId: null,
+            BookmarkItemKind.Bookmark,
+            SortOrder: 1000,
+            Title: null,
+            Url: null,
+            IsSecret: true,
+            new EncryptedBookmarkPayloadRecord(
+                Payload: new byte[] { 1, 2, 3 },
+                Nonce: new byte[] { 4, 5, 6 },
+                CryptoProfileId: 100),
+            secretGenerationId,
+            new BookmarkItemMetadata(
+                Now,
+                Now,
+                DeletedAtUtc: null,
+                Revision: 1,
+                BookmarkSyncState.Clean,
+                RemoteEtag: "secret-etag",
+                LastSyncedAtUtc: Now,
+                ContentHash: "sha256:secret",
+                ModifiedDeviceId: "device"));
+
+        return new SyncItemSnapshotRecord(
+            item,
+            new SyncObjectMetadata(
+                BookmarkSyncState.Clean,
+                RemoteEtag: "secret-etag",
+                LastSyncedAtUtc: Now,
+                ContentHash: "sha256:secret",
+                ModifiedDeviceId: "device"));
+    }
+
     private static SyncItemDto CreateRemoteItem(
         string id,
         SystemTextSyncJsonSerializer serializer)
@@ -319,6 +389,21 @@ public sealed class SyncPullServiceTests
             ContentHash: SyncRemoteObjectConstants.ContentHashPlaceholder);
 
         return SyncTestDtoHasher.WithContentHash(item, serializer);
+    }
+
+    private static SyncSecretResetEventDto CreateRemoteResetEvent(string secretGenerationId)
+    {
+        return new SyncSecretResetEventDto(
+            SyncRemoteObjectConstants.SecretResetEventSchema,
+            SyncRemoteObjectConstants.FormatVersion,
+            secretGenerationId,
+            Now,
+            "remote-device",
+            ResetEventFormatVersion: 1,
+            CreatedAtUtc: Now,
+            UpdatedAtUtc: Now,
+            ModifiedDeviceId: "remote-device",
+            ContentHash: SyncRemoteObjectConstants.ContentHashPlaceholder);
     }
 
     private sealed class FakeSyncLocalStore : ISyncLocalStore
@@ -397,6 +482,10 @@ public sealed class SyncPullServiceTests
 
             foreach (var missingRemoteObject in plan.MissingRemoteObjects)
                 MarkDirty(missingRemoteObject);
+        }
+
+        public void ClearLocalSecretsForRemoteTruth(DateTimeOffset changedAtUtc)
+        {
         }
 
         public void MarkUploaded(

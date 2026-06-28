@@ -154,6 +154,10 @@ Completed broad areas:
   - pull does not automatically apply a remote crypto profile from another
     generation over an existing local active profile; on an empty local database,
     the newest non-reset remote profile is selected.
+  - crypto conflicts that cannot be merged automatically are resolved through a
+    confirmation flow: sync pauses before local apply, the user either cancels
+    unchanged or accepts WebDAV as the source of truth, and acceptance clears
+    local secret state before retrying sync.
 - First-pass manual WebDAV sync is implemented:
   - sync architecture and implementation plan are documented in `Notes/WEBDAV_SYNC_ARCHITECTURE.md` and `Notes/WEBDAV_SYNC_IMPLEMENTATION_PLAN.md`;
   - the app syncs logical JSON objects through WebDAV instead of uploading the SQLite database file;
@@ -200,8 +204,9 @@ Completed broad areas:
     secret crypto profiles after master-password changes;
   - sync UI reports success only when there are no conflicts, pending
     dependencies, invalid remote objects, errors, or blocking reasons;
-  - conflicts are detected and surfaced as sync problems, but the advanced
-    user-facing conflict resolution UI is still future work;
+  - ordinary item conflicts are detected and surfaced as sync problems, while
+    secret crypto conflicts have the explicit WebDAV-truth confirmation flow
+    described above; richer merge/recovery UI remains future work;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
 - A developer-only WebDAV reset helper exists in
   `Tools/Stranichnik.DevResetSync`:

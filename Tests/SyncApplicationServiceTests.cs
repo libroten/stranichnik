@@ -340,6 +340,10 @@ public sealed class SyncApplicationServiceTests
             ApplyRemoteChanges(plan.ApplyBatch);
         }
 
+        public void ClearLocalSecretsForRemoteTruth(DateTimeOffset changedAtUtc)
+        {
+        }
+
         public void MarkUploaded(
             SyncObjectIdentity identity,
             string? remoteEtag,

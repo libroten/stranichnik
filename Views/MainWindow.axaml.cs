@@ -278,7 +278,7 @@ public partial class MainWindow : Window
                 SaveSecretMasterPasswordFromSettingsAsync(owner, viewModel, newMasterPassword),
             _ => ResetSecretMasterPasswordFromSettingsAsync(viewModel),
             _ => TestSyncConnectionFromSettingsAsync(_syncCredentialStore),
-            _ => SyncNowFromSettingsAsync(viewModel),
+            owner => SyncNowFromSettingsAsync(owner, viewModel),
             LoadSyncRemoteProblemsForSettings,
             (_, problemId) => ClearSyncRemoteProblemFromSettingsAsync(problemId),
             (_, problemId) => DeleteSyncRemoteProblemFromSettingsAsync(problemId),
@@ -367,9 +367,11 @@ public partial class MainWindow : Window
         };
     }
 
-    private async Task<SettingsDialogResult> SyncNowFromSettingsAsync(MainWindowViewModel viewModel)
+    private async Task<SettingsDialogResult> SyncNowFromSettingsAsync(
+        Window owner,
+        MainWindowViewModel viewModel)
     {
-        var result = await TryRunManualSyncAndRememberAsync(viewModel, ignoreIfRunning: false);
+        var result = await TryRunManualSyncAndRememberAsync(owner, viewModel, ignoreIfRunning: false);
         return result ?? SettingsDialogResult.Failed(UiStrings.SettingsSyncNowUnavailable);
     }
 
@@ -390,7 +392,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        await TryRunManualSyncAndRememberAsync(viewModel, ignoreIfRunning: true);
+        await TryRunManualSyncAndRememberAsync(this, viewModel, ignoreIfRunning: true);
     }
 
     private bool HasRunnableSyncConfiguration()
@@ -410,6 +412,7 @@ public partial class MainWindow : Window
     }
 
     private async Task<SettingsDialogResult?> TryRunManualSyncAndRememberAsync(
+        Window owner,
         MainWindowViewModel viewModel,
         bool ignoreIfRunning)
     {
@@ -424,7 +427,7 @@ public partial class MainWindow : Window
         _isManualSyncRunning = true;
         try
         {
-            var result = await ExecuteManualSyncAsync(viewModel);
+            var result = await ExecuteManualSyncAsync(owner, viewModel);
             _lastManualSyncResult = result;
             return result;
         }
@@ -434,7 +437,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<SettingsDialogResult> ExecuteManualSyncAsync(MainWindowViewModel viewModel)
+    private async Task<SettingsDialogResult> ExecuteManualSyncAsync(
+        Window owner,
+        MainWindowViewModel viewModel)
     {
         if (_syncLocalStore is null)
             return SettingsDialogResult.Failed(UiStrings.SettingsSyncNowUnavailable);
@@ -483,10 +488,89 @@ public partial class MainWindow : Window
         viewModel.ReloadVisibleTreeAndSearch();
 
         if (!IsFullySuccessfulSync(summary))
+        {
+            if (summary.BlockingReason == SyncBlockingReason.NeedsSecretConflictConfirmation &&
+                summary.SecretConflictConfirmationReason is { } reason)
+            {
+                var confirmationResult = await ResolveSecretSyncConflictAsync(
+                    owner,
+                    viewModel,
+                    syncService,
+                    reason);
+                if (confirmationResult is not null)
+                    return confirmationResult;
+            }
+
             return SettingsDialogResult.Failed(ToSyncSummaryErrorMessage(summary));
+        }
 
         var updatedSettings = AppSettingsService.Load();
         updatedSettings.Sync.LastSuccessfulSyncAtUtc = summary.FinishedAtUtc;
+        AppSettingsService.Save(updatedSettings);
+        return SettingsDialogResult.Changed();
+    }
+
+    private async Task<SettingsDialogResult?> ResolveSecretSyncConflictAsync(
+        Window owner,
+        MainWindowViewModel viewModel,
+        SyncApplicationService syncService,
+        SyncSecretConflictConfirmationReason reason)
+    {
+        Logs.Print($"Manual sync secret conflict confirmation requested. Reason={reason}.");
+
+        if (!await ConfirmDialog.ShowSecretSyncConflict(owner, reason))
+        {
+            Logs.Print($"Manual sync secret conflict confirmation rejected. Reason={reason}.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncSecretConflictCancelled);
+        }
+
+        Logs.Print($"Manual sync secret conflict confirmation accepted. Reason={reason}.");
+        using (_syncOperationGate.EnterLocalWriteOperation())
+            _syncLocalStore!.ClearLocalSecretsForRemoteTruth(DateTimeOffset.UtcNow);
+
+        viewModel.RefreshSecretSessionConfigurationFromStorage();
+        viewModel.ReloadVisibleTreeAndSearch();
+
+        Logs.Print("Manual sync restarted after accepting remote secret truth.");
+        SyncRunSummary retrySummary;
+        try
+        {
+            retrySummary = await syncService.SyncNowAsync(CancellationToken.None);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            Logs.Print("Manual sync retry after secret conflict failed: credentials rejected.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncWrongCredentials);
+        }
+        catch (HttpRequestException)
+        {
+            Logs.Print("Manual sync retry after secret conflict failed: remote unavailable.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
+        }
+        catch (TaskCanceledException)
+        {
+            Logs.Print("Manual sync retry after secret conflict failed: request timed out.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncRemoteUnavailable);
+        }
+        catch (Exception exception) when (IsRecoverableLocalSyncException(exception))
+        {
+            Logs.Print($"Manual sync retry after secret conflict failed: local sync operation failed. ExceptionType={exception.GetType().Name}.");
+            return SettingsDialogResult.Failed(UiStrings.SettingsSyncNowFailed);
+        }
+
+        await MessageDialog.ShowMessage(
+            owner,
+            ToSecretConflictAcceptedTitle(reason),
+            ToSecretConflictAcceptedMessage(reason));
+
+        viewModel.RefreshSecretSessionConfigurationFromStorage();
+        viewModel.ReloadVisibleTreeAndSearch();
+
+        if (!IsFullySuccessfulSync(retrySummary))
+            return SettingsDialogResult.Failed(ToSyncSummaryErrorMessage(retrySummary));
+
+        var updatedSettings = AppSettingsService.Load();
+        updatedSettings.Sync.LastSuccessfulSyncAtUtc = retrySummary.FinishedAtUtc;
         AppSettingsService.Save(updatedSettings);
         return SettingsDialogResult.Changed();
     }
@@ -604,7 +688,32 @@ public partial class MainWindow : Window
             SyncBlockingReason.LocalOperationActive => UiStrings.SettingsSyncLocalOperationActive,
             SyncBlockingReason.UnsupportedRepositoryVersion => UiStrings.SettingsSyncUnsupportedRepositoryVersion,
             SyncBlockingReason.InvalidRepository => UiStrings.SettingsSyncInvalidRepository,
+            SyncBlockingReason.NeedsSecretConflictConfirmation => UiStrings.SettingsSyncSecretConflictCancelled,
             _ => UiStrings.SettingsSyncNowCompletedWithIssues
+        };
+    }
+
+    private static string ToSecretConflictAcceptedTitle(SyncSecretConflictConfirmationReason reason)
+    {
+        return reason switch
+        {
+            SyncSecretConflictConfirmationReason.RemoteSecretReset =>
+                UiStrings.SettingsSyncSecretConflictRemoteResetAcceptedTitle,
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange =>
+                UiStrings.SettingsSyncSecretConflictPasswordChangeAcceptedTitle,
+            _ => UiStrings.SettingsSyncSecretConflictPasswordChangeAcceptedTitle
+        };
+    }
+
+    private static string ToSecretConflictAcceptedMessage(SyncSecretConflictConfirmationReason reason)
+    {
+        return reason switch
+        {
+            SyncSecretConflictConfirmationReason.RemoteSecretReset =>
+                UiStrings.SettingsSyncSecretConflictRemoteResetAcceptedMessage,
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange =>
+                UiStrings.SettingsSyncSecretConflictPasswordChangeAcceptedMessage,
+            _ => UiStrings.SettingsSyncSecretConflictPasswordChangeAcceptedMessage
         };
     }
 

@@ -91,6 +91,33 @@ public sealed class SyncPullService
             $"KnownInvalidRemoteObjects={plan.KnownQuarantinedRemoteObjects.Count}; " +
             $"ResolvedInvalidRemoteObjects={plan.ResolvedQuarantinedRemoteObjectIds.Count}; " +
             $"MissingRemoteObjects={plan.MissingRemoteObjects.Count}.");
+
+        if (plan.SecretConflictConfirmation is not null)
+        {
+            var confirmationFinishedAtUtc = _clock();
+            var confirmationInvalidRemoteObjectCount =
+                plan.QuarantinedRemoteObjects.Count + plan.KnownQuarantinedRemoteObjects.Count;
+            var confirmationSummary = new SyncRunSummary(
+                Succeeded: false,
+                DownloadedCount: 0,
+                UploadedCount: 0,
+                ConflictCount: plan.Conflicts.Count,
+                PendingAssetCount: snapshot.PendingAssetRefs.Count,
+                PendingCryptoProfileCount: snapshot.DeferredSecretItems.Count,
+                InvalidRemoteObjectCount: confirmationInvalidRemoteObjectCount,
+                ErrorCount: 0,
+                BlockingReason: SyncBlockingReason.NeedsSecretConflictConfirmation,
+                StartedAtUtc: startedAtUtc,
+                FinishedAtUtc: confirmationFinishedAtUtc,
+                SecretConflictConfirmationReason: plan.SecretConflictConfirmation.Reason);
+            _log(
+                "Sync pull stopped: secret conflict confirmation required. " +
+                $"Reason={plan.SecretConflictConfirmation.Reason}; " +
+                $"Conflicts={confirmationSummary.ConflictCount}; " +
+                $"InvalidRemoteObjects={confirmationSummary.InvalidRemoteObjectCount}.");
+            return confirmationSummary;
+        }
+
         _log("Sync pull local apply started.");
         _localStore.ApplyPullPlan(plan, syncedAtUtc);
         _log("Sync pull local apply finished.");

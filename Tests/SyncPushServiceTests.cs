@@ -307,6 +307,10 @@ public sealed class SyncPushServiceTests
         {
         }
 
+        public void ClearLocalSecretsForRemoteTruth(DateTimeOffset changedAtUtc)
+        {
+        }
+
         public void MarkUploaded(
             SyncObjectIdentity identity,
             string? remoteEtag,

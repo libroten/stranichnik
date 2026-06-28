@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Stranichnik.Localization;
+using Stranichnik.Sync;
 
 namespace Stranichnik.Views;
 
@@ -78,6 +79,27 @@ public sealed partial class ConfirmDialog : Window
             UiStrings.SettingsSyncCredentialSystemStoreUnavailableTitle,
             UiStrings.SettingsSyncCredentialSystemStoreUnavailableMessage,
             UiStrings.CommonContinue);
+
+        return dialog.ShowDialog<bool>(owner);
+    }
+
+    public static Task<bool> ShowSecretSyncConflict(Window owner, SyncSecretConflictConfirmationReason reason)
+    {
+        var dialog = reason switch
+        {
+            SyncSecretConflictConfirmationReason.RemoteSecretReset => new ConfirmDialog(
+                UiStrings.ConfirmSecretSyncRemoteResetTitle,
+                UiStrings.ConfirmSecretSyncRemoteResetMessage,
+                UiStrings.ConfirmSecretSyncRemoteResetAction),
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange => new ConfirmDialog(
+                UiStrings.ConfirmSecretSyncPasswordChangeTitle,
+                UiStrings.ConfirmSecretSyncPasswordChangeMessage,
+                UiStrings.ConfirmSecretSyncPasswordChangeAction),
+            _ => new ConfirmDialog(
+                UiStrings.ConfirmTitle,
+                UiStrings.ConfirmSecretSyncPasswordChangeMessage,
+                UiStrings.ConfirmSecretSyncPasswordChangeAction)
+        };
 
         return dialog.ShowDialog<bool>(owner);
     }

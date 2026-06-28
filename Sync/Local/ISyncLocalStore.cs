@@ -12,6 +12,8 @@ public interface ISyncLocalStore
 
     void ApplyPullPlan(SyncPullPlan plan, DateTimeOffset syncedAtUtc);
 
+    void ClearLocalSecretsForRemoteTruth(DateTimeOffset changedAtUtc);
+
     void MarkUploaded(
         SyncObjectIdentity identity,
         string? remoteEtag,

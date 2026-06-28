@@ -11,4 +11,5 @@ public sealed record SyncPullPlan(
     IReadOnlyList<SyncPullQuarantineCandidate> QuarantinedRemoteObjects,
     IReadOnlyList<SyncPullQuarantineCandidate> KnownQuarantinedRemoteObjects,
     IReadOnlyList<string> ResolvedQuarantinedRemoteObjectIds,
-    IReadOnlyList<SyncObjectIdentity> MissingRemoteObjects);
+    IReadOnlyList<SyncObjectIdentity> MissingRemoteObjects,
+    SyncSecretConflictConfirmation? SecretConflictConfirmation = null);

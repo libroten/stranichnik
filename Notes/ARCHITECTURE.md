@@ -249,6 +249,12 @@ Current implementation shape:
   push, so independent local dirty objects are not blocked forever by an
   unrelated bad remote file. Transport/repository failures still stop the run
   before push because pull does not complete.
+- Secret crypto conflicts are a special blocking pull result. If remote reset or
+  remote crypto profile state cannot be applied without discarding incompatible
+  local secret state, pull stops before SQLite apply, push is skipped, and the UI
+  asks the user to either accept WebDAV as the source of truth or cancel sync.
+  Acceptance clears local secret bookmarks, encrypted secret icons, crypto
+  profiles, deferred secret items, and pending secret-icon refs, then reruns sync.
 - `Sync/SyncApplicationServiceFactory.cs` validates sync settings and
   credentials before constructing a sync service.
 - `Views/SettingsDialog.axaml` exposes WebDAV sync settings, connection test,
@@ -312,6 +318,9 @@ Important rules:
 - If a pulled secret item references a missing crypto profile, store it as a
   deferred secret item and do not insert an invalid live bookmark row.
 - Secret reset events win over old secret objects from the same generation.
+- Secret reset/profile conflicts that cannot be automatically merged are not
+  stored as long-lived dirty crypto conflicts. The user must confirm accepting
+  WebDAV truth, or sync aborts unchanged.
 - Existing rows that predate sync metadata are marked dirty during migration so
   the first sync uploads the full local dataset.
 - After sync changes profile availability, `MainWindowViewModel` refreshes the

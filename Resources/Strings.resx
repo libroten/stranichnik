@@ -177,6 +177,32 @@
   <data name="Confirm_DeleteSyncRemoteProblemTitle" xml:space="preserve">
     <value>Delete remote sync file?</value>
   </data>
+  <data name="Confirm_SecretSyncPasswordChangeAction" xml:space="preserve">
+    <value>Delete local secret changes and continue</value>
+  </data>
+  <data name="Confirm_SecretSyncPasswordChangeMessage" xml:space="preserve">
+    <value>The master password was changed on another device before this computer's changes reached WebDAV.
+
+Secret bookmarks created or changed here after the local password change cannot be safely merged with the server version. To continue sync, Stranichnik needs to delete them from this computer. Normal bookmarks will not be affected.
+
+If you cancel, sync will not run now.</value>
+  </data>
+  <data name="Confirm_SecretSyncPasswordChangeTitle" xml:space="preserve">
+    <value>Secret sync conflict</value>
+  </data>
+  <data name="Confirm_SecretSyncRemoteResetAction" xml:space="preserve">
+    <value>Delete secret bookmarks and continue</value>
+  </data>
+  <data name="Confirm_SecretSyncRemoteResetMessage" xml:space="preserve">
+    <value>The master password for secret bookmarks was reset on another device.
+
+To continue sync, Stranichnik needs to delete secret bookmarks on this computer that belong to the old master password. Normal bookmarks will not be affected.
+
+If you cancel, sync will not run now.</value>
+  </data>
+  <data name="Confirm_SecretSyncRemoteResetTitle" xml:space="preserve">
+    <value>Secret bookmarks were reset elsewhere</value>
+  </data>
   <data name="Confirm_Title" xml:space="preserve">
     <value>Confirmation</value>
   </data>
@@ -335,6 +361,25 @@
   </data>
   <data name="Settings_SyncNowFailed" xml:space="preserve">
     <value>Could not synchronize now.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictCancelled" xml:space="preserve">
+    <value>Sync was not completed. Local secret bookmarks were left unchanged. To sync this device, run sync again and confirm deletion of the conflicting local secret data.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictPasswordChangeAcceptedMessage" xml:space="preserve">
+    <value>Local secret changes that could not be synchronized were deleted.
+
+Stranichnik accepted the server version of secret storage. Normal bookmarks were not affected.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictPasswordChangeAcceptedTitle" xml:space="preserve">
+    <value>Server secret storage accepted</value>
+  </data>
+  <data name="Settings_SyncSecretConflictRemoteResetAcceptedMessage" xml:space="preserve">
+    <value>Secret bookmarks from the old storage on this computer were deleted.
+
+Stranichnik accepted the master-password reset from WebDAV and continued synchronization. Normal bookmarks were not affected.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictRemoteResetAcceptedTitle" xml:space="preserve">
+    <value>Secret reset accepted</value>
   </data>
   <data name="Settings_SyncShortcutNotConfiguredMessage" xml:space="preserve">
     <value>Open Settings and enter the WebDAV URL, username, and password before synchronizing.</value>

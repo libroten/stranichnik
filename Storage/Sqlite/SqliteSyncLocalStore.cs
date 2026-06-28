@@ -202,6 +202,231 @@ public sealed class SqliteSyncLocalStore : ISyncLocalStore
         _log("SQLite sync apply pull plan finished.");
     }
 
+    public void ClearLocalSecretsForRemoteTruth(DateTimeOffset changedAtUtc)
+    {
+        _ = changedAtUtc;
+
+        _log("SQLite sync local secret cleanup for remote truth started.");
+        using var connection = _connectionFactory.OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var secretBookmarkCount = CountSecretBookmarks(connection, transaction);
+        var secretIconAssetCount = CountSecretIconAssets(connection, transaction);
+        var cryptoProfileCount = CountCryptoProfiles(connection, transaction);
+        var deferredSecretItemCount = CountDeferredSecretItems(connection, transaction);
+
+        var folderIdsToPurge = SelectSecretOnlyFolderIds(connection, transaction);
+        DeleteAllSecretBookmarks(connection, transaction);
+        DeleteFolders(connection, transaction, folderIdsToPurge);
+        DeleteAllSecretIconAssets(connection, transaction);
+        DeleteAllCryptoProfiles(connection, transaction);
+        DeleteAllDeferredSecretItems(connection, transaction);
+        DeleteAllPendingSecretIconRefs(connection, transaction);
+        DeleteAllSecretResetEvents(connection, transaction);
+
+        transaction.Commit();
+        _log(
+            "SQLite sync local secret cleanup for remote truth finished. " +
+            $"SecretBookmarks={secretBookmarkCount}; " +
+            $"SecretOnlyFolders={folderIdsToPurge.Count}; " +
+            $"SecretIconAssets={secretIconAssetCount}; " +
+            $"CryptoProfiles={cryptoProfileCount}; " +
+            $"DeferredSecretItems={deferredSecretItemCount}.");
+    }
+
+    private static int CountSecretBookmarks(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM items
+            WHERE item_type = 'bookmark'
+                AND is_secret = 1;
+            """;
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static int CountSecretIconAssets(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COUNT(*) FROM secret_icon_assets;";
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static int CountCryptoProfiles(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COUNT(*) FROM crypto_profiles;";
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static int CountDeferredSecretItems(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "SELECT COUNT(*) FROM sync_deferred_secret_items;";
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static List<string> SelectSecretOnlyFolderIds(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            WITH RECURSIVE
+                target_secret_bookmarks(id, parent_id) AS (
+                    SELECT item.id, item.parent_id
+                    FROM items item
+                    WHERE item.item_type = 'bookmark'
+                        AND item.is_secret = 1
+                ),
+                folder_depths(id, depth) AS (
+                    SELECT id, 0
+                    FROM items
+                    WHERE item_type = 'folder'
+                        AND parent_id IS NULL
+
+                    UNION ALL
+
+                    SELECT child.id, parent.depth + 1
+                    FROM items child
+                    INNER JOIN folder_depths parent
+                        ON parent.id = child.parent_id
+                    WHERE child.item_type = 'folder'
+                ),
+                folders_to_purge(id) AS (
+                    SELECT parent_id
+                    FROM target_secret_bookmarks
+                    WHERE parent_id IS NOT NULL
+
+                    UNION
+
+                    SELECT parent.parent_id
+                    FROM items parent
+                    INNER JOIN folders_to_purge child_folder
+                        ON parent.id = child_folder.id
+                    WHERE parent.parent_id IS NOT NULL
+                )
+            SELECT folder.id
+            FROM folders_to_purge folder
+            INNER JOIN folder_depths depth
+                ON depth.id = folder.id
+            ORDER BY depth.depth DESC;
+            """;
+
+        using var reader = command.ExecuteReader();
+        var folderIds = new List<string>();
+
+        while (reader.Read())
+            folderIds.Add(reader.GetString(0));
+
+        return folderIds;
+    }
+
+    private static void DeleteAllSecretBookmarks(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM items
+            WHERE item_type = 'bookmark'
+                AND is_secret = 1;
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteFolders(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<string> folderIds)
+    {
+        foreach (var folderId in folderIds)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                DELETE FROM items
+                WHERE id = $id
+                    AND item_type = 'folder'
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM items child
+                        WHERE child.parent_id = $id
+                    );
+                """;
+            command.Parameters.AddWithValue("$id", folderId);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static void DeleteAllSecretIconAssets(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM secret_icon_assets;";
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteAllCryptoProfiles(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM crypto_profiles;";
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteAllDeferredSecretItems(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM sync_deferred_secret_items;";
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteAllPendingSecretIconRefs(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM sync_pending_asset_refs
+            WHERE asset_kind = 'secret-icon';
+            """;
+        command.ExecuteNonQuery();
+    }
+
+    private static void DeleteAllSecretResetEvents(
+        SqliteConnection connection,
+        SqliteTransaction transaction)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "DELETE FROM secret_reset_events;";
+        command.ExecuteNonQuery();
+    }
+
     private void RefreshDirtyRemoteMetadata(
         SyncObjectIdentity identity,
         string? remoteEtag,

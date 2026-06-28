@@ -10,5 +10,6 @@ public enum SyncBlockingReason
     RemoteUnavailable,
     WrongCredentials,
     UnsupportedRepositoryVersion,
-    InvalidRepository
+    InvalidRepository,
+    NeedsSecretConflictConfirmation
 }

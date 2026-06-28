@@ -13,4 +13,5 @@ public sealed record SyncRunSummary(
     int ErrorCount,
     SyncBlockingReason BlockingReason,
     DateTimeOffset StartedAtUtc,
-    DateTimeOffset FinishedAtUtc);
+    DateTimeOffset FinishedAtUtc,
+    SyncSecretConflictConfirmationReason? SecretConflictConfirmationReason = null);

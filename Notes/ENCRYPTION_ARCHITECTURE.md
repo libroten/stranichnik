@@ -1024,6 +1024,11 @@ Conflict copies:
 
 - If a secret bookmark conflicts while locked, preserve both encrypted versions without needing plaintext.
 - If conflict resolution needs UI comparison, require unlock.
+- Master-password change/reset conflicts are not resolved through secret
+  bookmark conflict copies. WebDAV sync must pause before applying incompatible
+  crypto state, ask the user for confirmation, and either abort unchanged or
+  delete local unreconcilable secret state and accept WebDAV as the source of
+  truth. See `Notes/SECRET_SYNC_CONFLICT_FIX_PLAN.md`.
 
 ## Implementation Preference Summary
 

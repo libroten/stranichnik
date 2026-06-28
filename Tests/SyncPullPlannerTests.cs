@@ -542,6 +542,54 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
+    public void Plan_requires_secret_reset_confirmation_when_remote_reset_affects_local_secret_data()
+    {
+        var profile = CreateLocalProfile("generation");
+        var snapshot = EmptySnapshot() with
+        {
+            Items =
+            [
+                CreateLocalSecretItem(
+                    "secret",
+                    profile.Profile.Id,
+                    BookmarkSyncState.Dirty,
+                    "sha256:secret")
+            ],
+            CryptoProfiles = [profile]
+        };
+        var resetEvent = CreateRemoteResetEvent("generation");
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [Success(SyncObjectKind.SecretResetEvent, "generation", resetEvent)],
+            [],
+            [],
+            [],
+            []);
+
+        Assert.NotNull(plan.SecretConflictConfirmation);
+        Assert.Equal(
+            SyncSecretConflictConfirmationReason.RemoteSecretReset,
+            plan.SecretConflictConfirmation!.Reason);
+    }
+
+    [Fact]
+    public void Plan_does_not_require_secret_reset_confirmation_when_generation_has_no_local_secret_data()
+    {
+        var resetEvent = CreateRemoteResetEvent("generation");
+
+        var plan = SyncPullPlanner.Plan(
+            EmptySnapshot(),
+            [Success(SyncObjectKind.SecretResetEvent, "generation", resetEvent)],
+            [],
+            [],
+            [],
+            []);
+
+        Assert.Null(plan.SecretConflictConfirmation);
+    }
+
+    [Fact]
     public void Plan_marks_dirty_crypto_profile_as_matched_when_remote_content_is_same()
     {
         var localProfile = CreateLocalProfile("generation") with
@@ -608,6 +656,39 @@ public sealed class SyncPullPlannerTests
         Assert.Empty(plan.ApplyBatch.Items);
         var conflict = Assert.Single(plan.Conflicts);
         Assert.Equal(new SyncObjectIdentity(SyncObjectKind.CryptoProfile, "generation"), conflict.Identity);
+        Assert.NotNull(plan.SecretConflictConfirmation);
+        Assert.Equal(
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange,
+            plan.SecretConflictConfirmation!.Reason);
+    }
+
+    [Fact]
+    public void Plan_requires_password_change_confirmation_for_newer_remote_profile_from_another_generation()
+    {
+        var localProfile = CreateLocalProfile("local-generation");
+        var remoteProfile = CreateRemoteCryptoProfile("remote-generation") with
+        {
+            UpdatedAtUtc = Now.AddMinutes(1),
+            ContentHash = "sha256:remote-profile"
+        };
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles = [localProfile]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [Success(SyncObjectKind.CryptoProfile, "remote-generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.NotNull(plan.SecretConflictConfirmation);
+        Assert.Equal(
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange,
+            plan.SecretConflictConfirmation!.Reason);
+        Assert.Empty(plan.ApplyBatch.CryptoProfiles);
     }
 
     [Fact]

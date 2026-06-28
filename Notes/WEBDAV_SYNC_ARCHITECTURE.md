@@ -411,22 +411,35 @@ Rules:
 - a password change updates this object by rewrapping the same DEK;
 - secret bookmark payload objects do not need to be rewritten after password
   change;
-- if two devices independently change the master password offline, the first
-  implementation should treat the crypto profile as a conflict-prone object.
+- if two devices independently change or reset the master password offline,
+  this is a crypto conflict and must be resolved before continuing sync.
 
 ### Password-Change Conflict Policy
 
 Offline simultaneous password changes are rare but important.
 
-First-version policy:
+Accepted v1 policy:
 
-- detect a crypto profile conflict if local profile is dirty and remote profile
-  ETag/content changed;
-- do not silently overwrite;
-- keep the local profile dirty/conflicted and show a sync error requiring user
-  attention;
-- do not apply a remote profile change that would make local secret data
-  impossible to unlock without a clear user-facing result.
+- WebDAV state is the source of truth for crypto conflicts after explicit user
+  confirmation;
+- detect a crypto profile conflict before applying the remote profile if local
+  secret data or a dirty local crypto profile would become incompatible with the
+  remote profile;
+- stop the sync run and ask the user to either accept the WebDAV version or
+  cancel sync;
+- if the user cancels, leave local storage unchanged and report that sync was
+  not completed;
+- if the user accepts, delete the affected local secret state and then continue
+  sync with the WebDAV crypto profile/reset state;
+- the first implementation may delete all local secret bookmarks, secret icon
+  assets, deferred secret rows, pending secret refs, and local crypto profile
+  state rather than trying to keep only the exact affected generation;
+- do not ask the user for old/new master passwords during conflict resolution;
+- do not leave long-lived dirty crypto conflicts that keep retrying forever.
+
+This policy is intentionally rough but predictable: ordinary bookmarks are not
+affected, and unrecoverable crypto conflicts are resolved immediately toward the
+shared WebDAV truth instead of accumulating across devices.
 
 Possible future improvement:
 
@@ -467,6 +480,9 @@ Rules:
 - reset event deletes the active local crypto profile if it belongs to that
   generation;
 - reset event must be processed before item/icon/profile objects during pull;
+- if applying a remote reset would discard local secret data that has not yet
+  been reconciled with WebDAV, the sync run must pause and ask the user to
+  confirm deletion before changing local storage;
 - reset event does not contain deleted payloads;
 - reset event should not be garbage-collected in v1.
 
@@ -619,6 +635,13 @@ When a reset event for generation `G` exists locally or arrives remotely during
 the current pull, remote crypto profiles, secret icon assets, and secret items
 from generation `G` must be ignored. Reset wins over old secret objects even if
 those old objects are still present on the WebDAV server.
+
+If the remote reset or remote crypto profile makes local secret state
+incompatible, the run must stop before applying the pull plan and return a
+`NeedsSecretConflictConfirmation`-style result. The UI asks the user whether to
+accept WebDAV as the source of truth. Acceptance clears local secret state and
+reruns/continues sync; refusal leaves local storage unchanged and reports that
+sync was not completed.
 
 ## Reliability Model
 
@@ -974,19 +997,26 @@ Policy:
 
 ### Crypto Profile Conflicts
 
-Crypto profile conflicts should not be automatically overwritten.
+Crypto profile conflicts are resolved with explicit user confirmation and
+WebDAV truth.
 
 Policy:
 
-- detect and report;
-- keep local profile usable;
-- do not apply a remote profile that would make local secret data unexpectedly
-  inaccessible;
-- require a later explicit conflict-resolution UI or user-guided recovery.
+- detect before applying remote objects to SQLite;
+- do not overwrite local secret state silently;
+- do not ask for additional passwords to merge competing local/remote secret
+  generations;
+- show a clear dialog explaining that secret data created or changed locally
+  under the incompatible local password state must be deleted to continue;
+- if the user cancels, abort sync and leave local storage unchanged;
+- if the user accepts, delete local secret state that cannot be reconciled and
+  continue with the WebDAV crypto profile/reset state;
+- in the first implementation, deleting all local secret state is acceptable
+  because it is simpler and safer than leaving half-resolved crypto conflicts.
 
-The first implementation should report this as a sync conflict/error and leave
-the local profile usable. It is better to pause sync for the secret generation
-than to make secret bookmarks impossible to unlock.
+Long-lived crypto conflicts must not be accumulated in v1. If a device cannot
+merge a crypto conflict automatically, it must either stop unchanged or resolve
+the conflict toward WebDAV after confirmation.
 
 ## Missing Referenced Assets
 
@@ -1291,6 +1321,7 @@ The table below lists the main expected failures and the required safe response.
 | Item arrives before icon asset | Missing icon | Apply item, show default icon, create pending asset ref |
 | Secret item arrives before crypto profile | Cannot map to local profile ID | Store deferred encrypted item, retry after profile arrives |
 | Reset event arrives with old secret objects | Stale secrets on remote | Reset wins; ignore/purge old generation objects |
+| Remote crypto profile/reset conflicts with local secret state | Competing master-password history | Pause before apply, ask for confirmation, then keep WebDAV truth or abort unchanged |
 | Two devices edit same item | Data conflict | Preserve both sides through conflict copy/state |
 | Sync starts while edit dialog is open | User save may overwrite synced change | Block/postpone sync apply through local operation gate |
 | Invalid remote JSON | Crash/corruption risk | Quarantine or ignore with reason code |

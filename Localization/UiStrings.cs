@@ -55,6 +55,12 @@ public static class UiStrings
     public static string ConfirmResetSecretMasterPasswordTitle => TextResources.Get("Confirm_ResetSecretMasterPasswordTitle");
     public static string ConfirmDeleteSyncRemoteProblemMessage => TextResources.Get("Confirm_DeleteSyncRemoteProblemMessage");
     public static string ConfirmDeleteSyncRemoteProblemTitle => TextResources.Get("Confirm_DeleteSyncRemoteProblemTitle");
+    public static string ConfirmSecretSyncPasswordChangeAction => TextResources.Get("Confirm_SecretSyncPasswordChangeAction");
+    public static string ConfirmSecretSyncPasswordChangeMessage => TextResources.Get("Confirm_SecretSyncPasswordChangeMessage");
+    public static string ConfirmSecretSyncPasswordChangeTitle => TextResources.Get("Confirm_SecretSyncPasswordChangeTitle");
+    public static string ConfirmSecretSyncRemoteResetAction => TextResources.Get("Confirm_SecretSyncRemoteResetAction");
+    public static string ConfirmSecretSyncRemoteResetMessage => TextResources.Get("Confirm_SecretSyncRemoteResetMessage");
+    public static string ConfirmSecretSyncRemoteResetTitle => TextResources.Get("Confirm_SecretSyncRemoteResetTitle");
     public static string ConfirmTitle => TextResources.Get("Confirm_Title");
     public static string ErrorCannotLaunchBrowser => TextResources.Get("Error_CannotLaunchBrowser");
     public static string ErrorInvalidBookmarkUrl => TextResources.Get("Error_InvalidBookmarkUrl");
@@ -109,6 +115,11 @@ public static class UiStrings
     public static string SettingsSyncNowConflictsDetected => TextResources.Get("Settings_SyncNowConflictsDetected");
     public static string SettingsSyncNowCompletedWithIssues => TextResources.Get("Settings_SyncNowCompletedWithIssues");
     public static string SettingsSyncNowFailed => TextResources.Get("Settings_SyncNowFailed");
+    public static string SettingsSyncSecretConflictCancelled => TextResources.Get("Settings_SyncSecretConflictCancelled");
+    public static string SettingsSyncSecretConflictPasswordChangeAcceptedMessage => TextResources.Get("Settings_SyncSecretConflictPasswordChangeAcceptedMessage");
+    public static string SettingsSyncSecretConflictPasswordChangeAcceptedTitle => TextResources.Get("Settings_SyncSecretConflictPasswordChangeAcceptedTitle");
+    public static string SettingsSyncSecretConflictRemoteResetAcceptedMessage => TextResources.Get("Settings_SyncSecretConflictRemoteResetAcceptedMessage");
+    public static string SettingsSyncSecretConflictRemoteResetAcceptedTitle => TextResources.Get("Settings_SyncSecretConflictRemoteResetAcceptedTitle");
     public static string SettingsSyncShortcutNotConfiguredMessage => TextResources.Get("Settings_SyncShortcutNotConfiguredMessage");
     public static string SettingsSyncShortcutNotConfiguredTitle => TextResources.Get("Settings_SyncShortcutNotConfiguredTitle");
     public static string SettingsSyncNowSucceeded => TextResources.Get("Settings_SyncNowSucceeded");

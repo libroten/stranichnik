@@ -86,7 +86,21 @@ public sealed class SyncApplicationService : IDisposable
                 $"Succeeded={pullSummary.Succeeded}; " +
                 $"Downloaded={pullSummary.DownloadedCount}; " +
                 $"Conflicts={pullSummary.ConflictCount}; " +
-                $"InvalidRemoteObjects={pullSummary.InvalidRemoteObjectCount}.");
+                $"InvalidRemoteObjects={pullSummary.InvalidRemoteObjectCount}; " +
+                $"BlockingReason={pullSummary.BlockingReason}.");
+            if (pullSummary.BlockingReason != SyncBlockingReason.None)
+            {
+                var blockedFinishedAtUtc = _clock();
+                var blockedSummary = MergeSummaries(
+                    startedAtUtc,
+                    blockedFinishedAtUtc,
+                    pullSummary,
+                    CreateEmptySummary(blockedFinishedAtUtc));
+                LogSyncFinished(blockedSummary);
+                _syncActivityService?.ReportCompleted(IsFullySuccessful(blockedSummary));
+                return blockedSummary;
+            }
+
             _log("Sync push phase requested.");
             var pushSummary = await _pushService.PushAsync(cancellationToken).ConfigureAwait(false);
             _log(
@@ -190,7 +204,25 @@ public sealed class SyncApplicationService : IDisposable
                 ? pullSummary.BlockingReason
                 : pushSummary.BlockingReason,
             StartedAtUtc: startedAtUtc,
-            FinishedAtUtc: finishedAtUtc);
+            FinishedAtUtc: finishedAtUtc,
+            SecretConflictConfirmationReason: pullSummary.SecretConflictConfirmationReason ??
+                pushSummary.SecretConflictConfirmationReason);
+    }
+
+    private static SyncRunSummary CreateEmptySummary(DateTimeOffset timestamp)
+    {
+        return new SyncRunSummary(
+            Succeeded: true,
+            DownloadedCount: 0,
+            UploadedCount: 0,
+            ConflictCount: 0,
+            PendingAssetCount: 0,
+            PendingCryptoProfileCount: 0,
+            InvalidRemoteObjectCount: 0,
+            ErrorCount: 0,
+            BlockingReason: SyncBlockingReason.None,
+            StartedAtUtc: timestamp,
+            FinishedAtUtc: timestamp);
     }
 
     private static bool IsFullySuccessful(SyncRunSummary summary)

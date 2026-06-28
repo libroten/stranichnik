@@ -988,6 +988,61 @@ public sealed class SqliteSyncLocalStoreTests
         Assert.Equal("test-device", storedItem.SyncMetadata.ModifiedDeviceId);
     }
 
+    [Fact]
+    public void ClearLocalSecretsForRemoteTruth_removes_secret_state_and_keeps_normal_data()
+    {
+        using var database = TempSqliteDatabase.Create();
+        database.ProfileStore.SaveNewProfile(CreateProfile("generation"));
+        database.InsertBookmark("normal-bookmark");
+        database.InsertSecretOnlyFolder("secret-folder");
+        database.InsertSecretBookmark("secret-bookmark", "generation", "secret-folder");
+        database.InsertSecretIconAsset("secret-icon", "generation");
+        database.SyncMetadataStore.UpsertPendingAssetRef(new SyncPendingAssetRefRecord(
+            Id: "regular-pending",
+            ItemId: "normal-bookmark",
+            AssetKind: SyncPendingAssetKind.RegularIcon,
+            RemoteAssetId: "remote-regular-icon",
+            SourceHashAlgorithm: null,
+            SourceHash: null,
+            CreatedAtUtc: Now,
+            LastAttemptAtUtc: null,
+            AttemptCount: 0,
+            LastErrorCode: null));
+        database.SyncMetadataStore.UpsertPendingAssetRef(new SyncPendingAssetRefRecord(
+            Id: "secret-pending",
+            ItemId: "secret-bookmark",
+            AssetKind: SyncPendingAssetKind.SecretIcon,
+            RemoteAssetId: "remote-secret-icon",
+            SourceHashAlgorithm: null,
+            SourceHash: null,
+            CreatedAtUtc: Now,
+            LastAttemptAtUtc: null,
+            AttemptCount: 0,
+            LastErrorCode: null));
+        database.SyncMetadataStore.UpsertDeferredSecretItem(new SyncDeferredSecretItemRecord(
+            RemoteItemId: "remote-secret",
+            SecretGenerationId: "generation",
+            RemoteEtag: null,
+            ContentHash: "sha256:content",
+            CanonicalJson: DeferredJson,
+            CreatedAtUtc: Now,
+            LastAttemptAtUtc: null,
+            AttemptCount: 0,
+            LastErrorCode: null));
+
+        database.SyncLocalStore.ClearLocalSecretsForRemoteTruth(Now.AddMinutes(1));
+
+        var snapshot = database.SyncLocalStore.LoadSnapshot();
+        Assert.Contains(snapshot.Items, item => item.Item.Id == "normal-bookmark");
+        Assert.DoesNotContain(snapshot.Items, item => item.Item.Id == "secret-bookmark");
+        Assert.DoesNotContain(snapshot.Items, item => item.Item.Id == "secret-folder");
+        Assert.Empty(snapshot.SecretIconAssets);
+        Assert.Empty(snapshot.CryptoProfiles);
+        Assert.Empty(snapshot.DeferredSecretItems);
+        Assert.Single(snapshot.PendingAssetRefs);
+        Assert.Equal("regular-pending", Assert.Single(snapshot.PendingAssetRefs).Id);
+    }
+
     private static CryptoProfileRecord CreateProfile(string secretGenerationId)
     {
         return new(

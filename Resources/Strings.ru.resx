@@ -177,6 +177,32 @@
   <data name="Confirm_DeleteSyncRemoteProblemTitle" xml:space="preserve">
     <value>Удалить удаленный файл синхронизации?</value>
   </data>
+  <data name="Confirm_SecretSyncPasswordChangeAction" xml:space="preserve">
+    <value>Удалить локальные секретные изменения и продолжить</value>
+  </data>
+  <data name="Confirm_SecretSyncPasswordChangeMessage" xml:space="preserve">
+    <value>Мастер-пароль был изменен на другом устройстве раньше, чем изменения с этого компьютера попали на WebDAV.
+
+Секретные закладки, созданные или измененные здесь после локальной смены пароля, нельзя безопасно объединить с серверной версией. Чтобы продолжить синхронизацию, их нужно удалить с этого компьютера. Обычные закладки не будут затронуты.
+
+Если отменить, синхронизация сейчас не будет выполнена.</value>
+  </data>
+  <data name="Confirm_SecretSyncPasswordChangeTitle" xml:space="preserve">
+    <value>Конфликт секретной синхронизации</value>
+  </data>
+  <data name="Confirm_SecretSyncRemoteResetAction" xml:space="preserve">
+    <value>Удалить секретные закладки и продолжить</value>
+  </data>
+  <data name="Confirm_SecretSyncRemoteResetMessage" xml:space="preserve">
+    <value>На другом устройстве был сброшен мастер-пароль для секретных закладок.
+
+Чтобы продолжить синхронизацию, Страничник должен удалить секретные закладки на этом компьютере, которые относятся к старому мастер-паролю. Обычные закладки не будут затронуты.
+
+Если отменить, синхронизация сейчас не будет выполнена.</value>
+  </data>
+  <data name="Confirm_SecretSyncRemoteResetTitle" xml:space="preserve">
+    <value>Секреты были сброшены на другом устройстве</value>
+  </data>
   <data name="Confirm_Title" xml:space="preserve">
     <value>Подтверждение</value>
   </data>
@@ -335,6 +361,25 @@
   </data>
   <data name="Settings_SyncNowFailed" xml:space="preserve">
     <value>Не удалось выполнить синхронизацию.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictCancelled" xml:space="preserve">
+    <value>Синхронизация не выполнена. Локальные секретные закладки оставлены без изменений. Чтобы синхронизировать это устройство, запустите синхронизацию снова и подтвердите удаление локальных конфликтующих секретных данных.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictPasswordChangeAcceptedMessage" xml:space="preserve">
+    <value>Локальные секретные изменения, которые нельзя было синхронизировать, удалены.
+
+Страничник принял серверную версию секретного хранилища. Обычные закладки не были затронуты.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictPasswordChangeAcceptedTitle" xml:space="preserve">
+    <value>Принята серверная версия секретов</value>
+  </data>
+  <data name="Settings_SyncSecretConflictRemoteResetAcceptedMessage" xml:space="preserve">
+    <value>Секретные закладки старого хранилища на этом компьютере удалены.
+
+Страничник принял сброс мастер-пароля с WebDAV и продолжил синхронизацию. Обычные закладки не были затронуты.</value>
+  </data>
+  <data name="Settings_SyncSecretConflictRemoteResetAcceptedTitle" xml:space="preserve">
+    <value>Сброс секретов принят</value>
   </data>
   <data name="Settings_SyncShortcutNotConfiguredMessage" xml:space="preserve">
     <value>Откройте настройки и укажите URL WebDAV, имя пользователя и пароль перед синхронизацией.</value>
