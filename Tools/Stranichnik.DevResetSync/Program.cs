@@ -13,7 +13,6 @@ namespace Stranichnik.DevResetSync;
 internal static class Program
 {
     private static readonly HttpMethod PropFindMethod = new("PROPFIND");
-    private static readonly XNamespace DavNamespace = "DAV:";
 
     public static async Task<int> Main(string[] args)
     {
@@ -45,7 +44,17 @@ internal static class Program
             Console.WriteLine(
                 "Remote WebDAV cleanup finished. " +
                 $"DeletedFiles={cleanupResult.DeletedFiles.ToString(CultureInfo.InvariantCulture)}; " +
-                $"DeletedDirectories={cleanupResult.DeletedDirectories.ToString(CultureInfo.InvariantCulture)}.");
+                $"DeletedDirectories={cleanupResult.DeletedDirectories.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RemoteResponses={cleanupResult.RemoteResponses.ToString(CultureInfo.InvariantCulture)}; " +
+                $"AcceptedEntries={cleanupResult.AcceptedEntries.ToString(CultureInfo.InvariantCulture)}; " +
+                $"SkippedSelfEntries={cleanupResult.SkippedSelfEntries.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedEntries={cleanupResult.RejectedEntries.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedOutsideDirectory={cleanupResult.RejectedOutsideDirectory.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedMissingProp={cleanupResult.RejectedMissingProp.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedMissingHref={cleanupResult.RejectedMissingHref.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedInvalidHref={cleanupResult.RejectedInvalidHref.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedUnsupportedHrefScheme={cleanupResult.RejectedUnsupportedHrefScheme.ToString(CultureInfo.InvariantCulture)}; " +
+                $"RejectedOther={cleanupResult.RejectedOther.ToString(CultureInfo.InvariantCulture)}.");
 
             Console.WriteLine("Local application data reset started.");
             ResetLocalApplicationData(syncSettings, credentials);
@@ -232,7 +241,7 @@ internal static class Program
         public async Task<WebDavCleanupResult> DeleteDirectoryContentsAsync(CancellationToken cancellationToken)
         {
             var result = new WebDavCleanupResult();
-            var children = await ListChildrenAsync(_repositoryUri, cancellationToken).ConfigureAwait(false);
+            var children = await ListChildrenAsync(_repositoryUri, result, cancellationToken).ConfigureAwait(false);
 
             foreach (var child in children)
                 await DeleteEntryAsync(child, result, cancellationToken).ConfigureAwait(false);
@@ -247,7 +256,7 @@ internal static class Program
         {
             if (entry.IsCollection)
             {
-                var children = await ListChildrenAsync(entry.Uri, cancellationToken).ConfigureAwait(false);
+                var children = await ListChildrenAsync(entry.Uri, result, cancellationToken).ConfigureAwait(false);
                 foreach (var child in children)
                     await DeleteEntryAsync(child, result, cancellationToken).ConfigureAwait(false);
             }
@@ -265,7 +274,10 @@ internal static class Program
                 result.DeletedFiles++;
         }
 
-        private async Task<List<WebDavEntry>> ListChildrenAsync(Uri directoryUri, CancellationToken cancellationToken)
+        private async Task<List<WebDavEntry>> ListChildrenAsync(
+            Uri directoryUri,
+            WebDavCleanupResult result,
+            CancellationToken cancellationToken)
         {
             using var request = new HttpRequestMessage(PropFindMethod, EnsureTrailingSlash(directoryUri));
             request.Headers.TryAddWithoutValidation("Depth", "1");
@@ -278,92 +290,254 @@ internal static class Program
             response.EnsureSuccessStatusCode();
 
             var xml = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            return ParsePropFindResponse(xml, directoryUri);
+            var effectiveDirectoryUri = EnsureTrailingSlash(response.RequestMessage?.RequestUri ?? directoryUri);
+            return ParsePropFindResponse(xml, effectiveDirectoryUri, result);
         }
 
-        private List<WebDavEntry> ParsePropFindResponse(string xml, Uri directoryUri)
+        private List<WebDavEntry> ParsePropFindResponse(
+            string xml,
+            Uri directoryUri,
+            WebDavCleanupResult result)
         {
             var document = XDocument.Parse(xml);
-            return document
-                .Descendants(DavNamespace + "response")
-                .Select(response => TryReadEntry(response, directoryUri))
-                .Where(entry => entry is not null)
-                .Cast<WebDavEntry>()
+            var entries = new List<WebDavEntry>();
+            var responses = DescendantsByLocalName(document.Root, "response").ToList();
+            var selfHref = responses
+                .Select(response => TryReadHrefUri(response, directoryUri))
+                .Where(readResult => readResult.Status == WebDavEntryReadStatus.Accepted)
+                .Select(readResult => readResult.Entry?.Uri)
+                .Where(uri => uri is not null)
+                .Cast<Uri>()
+                .OrderBy(uri => Uri.UnescapeDataString(uri.AbsolutePath).Trim('/').Length)
+                .FirstOrDefault();
+
+            foreach (var response in DescendantsByLocalName(document.Root, "response"))
+            {
+                result.RemoteResponses++;
+                var readResult = TryReadEntry(response, directoryUri, selfHref);
+                switch (readResult.Status)
+                {
+                    case WebDavEntryReadStatus.Accepted:
+                        result.AcceptedEntries++;
+                        entries.Add(readResult.Entry ?? throw new InvalidOperationException("Accepted entry is missing."));
+                        break;
+                    case WebDavEntryReadStatus.SkippedSelf:
+                        result.SkippedSelfEntries++;
+                        break;
+                    case WebDavEntryReadStatus.OutsideDirectory:
+                        result.RejectedEntries++;
+                        result.RejectedOutsideDirectory++;
+                        break;
+                    case WebDavEntryReadStatus.MissingProp:
+                        result.RejectedEntries++;
+                        result.RejectedMissingProp++;
+                        break;
+                    case WebDavEntryReadStatus.MissingHref:
+                        result.RejectedEntries++;
+                        result.RejectedMissingHref++;
+                        break;
+                    case WebDavEntryReadStatus.InvalidHref:
+                        result.RejectedEntries++;
+                        result.RejectedInvalidHref++;
+                        break;
+                    case WebDavEntryReadStatus.UnsupportedHrefScheme:
+                        result.RejectedEntries++;
+                        result.RejectedUnsupportedHrefScheme++;
+                        break;
+                    case WebDavEntryReadStatus.Rejected:
+                        result.RejectedEntries++;
+                        result.RejectedOther++;
+                        break;
+                }
+            }
+
+            return entries
                 .OrderBy(entry => entry.Uri.AbsoluteUri, StringComparer.Ordinal)
                 .ToList();
         }
 
-        private WebDavEntry? TryReadEntry(XElement response, Uri directoryUri)
+        private static WebDavEntryReadResult TryReadEntry(XElement response, Uri directoryUri, Uri? selfHref)
         {
-            var href = response.Element(DavNamespace + "href")?.Value;
-            if (string.IsNullOrWhiteSpace(href))
-                return null;
+            var entryUri = TryReadHrefUri(response, directoryUri);
+            if (entryUri.Status != WebDavEntryReadStatus.Accepted)
+                return new WebDavEntryReadResult(entryUri.Status, null);
 
-            var entryUri = TryCreateSafeEntryUri(href, directoryUri);
-            if (entryUri is null)
-                return null;
+            var uri = entryUri.Entry?.Uri ??
+                throw new InvalidOperationException("Accepted href result is missing.");
+            if (selfHref is not null && IsSameUriPath(uri, selfHref))
+                return WebDavEntryReadResult.SkippedSelf();
 
             var prop = response
-                .Elements(DavNamespace + "propstat")
-                .Elements(DavNamespace + "prop")
+                .Elements()
+                .Where(element => HasLocalName(element, "propstat"))
+                .SelectMany(element => element.Elements())
+                .Where(element => HasLocalName(element, "prop"))
                 .FirstOrDefault();
             if (prop is null)
-                return null;
+                return WebDavEntryReadResult.MissingProp();
 
             var isCollection = IsCollection(prop);
-            return new WebDavEntry(
-                isCollection ? EnsureTrailingSlash(entryUri) : entryUri,
-                isCollection);
+            if (isCollection && IsSameUriPath(uri, directoryUri))
+                return WebDavEntryReadResult.SkippedSelf();
+
+            return WebDavEntryReadResult.Accepted(new WebDavEntry(
+                isCollection ? EnsureTrailingSlash(uri) : uri,
+                isCollection));
         }
 
-        private Uri? TryCreateSafeEntryUri(string href, Uri directoryUri)
+        private static WebDavEntryReadResult TryReadHrefUri(XElement response, Uri directoryUri)
         {
+            var href = DescendantsByLocalName(response, "href").FirstOrDefault()?.Value;
+            if (string.IsNullOrWhiteSpace(href))
+                return WebDavEntryReadResult.MissingHref();
+
+            return TryCreateHrefUri(href, directoryUri);
+        }
+
+        private static WebDavEntryReadResult TryCreateHrefUri(string href, Uri directoryUri)
+        {
+            var trimmedHref = href.Trim();
             Uri hrefUri;
-            if (Uri.TryCreate(href, UriKind.Absolute, out var absoluteUri))
+            if (Uri.TryCreate(trimmedHref, UriKind.Absolute, out var absoluteUri) &&
+                (absoluteUri.Scheme == Uri.UriSchemeHttp || absoluteUri.Scheme == Uri.UriSchemeHttps))
+            {
                 hrefUri = absoluteUri;
-            else if (Uri.TryCreate(_repositoryUri, href, out var relativeUri))
+            }
+            else if (Uri.TryCreate(directoryUri, trimmedHref, out var relativeUri))
+            {
                 hrefUri = relativeUri;
+            }
             else
-                return null;
-
-            if (!string.Equals(hrefUri.Scheme, _repositoryUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(hrefUri.Host, _repositoryUri.Host, StringComparison.OrdinalIgnoreCase) ||
-                hrefUri.Port != _repositoryUri.Port)
             {
-                return null;
+                return WebDavEntryReadResult.InvalidHref();
             }
 
-            var repositoryPath = Uri.UnescapeDataString(_repositoryUri.AbsolutePath).Trim('/');
-            var currentDirectoryPath = Uri.UnescapeDataString(EnsureTrailingSlash(directoryUri).AbsolutePath).Trim('/');
-            var entryPath = Uri.UnescapeDataString(hrefUri.AbsolutePath).Trim('/');
-            if (entryPath.Equals(repositoryPath, StringComparison.Ordinal) ||
-                entryPath.Equals(currentDirectoryPath, StringComparison.Ordinal))
-            {
-                return null;
-            }
+            if (hrefUri.Scheme != Uri.UriSchemeHttp && hrefUri.Scheme != Uri.UriSchemeHttps)
+                return WebDavEntryReadResult.UnsupportedHrefScheme();
 
-            var prefix = repositoryPath + "/";
-            if (!entryPath.StartsWith(prefix, StringComparison.Ordinal))
-                return null;
+            return WebDavEntryReadResult.Accepted(new WebDavEntry(hrefUri, IsCollection: false));
+        }
 
-            return hrefUri;
+        private static bool IsSameUriPath(Uri left, Uri right)
+        {
+            return string.Equals(left.Scheme, right.Scheme, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase) &&
+                left.Port == right.Port &&
+                string.Equals(
+                    Uri.UnescapeDataString(left.AbsolutePath).TrimEnd('/'),
+                    Uri.UnescapeDataString(right.AbsolutePath).TrimEnd('/'),
+                    StringComparison.Ordinal);
         }
 
         private static bool IsCollection(XElement prop)
         {
-            return prop
-                .Element(DavNamespace + "resourcetype")
-                ?.Element(DavNamespace + "collection") is not null;
+            return ChildByLocalName(prop, "resourcetype")
+                ?.Elements()
+                .Any(element => HasLocalName(element, "collection")) == true;
+        }
+
+        private static IEnumerable<XElement> DescendantsByLocalName(XElement? root, string localName)
+        {
+            return root is null
+                ? []
+                : root.Descendants().Where(element => HasLocalName(element, localName));
+        }
+
+        private static XElement? ChildByLocalName(XElement element, string localName)
+        {
+            return element.Elements().FirstOrDefault(child => HasLocalName(child, localName));
+        }
+
+        private static bool HasLocalName(XElement element, string localName)
+        {
+            return string.Equals(element.Name.LocalName, localName, StringComparison.OrdinalIgnoreCase);
         }
     }
 
     private sealed record WebDavEntry(Uri Uri, bool IsCollection);
+
+    private sealed record WebDavEntryReadResult(
+        WebDavEntryReadStatus Status,
+        WebDavEntry? Entry)
+    {
+        public static WebDavEntryReadResult Accepted(WebDavEntry entry)
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.Accepted, entry);
+        }
+
+        public static WebDavEntryReadResult SkippedSelf()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.SkippedSelf, null);
+        }
+
+        public static WebDavEntryReadResult OutsideDirectory()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.OutsideDirectory, null);
+        }
+
+        public static WebDavEntryReadResult MissingProp()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.MissingProp, null);
+        }
+
+        public static WebDavEntryReadResult MissingHref()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.MissingHref, null);
+        }
+
+        public static WebDavEntryReadResult InvalidHref()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.InvalidHref, null);
+        }
+
+        public static WebDavEntryReadResult UnsupportedHrefScheme()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.UnsupportedHrefScheme, null);
+        }
+
+        public static WebDavEntryReadResult Rejected()
+        {
+            return new WebDavEntryReadResult(WebDavEntryReadStatus.Rejected, null);
+        }
+    }
+
+    private enum WebDavEntryReadStatus
+    {
+        Accepted,
+        SkippedSelf,
+        OutsideDirectory,
+        MissingProp,
+        MissingHref,
+        InvalidHref,
+        UnsupportedHrefScheme,
+        Rejected
+    }
 
     private sealed class WebDavCleanupResult
     {
         public int DeletedFiles { get; set; }
 
         public int DeletedDirectories { get; set; }
+
+        public int RemoteResponses { get; set; }
+
+        public int AcceptedEntries { get; set; }
+
+        public int SkippedSelfEntries { get; set; }
+
+        public int RejectedEntries { get; set; }
+
+        public int RejectedOutsideDirectory { get; set; }
+
+        public int RejectedMissingProp { get; set; }
+
+        public int RejectedMissingHref { get; set; }
+
+        public int RejectedInvalidHref { get; set; }
+
+        public int RejectedUnsupportedHrefScheme { get; set; }
+
+        public int RejectedOther { get; set; }
     }
 
     private static string CreatePropFindBody()
