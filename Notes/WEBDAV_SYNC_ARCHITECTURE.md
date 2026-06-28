@@ -1419,6 +1419,51 @@ Manual testing should cover:
 - sync attempt while an editor dialog is open;
 - remote unavailable / wrong credentials / wrong folder.
 
+### Developer Reset Utility
+
+`Tools/Stranichnik.DevResetSync` is a destructive developer-only helper for
+manual WebDAV conflict and cross-device regression runs. It exists to make
+two-machine scenarios repeatable without manually deleting local app data,
+clearing the remote test directory, and re-entering WebDAV credentials.
+
+Run it from the repository root:
+
+```bash
+dotnet run --project Tools/Stranichnik.DevResetSync
+```
+
+For reset-only mode without launching the app:
+
+```bash
+dotnet run --project Tools/Stranichnik.DevResetSync -- --skip-launch
+```
+
+Behavior:
+
+1. Load the current app settings.
+2. Read WebDAV URL, username, and credential storage metadata from
+   `settings.json`.
+3. Load the WebDAV password through the same `ISyncCredentialStore` path used by
+   the app.
+4. Refuse to continue if the WebDAV URL does not have a non-root path.
+5. Delete all contents of the configured WebDAV directory, but not the directory
+   itself.
+6. Clear local app data.
+7. Recreate a minimal `settings.json` containing only sync URL, username,
+   credential-storage metadata, and no last-success timestamp.
+8. If the password was stored through the obfuscated-file fallback, recreate the
+   fallback credential file.
+9. Unless `--skip-launch` is used, start the app with
+   `--print-logs-to-console`.
+
+Safety and privacy rules:
+
+- use this utility only with disposable test WebDAV directories;
+- do not point it at a broad personal WebDAV root;
+- the tool must not log WebDAV URLs, usernames, passwords, remote object names,
+  bookmark titles/URLs, source hashes, or payloads;
+- the tool should print only non-sensitive status messages and aggregate counts.
+
 ## Remaining Open Questions
 
 The current v1 direction is implemented as manual sync, JSON objects with

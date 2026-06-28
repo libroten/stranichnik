@@ -15,6 +15,7 @@
     <Compile Remove="Tests\**\*.cs" />
     <Compile Remove="Stranichnik.Search\**\*.cs" />
     <Compile Remove="Stranichnik.Search.Tests\**\*.cs" />
+    <Compile Remove="Tools\**\*.cs" />
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>

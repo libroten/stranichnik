@@ -203,6 +203,20 @@ Completed broad areas:
   - conflicts are detected and surfaced as sync problems, but the advanced
     user-facing conflict resolution UI is still future work;
   - logs report non-sensitive sync summaries and errors without logging WebDAV credentials, bookmark URLs/titles, source hashes, payloads, or secret generation IDs.
+- A developer-only WebDAV reset helper exists in
+  `Tools/Stranichnik.DevResetSync`:
+  - it reads the current `settings.json` sync settings and preserved WebDAV
+    password through the normal credential-store abstraction;
+  - it deletes all contents of the configured WebDAV directory, but not the
+    directory itself;
+  - it refuses to operate on a WebDAV URL whose path is empty/root-like;
+  - it clears local application data and recreates a minimal `settings.json`
+    containing only sync URL, username, and credential-storage metadata;
+  - if credentials were stored through the obfuscated file fallback, it
+    recreates that fallback file after local reset;
+  - by default it launches the app with `--print-logs-to-console`;
+  - it is intended only for manual conflict/regression setup against disposable
+    test WebDAV directories.
 
 Not implemented yet:
 
