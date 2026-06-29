@@ -227,11 +227,18 @@ enum SyncUserDecisionKind
 3. Remote crypto profile другой generation должен заменить локальную active
    generation, а локально есть secret data.
 4. Pull planner уже обнаружил crypto-profile conflict.
+5. Локальный dirty reset event был создан поверх старой версии crypto profile,
+   а на WebDAV для той же generation уже лежит другой crypto profile. Для этого
+   локальный reset хранит baseline `content_hash`/ETag старого crypto profile
+   на момент сброса; несовпадение baseline с remote profile означает, что reset
+   нельзя выгружать молча.
 
 Не требовать подтверждение:
 
 - remote reset generation уже clean локально;
 - remote reset относится к generation, для которой локально нет secret data;
+- локальный reset относится к generation, чей remote crypto profile все еще
+  совпадает с baseline reset-а;
 - свежая пустая локальная база просто скачивает remote crypto profile;
 - remote objects совпадают по content hash.
 

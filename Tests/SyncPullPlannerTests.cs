@@ -692,6 +692,115 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
+    public void Plan_requires_password_change_confirmation_when_local_reset_baseline_is_stale()
+    {
+        var remoteProfile = CreateRemoteCryptoProfile("generation") with
+        {
+            ContentHash = "sha256:remote-new-profile"
+        };
+        var snapshot = EmptySnapshot() with
+        {
+            SecretResetEvents =
+            [
+                new SecretResetEventRecord(
+                    "local-reset",
+                    "generation",
+                    Now,
+                    "device",
+                    BookmarkSyncState.Dirty,
+                    RemoteEtag: null,
+                    LastSyncedAtUtc: null,
+                    BaselineCryptoProfileContentHash: "sha256:old-profile",
+                    BaselineCryptoProfileRemoteEtag: "old-profile-etag")
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [Success(SyncObjectKind.CryptoProfile, "generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.NotNull(plan.SecretConflictConfirmation);
+        Assert.Equal(
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange,
+            plan.SecretConflictConfirmation!.Reason);
+    }
+
+    [Fact]
+    public void Plan_allows_local_reset_when_remote_profile_matches_reset_baseline()
+    {
+        var remoteProfile = CreateRemoteCryptoProfile("generation") with
+        {
+            ContentHash = "sha256:old-profile"
+        };
+        var snapshot = EmptySnapshot() with
+        {
+            SecretResetEvents =
+            [
+                new SecretResetEventRecord(
+                    "local-reset",
+                    "generation",
+                    Now,
+                    "device",
+                    BookmarkSyncState.Dirty,
+                    RemoteEtag: null,
+                    LastSyncedAtUtc: null,
+                    BaselineCryptoProfileContentHash: "sha256:old-profile",
+                    BaselineCryptoProfileRemoteEtag: "old-profile-etag")
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [],
+            [Success(SyncObjectKind.CryptoProfile, "generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.Null(plan.SecretConflictConfirmation);
+    }
+
+    [Fact]
+    public void Plan_allows_local_reset_when_remote_reset_already_exists_even_if_old_profile_differs()
+    {
+        var remoteReset = CreateRemoteResetEvent("generation");
+        var remoteProfile = CreateRemoteCryptoProfile("generation") with
+        {
+            ContentHash = "sha256:remote-new-profile"
+        };
+        var snapshot = EmptySnapshot() with
+        {
+            SecretResetEvents =
+            [
+                new SecretResetEventRecord(
+                    "local-reset",
+                    "generation",
+                    Now,
+                    "device",
+                    BookmarkSyncState.Dirty,
+                    RemoteEtag: null,
+                    LastSyncedAtUtc: null,
+                    BaselineCryptoProfileContentHash: "sha256:old-profile",
+                    BaselineCryptoProfileRemoteEtag: "old-profile-etag")
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [Success(SyncObjectKind.SecretResetEvent, "generation", remoteReset)],
+            [Success(SyncObjectKind.CryptoProfile, "generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.Null(plan.SecretConflictConfirmation);
+    }
+
+    [Fact]
     public void Plan_skips_secret_item_for_existing_reset_generation()
     {
         var snapshot = EmptySnapshot() with

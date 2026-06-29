@@ -15,6 +15,12 @@ public sealed class SqliteSecretResetStoreTests
     {
         using var database = TempSqliteDatabase.Create();
         database.ProfileStore.SaveNewProfile(CreateProfile("generation"));
+        database.ProfileStore.MarkSyncMetadata(
+            "generation",
+            BookmarkSyncState.Clean,
+            remoteEtag: "profile-etag",
+            lastSyncedAtUtc: Now,
+            contentHash: "sha256:profile");
         database.TreeStore.InsertSeedItems(new BookmarkTreeSnapshot(
         [
             CreateBookmark("normal", isSecret: false),
@@ -40,6 +46,8 @@ public sealed class SqliteSecretResetStoreTests
         Assert.Equal(Now, resetEvent.ResetAtUtc);
         Assert.Equal("test-device", resetEvent.ResetDeviceId);
         Assert.Equal(BookmarkSyncState.Dirty, resetEvent.SyncState);
+        Assert.Equal("sha256:profile", resetEvent.BaselineCryptoProfileContentHash);
+        Assert.Equal("profile-etag", resetEvent.BaselineCryptoProfileRemoteEtag);
     }
 
     [Fact]

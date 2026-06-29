@@ -12,6 +12,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
     private readonly Func<DateTimeOffset> _clock;
     private readonly string _resetDeviceId;
 
+    private sealed record ResetBaseline(string? ContentHash, string? RemoteEtag);
+
     public SqliteSecretResetStore(
         SqliteConnectionFactory connectionFactory,
         Func<string>? idFactory = null,
@@ -39,7 +41,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             using var transaction = connection.BeginTransaction();
 
             EnsureActiveProfileGenerationExists(connection, transaction, secretGenerationId);
-            InsertResetEvent(connection, transaction, secretGenerationId);
+            var baseline = LoadActiveProfileResetBaseline(connection, transaction, secretGenerationId);
+            InsertResetEvent(connection, transaction, secretGenerationId, baseline);
             var purgedCount = CountSecretBookmarksForGeneration(connection, transaction, secretGenerationId);
             var folderIdsToPurge = SelectSecretOnlyFolderIdsForGeneration(connection, transaction, secretGenerationId);
             DeleteSecretBookmarksForGeneration(connection, transaction, secretGenerationId);
@@ -74,6 +77,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 secret_generation_id,
                 reset_at_utc,
                 reset_device_id,
+                baseline_crypto_profile_content_hash,
+                baseline_crypto_profile_remote_etag,
                 sync_state,
                 remote_etag,
                 last_synced_at_utc
@@ -243,7 +248,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
     private void InsertResetEvent(
         SqliteConnection connection,
         SqliteTransaction transaction,
-        string secretGenerationId)
+        string secretGenerationId,
+        ResetBaseline baseline)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -253,6 +259,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 secret_generation_id,
                 reset_at_utc,
                 reset_device_id,
+                baseline_crypto_profile_content_hash,
+                baseline_crypto_profile_remote_etag,
                 sync_state,
                 remote_etag,
                 last_synced_at_utc)
@@ -261,6 +269,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 $secretGenerationId,
                 $resetAtUtc,
                 $resetDeviceId,
+                $baselineCryptoProfileContentHash,
+                $baselineCryptoProfileRemoteEtag,
                 $syncState,
                 NULL,
                 NULL);
@@ -269,8 +279,41 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
         command.Parameters.AddWithValue("$resetAtUtc", SqliteBookmarkItemMapper.FormatDateTime(_clock()));
         command.Parameters.AddWithValue("$resetDeviceId", _resetDeviceId);
+        command.Parameters.AddWithValue(
+            "$baselineCryptoProfileContentHash",
+            SqliteBookmarkItemMapper.ToDatabaseValue(baseline.ContentHash));
+        command.Parameters.AddWithValue(
+            "$baselineCryptoProfileRemoteEtag",
+            SqliteBookmarkItemMapper.ToDatabaseValue(baseline.RemoteEtag));
         command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(BookmarkSyncState.Dirty));
         command.ExecuteNonQuery();
+    }
+
+    private static ResetBaseline LoadActiveProfileResetBaseline(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string secretGenerationId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT
+                content_hash,
+                remote_etag
+            FROM crypto_profiles
+            WHERE id = $id
+                AND secret_generation_id = $secretGenerationId;
+            """;
+        command.Parameters.AddWithValue("$id", SecretCryptoProfileIds.ActiveProfileId);
+        command.Parameters.AddWithValue("$secretGenerationId", secretGenerationId);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+            throw new InvalidOperationException("Secret crypto profile was not found.");
+
+        return new ResetBaseline(
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "content_hash"),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "remote_etag"));
     }
 
     private static int CountSecretBookmarksForGeneration(
@@ -456,6 +499,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 secret_generation_id,
                 reset_at_utc,
                 reset_device_id,
+                baseline_crypto_profile_content_hash,
+                baseline_crypto_profile_remote_etag,
                 sync_state,
                 remote_etag,
                 last_synced_at_utc)
@@ -464,6 +509,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 $secretGenerationId,
                 $resetAtUtc,
                 $resetDeviceId,
+                $baselineCryptoProfileContentHash,
+                $baselineCryptoProfileRemoteEtag,
                 $syncState,
                 $remoteEtag,
                 $lastSyncedAtUtc)
@@ -471,6 +518,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
                 id = excluded.id,
                 reset_at_utc = excluded.reset_at_utc,
                 reset_device_id = excluded.reset_device_id,
+                baseline_crypto_profile_content_hash = excluded.baseline_crypto_profile_content_hash,
+                baseline_crypto_profile_remote_etag = excluded.baseline_crypto_profile_remote_etag,
                 sync_state = excluded.sync_state,
                 remote_etag = excluded.remote_etag,
                 last_synced_at_utc = excluded.last_synced_at_utc;
@@ -479,6 +528,12 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
         command.Parameters.AddWithValue("$secretGenerationId", resetEvent.SecretGenerationId);
         command.Parameters.AddWithValue("$resetAtUtc", SqliteBookmarkItemMapper.FormatDateTime(resetEvent.ResetAtUtc));
         command.Parameters.AddWithValue("$resetDeviceId", resetEvent.ResetDeviceId);
+        command.Parameters.AddWithValue(
+            "$baselineCryptoProfileContentHash",
+            SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.BaselineCryptoProfileContentHash));
+        command.Parameters.AddWithValue(
+            "$baselineCryptoProfileRemoteEtag",
+            SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.BaselineCryptoProfileRemoteEtag));
         command.Parameters.AddWithValue("$syncState", SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.SyncState));
         command.Parameters.AddWithValue("$remoteEtag", SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.RemoteEtag));
         command.Parameters.AddWithValue("$lastSyncedAtUtc", SqliteBookmarkItemMapper.ToDatabaseValue(resetEvent.LastSyncedAtUtc));
@@ -494,6 +549,8 @@ public sealed class SqliteSecretResetStore : ISecretResetStore
             reader.GetString(reader.GetOrdinal("reset_device_id")),
             SqliteBookmarkItemMapper.ToBookmarkSyncState(reader.GetString(reader.GetOrdinal("sync_state"))),
             SqliteBookmarkItemMapper.ReadNullableString(reader, "remote_etag"),
-            SqliteBookmarkItemMapper.ReadNullableDateTime(reader, "last_synced_at_utc"));
+            SqliteBookmarkItemMapper.ReadNullableDateTime(reader, "last_synced_at_utc"),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "baseline_crypto_profile_content_hash"),
+            SqliteBookmarkItemMapper.ReadNullableString(reader, "baseline_crypto_profile_remote_etag"));
     }
 }

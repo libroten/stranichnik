@@ -425,6 +425,13 @@ Accepted v1 policy:
 - detect a crypto profile conflict before applying the remote profile if local
   secret data or a dirty local crypto profile would become incompatible with the
   remote profile;
+- a local dirty reset event stores the local crypto profile content hash/ETag
+  that existed when the reset was made; before the reset can be uploaded, pull
+  must compare the current remote crypto profile for the same generation with
+  that baseline;
+- if the remote crypto profile differs from the reset baseline, the reset was
+  based on stale local crypto state and must be treated as a crypto conflict
+  instead of silently replacing the WebDAV profile;
 - stop the sync run and ask the user to either accept the WebDAV version or
   cancel sync;
 - if the user cancels, leave local storage unchanged and report that sync was
@@ -635,6 +642,13 @@ When a reset event for generation `G` exists locally or arrives remotely during
 the current pull, remote crypto profiles, secret icon assets, and secret items
 from generation `G` must be ignored. Reset wins over old secret objects even if
 those old objects are still present on the WebDAV server.
+
+A local reset only wins over the remote crypto profile if it was based on the
+same crypto profile version that is still on WebDAV. The local reset event keeps
+the baseline crypto profile content hash/ETag from reset time. If pull sees a
+remote crypto profile for the reset generation and its content hash differs
+from the baseline, sync must stop with a secret conflict confirmation before
+uploading the reset.
 
 If the remote reset or remote crypto profile makes local secret state
 incompatible, the run must stop before applying the pull plan and return a

@@ -85,6 +85,7 @@ public sealed class SyncPullPlanner
         var secretConflictConfirmation = PlanSecretConflictConfirmation(
             snapshot,
             resetsToApply,
+            secretResetEvents,
             cryptoProfiles,
             context);
 
@@ -108,6 +109,7 @@ public sealed class SyncPullPlanner
     private static SyncSecretConflictConfirmation? PlanSecretConflictConfirmation(
         SyncLocalSnapshot snapshot,
         IReadOnlyList<SyncAppliedRemoteObject<SyncSecretResetEventDto>> resetsToApply,
+        IReadOnlyList<SyncRemoteReadResult<SyncSecretResetEventDto>> secretResetEvents,
         IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles,
         PlanningContext context)
     {
@@ -124,6 +126,12 @@ public sealed class SyncPullPlanner
                 SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange);
         }
 
+        if (HasLocalResetBasedOnStaleRemoteCryptoProfile(snapshot, secretResetEvents, cryptoProfiles))
+        {
+            return new SyncSecretConflictConfirmation(
+                SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange);
+        }
+
         if (HasNewerRemoteCryptoProfileFromAnotherGeneration(snapshot, cryptoProfiles))
         {
             return new SyncSecretConflictConfirmation(
@@ -131,6 +139,59 @@ public sealed class SyncPullPlanner
         }
 
         return null;
+    }
+
+    private static bool HasLocalResetBasedOnStaleRemoteCryptoProfile(
+        SyncLocalSnapshot snapshot,
+        IReadOnlyList<SyncRemoteReadResult<SyncSecretResetEventDto>> secretResetEvents,
+        IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles)
+    {
+        var remoteResetGenerationIds = secretResetEvents
+            .Where(result =>
+                result is
+                {
+                    Status: SyncRemoteReadStatus.Success,
+                    Value: not null,
+                    Identity: { Kind: SyncObjectKind.SecretResetEvent }
+                } &&
+                string.Equals(result.Identity.Id, result.Value.SecretGenerationId, StringComparison.Ordinal))
+            .Select(result => result.Value!.SecretGenerationId)
+            .ToHashSet(StringComparer.Ordinal);
+        var localDirtyResetsByGeneration = snapshot.SecretResetEvents
+            .Where(resetEvent => resetEvent.SyncState == BookmarkSyncState.Dirty ||
+                resetEvent.LastSyncedAtUtc is null)
+            .Where(resetEvent => !remoteResetGenerationIds.Contains(resetEvent.SecretGenerationId))
+            .ToDictionary(resetEvent => resetEvent.SecretGenerationId, StringComparer.Ordinal);
+        if (localDirtyResetsByGeneration.Count == 0)
+            return false;
+
+        foreach (var result in cryptoProfiles)
+        {
+            if (result is not
+                {
+                    Status: SyncRemoteReadStatus.Success,
+                    Value: not null,
+                    Identity: { Kind: SyncObjectKind.CryptoProfile }
+                } ||
+                !string.Equals(result.Identity.Id, result.Value.SecretGenerationId, StringComparison.Ordinal) ||
+                !localDirtyResetsByGeneration.TryGetValue(result.Value.SecretGenerationId, out var localReset))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(localReset.BaselineCryptoProfileContentHash))
+                return true;
+
+            if (!string.Equals(
+                    localReset.BaselineCryptoProfileContentHash,
+                    result.Value.ContentHash,
+                    StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool HasLocalSecretStateForGeneration(

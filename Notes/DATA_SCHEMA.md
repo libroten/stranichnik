@@ -431,6 +431,8 @@ CREATE TABLE secret_reset_events (
     secret_generation_id TEXT NOT NULL UNIQUE,
     reset_at_utc TEXT NOT NULL,
     reset_device_id TEXT NOT NULL,
+    baseline_crypto_profile_content_hash TEXT NULL,
+    baseline_crypto_profile_remote_etag TEXT NULL,
     sync_state TEXT NOT NULL CHECK (sync_state IN ('clean', 'dirty', 'conflict')),
     remote_etag TEXT NULL,
     last_synced_at_utc TEXT NULL
@@ -444,6 +446,8 @@ All secret bookmarks from this generation were intentionally discarded.
 ```
 
 The local reset also removes folders that only contained secret bookmark content, so folder names do not become newly visible as empty folders after the reset. Reset also removes encrypted secret icon assets for the reset generation.
+
+For local dirty reset events, `baseline_crypto_profile_content_hash` and `baseline_crypto_profile_remote_etag` capture the active crypto profile sync metadata at the moment of reset. Before uploading that reset, pull compares the current remote crypto profile for the same generation with the baseline. If the remote profile changed, sync treats this as a crypto conflict and asks the user to accept the WebDAV version or cancel instead of silently uploading the reset.
 
 The event must not store bookmark titles, URLs, encrypted payloads, icon blobs, or key material.
 

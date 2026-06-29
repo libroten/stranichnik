@@ -9,5 +9,6 @@ public sealed record SecretResetEventRecord(
     string ResetDeviceId,
     BookmarkSyncState SyncState,
     string? RemoteEtag,
-    DateTimeOffset? LastSyncedAtUtc);
-
+    DateTimeOffset? LastSyncedAtUtc,
+    string? BaselineCryptoProfileContentHash = null,
+    string? BaselineCryptoProfileRemoteEtag = null);

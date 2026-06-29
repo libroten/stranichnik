@@ -151,6 +151,10 @@ Completed broad areas:
     active profile.
   - reset events are treated idempotently by generation during pull: a matching
     remote reset can satisfy a local dirty reset intent.
+  - local dirty reset events keep the crypto profile sync baseline from reset
+    time; if WebDAV has a different crypto profile for that generation before
+    the reset is uploaded, sync pauses with the secret conflict confirmation
+    flow instead of letting the stale reset overwrite the server.
   - pull does not automatically apply a remote crypto profile from another
     generation over an existing local active profile; on an empty local database,
     the newest non-reset remote profile is selected.

@@ -11,7 +11,7 @@
     <Window.Styles>
         <Style Selector="Button.dialogButton">
             <Setter Property="MinWidth" Value="104"/>
-            <Setter Property="Height" Value="34"/>
+            <Setter Property="MinHeight" Value="34"/>
             <Setter Property="Padding" Value="14,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -64,25 +64,36 @@
             <TextBlock x:Name="TitleTextBlock"
                        FontSize="18"
                        FontWeight="SemiBold"
-                       Foreground="{DynamicResource DialogTextPrimaryBrush}"/>
+                       Foreground="{DynamicResource DialogTextPrimaryBrush}"
+                       TextWrapping="Wrap"/>
 
             <TextBlock x:Name="MessageTextBlock"
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource DialogTextSecondaryBrush}"/>
 
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Spacing="8">
+            <Grid ColumnDefinitions="Auto,Auto"
+                  HorizontalAlignment="Right">
                 <Button Classes="dialogButton"
+                        Grid.Column="0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
                         Click="OnCancelClick">
-                    <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"/>
+                    <TextBlock Text="{x:Static localization:UiStrings.CommonCancel}"
+                               TextAlignment="Center"/>
                 </Button>
                 <Button Classes="dialogButton danger"
+                        Grid.Column="1"
+                        Margin="8,0,0,0"
+                        MaxWidth="280"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
                         Click="OnConfirmClick">
                     <TextBlock x:Name="ConfirmButtonTextBlock"
-                               Text="{x:Static localization:UiStrings.CommonDelete}"/>
+                               Text="{x:Static localization:UiStrings.CommonDelete}"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"/>
                 </Button>
-            </StackPanel>
+            </Grid>
         </StackPanel>
     </Border>
 </Window>

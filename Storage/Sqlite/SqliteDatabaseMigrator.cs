@@ -5,7 +5,7 @@ namespace Stranichnik.Storage.Sqlite;
 
 public sealed class SqliteDatabaseMigrator
 {
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
     private const string LegacySecretGenerationId = "legacy-generation";
 
     private readonly SqliteConnectionFactory _connectionFactory;
@@ -75,6 +75,13 @@ public sealed class SqliteDatabaseMigrator
             ApplyVersion7(connection);
             migrationApplied = true;
             currentVersion = 7;
+        }
+
+        if (currentVersion == 7)
+        {
+            ApplyVersion8(connection);
+            migrationApplied = true;
+            currentVersion = 8;
         }
 
         if (currentVersion > CurrentVersion)
@@ -888,6 +895,31 @@ public sealed class SqliteDatabaseMigrator
             """);
 
         ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 7;");
+
+        transaction.Commit();
+    }
+
+    private static void ApplyVersion8(SqliteConnection connection)
+    {
+        using var transaction = connection.BeginTransaction();
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            ALTER TABLE secret_reset_events
+                ADD COLUMN baseline_crypto_profile_content_hash TEXT NULL;
+            """);
+
+        ExecuteNonQuery(
+            connection,
+            transaction,
+            """
+            ALTER TABLE secret_reset_events
+                ADD COLUMN baseline_crypto_profile_remote_etag TEXT NULL;
+            """);
+
+        ExecuteNonQuery(connection, transaction, "PRAGMA user_version = 8;");
 
         transaction.Commit();
     }

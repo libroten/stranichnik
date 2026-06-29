@@ -569,6 +569,11 @@ Master-password reset:
 
 - Documented in `Notes/SECRET_RESET_ARCHITECTURE.md`.
 - Reset creates a compact `secret_reset_events` marker for the active secret generation.
+- Local reset events store the active crypto profile sync baseline
+  (`content_hash`/ETag) from reset time. Before uploading a dirty reset, pull
+  compares the current remote crypto profile for that generation with the
+  baseline; a mismatch means the reset was based on stale local crypto state and
+  is handled as a secret crypto conflict instead of silently overwriting WebDAV.
 - Reset physically purges secret bookmark rows and encrypted payloads from live storage.
 - Reset also purges folders that only contained secret bookmark content, so their names do not become newly visible after reset.
 - Reset deletes the old active crypto profile and marks the runtime secret session as not configured.
