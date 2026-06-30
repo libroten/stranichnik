@@ -87,6 +87,7 @@ public sealed class SyncPullPlanner
             resetsToApply,
             secretResetEvents,
             cryptoProfiles,
+            resetGenerationIds,
             context);
 
         return new SyncPullPlan(
@@ -111,6 +112,7 @@ public sealed class SyncPullPlanner
         IReadOnlyList<SyncAppliedRemoteObject<SyncSecretResetEventDto>> resetsToApply,
         IReadOnlyList<SyncRemoteReadResult<SyncSecretResetEventDto>> secretResetEvents,
         IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles,
+        HashSet<string> resetGenerationIds,
         PlanningContext context)
     {
         if (resetsToApply.Any(resetEvent =>
@@ -132,7 +134,7 @@ public sealed class SyncPullPlanner
                 SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange);
         }
 
-        if (HasNewerRemoteCryptoProfileFromAnotherGeneration(snapshot, cryptoProfiles))
+        if (HasRemoteCryptoProfileFromAnotherActiveGeneration(snapshot, cryptoProfiles, resetGenerationIds))
         {
             return new SyncSecretConflictConfirmation(
                 SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange);
@@ -217,9 +219,10 @@ public sealed class SyncPullPlanner
             snapshot.DeferredSecretItems.Count > 0;
     }
 
-    private static bool HasNewerRemoteCryptoProfileFromAnotherGeneration(
+    private static bool HasRemoteCryptoProfileFromAnotherActiveGeneration(
         SyncLocalSnapshot snapshot,
-        IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles)
+        IReadOnlyList<SyncRemoteReadResult<SyncCryptoProfileDto>> cryptoProfiles,
+        HashSet<string> resetGenerationIds)
     {
         if (!HasAnyLocalSecretState(snapshot) || snapshot.CryptoProfiles.Count == 0)
             return false;
@@ -231,11 +234,11 @@ public sealed class SyncPullPlanner
         return cryptoProfiles.Any(result =>
             result is { Status: SyncRemoteReadStatus.Success, Value: not null, Identity: { Kind: SyncObjectKind.CryptoProfile } } &&
             string.Equals(result.Identity.Id, result.Value.SecretGenerationId, StringComparison.Ordinal) &&
+            !resetGenerationIds.Contains(result.Value.SecretGenerationId) &&
             !string.Equals(
                 result.Value.SecretGenerationId,
                 localActiveProfile.Profile.SecretGenerationId,
-                StringComparison.Ordinal) &&
-            result.Value.UpdatedAtUtc > localActiveProfile.Profile.UpdatedAtUtc);
+                StringComparison.Ordinal));
     }
 
     private static List<SyncAppliedRemoteObject<SyncSecretResetEventDto>> PlanResetEvents(

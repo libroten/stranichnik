@@ -432,6 +432,10 @@ Accepted v1 policy:
 - if the remote crypto profile differs from the reset baseline, the reset was
   based on stale local crypto state and must be treated as a crypto conflict
   instead of silently replacing the WebDAV profile;
+- if local secret state exists and pull sees a successful remote crypto profile
+  from another non-reset generation, treat it as a crypto conflict regardless of
+  which profile has the newer timestamp; this preserves the rule that the first
+  successfully synced WebDAV secret generation becomes the shared truth;
 - stop the sync run and ask the user to either accept the WebDAV version or
   cancel sync;
 - if the user cancels, leave local storage unchanged and report that sync was
@@ -656,6 +660,12 @@ incompatible, the run must stop before applying the pull plan and return a
 accept WebDAV as the source of truth. Acceptance clears local secret state and
 reruns/continues sync; refusal leaves local storage unchanged and reports that
 sync was not completed.
+
+A remote crypto profile from a different non-reset generation is incompatible
+even when its `updated_at_utc` is older than the local active profile. Timestamps
+are useful for selecting an active profile in an empty local database, but they
+must not let a second device silently push an independently reset/new local
+secret generation over a generation that WebDAV already accepted.
 
 ## Reliability Model
 

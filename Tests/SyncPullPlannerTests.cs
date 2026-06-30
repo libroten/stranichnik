@@ -663,12 +663,12 @@ public sealed class SyncPullPlannerTests
     }
 
     [Fact]
-    public void Plan_requires_password_change_confirmation_for_newer_remote_profile_from_another_generation()
+    public void Plan_requires_password_change_confirmation_for_remote_profile_from_another_generation()
     {
         var localProfile = CreateLocalProfile("local-generation");
         var remoteProfile = CreateRemoteCryptoProfile("remote-generation") with
         {
-            UpdatedAtUtc = Now.AddMinutes(1),
+            UpdatedAtUtc = Now.AddMinutes(-1),
             ContentHash = "sha256:remote-profile"
         };
         var snapshot = EmptySnapshot() with
@@ -680,6 +680,62 @@ public sealed class SyncPullPlannerTests
             snapshot,
             [],
             [Success(SyncObjectKind.CryptoProfile, "remote-generation", remoteProfile)],
+            [],
+            [],
+            []);
+
+        Assert.NotNull(plan.SecretConflictConfirmation);
+        Assert.Equal(
+            SyncSecretConflictConfirmationReason.RemoteSecretPasswordChange,
+            plan.SecretConflictConfirmation!.Reason);
+        Assert.Empty(plan.ApplyBatch.CryptoProfiles);
+    }
+
+    [Fact]
+    public void Plan_requires_password_change_confirmation_for_competing_reset_new_generation()
+    {
+        var localProfile = CreateLocalProfile("local-new-generation") with
+        {
+            Profile = CreateLocalProfile("local-new-generation").Profile with
+            {
+                UpdatedAtUtc = Now.AddMinutes(2)
+            }
+        };
+        var remoteReset = CreateRemoteResetEvent("old-generation");
+        var remoteNewProfile = CreateRemoteCryptoProfile("remote-new-generation") with
+        {
+            UpdatedAtUtc = Now.AddMinutes(1),
+            ContentHash = "sha256:remote-new-profile"
+        };
+        var remoteOldProfile = CreateRemoteCryptoProfile("old-generation") with
+        {
+            ContentHash = "sha256:old-profile"
+        };
+        var snapshot = EmptySnapshot() with
+        {
+            CryptoProfiles = [localProfile],
+            SecretResetEvents =
+            [
+                new SecretResetEventRecord(
+                    "local-reset",
+                    "old-generation",
+                    Now,
+                    "device",
+                    BookmarkSyncState.Dirty,
+                    RemoteEtag: null,
+                    LastSyncedAtUtc: null,
+                    BaselineCryptoProfileContentHash: "sha256:old-profile",
+                    BaselineCryptoProfileRemoteEtag: "old-profile-etag")
+            ]
+        };
+
+        var plan = SyncPullPlanner.Plan(
+            snapshot,
+            [Success(SyncObjectKind.SecretResetEvent, "old-generation", remoteReset)],
+            [
+                Success(SyncObjectKind.CryptoProfile, "old-generation", remoteOldProfile),
+                Success(SyncObjectKind.CryptoProfile, "remote-new-generation", remoteNewProfile)
+            ],
             [],
             [],
             []);

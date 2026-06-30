@@ -155,9 +155,10 @@ Completed broad areas:
     time; if WebDAV has a different crypto profile for that generation before
     the reset is uploaded, sync pauses with the secret conflict confirmation
     flow instead of letting the stale reset overwrite the server.
-  - pull does not automatically apply a remote crypto profile from another
-    generation over an existing local active profile; on an empty local database,
-    the newest non-reset remote profile is selected.
+  - if local secret state exists, pull treats any successful remote crypto
+    profile from another non-reset generation as a crypto conflict regardless
+    of which profile has the newer timestamp; on an empty local database, the
+    newest non-reset remote profile is selected.
   - crypto conflicts that cannot be merged automatically are resolved through a
     confirmation flow: sync pauses before local apply, the user either cancels
     unchanged or accepts WebDAV as the source of truth, and acceptance clears

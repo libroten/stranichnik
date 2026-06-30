@@ -224,8 +224,10 @@ enum SyncUserDecisionKind
    dirty reset/profile state, которые будут затронуты.
 2. Remote crypto profile той же generation конфликтует с локальным dirty crypto
    profile.
-3. Remote crypto profile другой generation должен заменить локальную active
-   generation, а локально есть secret data.
+3. Remote crypto profile другой non-reset generation должен заменить локальную
+   active generation, а локально есть secret data. Это конфликт независимо от
+   того, чей `updated_at_utc` новее: если WebDAV уже принял другую новую
+   generation, локальная generation не должна молча выгружаться поверх нее.
 4. Pull planner уже обнаружил crypto-profile conflict.
 5. Локальный dirty reset event был создан поверх старой версии crypto profile,
    а на WebDAV для той же generation уже лежит другой crypto profile. Для этого
@@ -345,7 +347,8 @@ enum SyncSecretConflictConfirmationReason
 
 - remote reset + local affected secrets => `RemoteSecretReset`;
 - dirty local crypto profile + changed remote profile => `RemoteSecretPasswordChange`;
-- remote profile another generation + local secret data => `RemoteSecretPasswordChange`;
+- remote profile another non-reset generation + local secret data =>
+  `RemoteSecretPasswordChange` независимо от timestamp;
 - если local affected secrets отсутствуют, confirmation не нужен.
 
 ### Шаг 3. Не применять pull plan при pending confirmation
